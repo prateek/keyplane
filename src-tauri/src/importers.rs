@@ -364,6 +364,8 @@ pub fn import_overkeys_companion_json(contents: &str) -> Result<ImportCandidate,
     let display_mappings = overkeys_display_mappings(&json);
     let kanata_config = overkeys_kanata_config(&json);
     let sentinel_keys = overkeys_sentinel_bindings(&layouts, &json);
+    let visual_style = overkeys_visual_style(&json);
+    let overlay_opacity = overkeys_overlay_opacity(&json);
     let primary_layout_name = layouts
         .first()
         .map(|layout| layout.name.as_str())
@@ -462,12 +464,7 @@ pub fn import_overkeys_companion_json(contents: &str) -> Result<ImportCandidate,
         },
         runtime_backends,
         sentinel_keys,
-        visual_style: VisualStyle {
-            id: "style-overkeys-preview".to_string(),
-            variant_id: "overkeys-preview".to_string(),
-            density: StyleDensity::Standard,
-            colors: VisualStyleColors::default(),
-        },
+        visual_style,
         overlay_window: OverlayWindowConfig {
             visibility: VisibilityPolicy::Pinned,
             visible: true,
@@ -479,7 +476,7 @@ pub fn import_overkeys_companion_json(contents: &str) -> Result<ImportCandidate,
                 y: 80.0,
                 width: 920.0,
                 height: 320.0,
-                opacity: 0.9,
+                opacity: overlay_opacity,
             },
         },
         source_precedence: vec![
@@ -493,6 +490,10 @@ pub fn import_overkeys_companion_json(contents: &str) -> Result<ImportCandidate,
             },
             SourcePrecedenceRule {
                 field_scope: ":keyboard/keymap".to_string(),
+                source_order: vec!["user-overrides".to_string(), source.id.clone()],
+            },
+            SourcePrecedenceRule {
+                field_scope: ":visual/style".to_string(),
                 source_order: vec!["user-overrides".to_string(), source.id.clone()],
             },
         ],
@@ -675,11 +676,55 @@ fn keyviz_style_colors(json: &JsonValue) -> VisualStyleColors {
 }
 
 fn json_color_at(json: &JsonValue, pointer: &str) -> Option<String> {
-    json.pointer(pointer)
-        .and_then(JsonValue::as_str)
-        .map(str::trim)
-        .filter(|value| is_hex_color(value))
-        .map(ToOwned::to_owned)
+    json.pointer(pointer).and_then(json_color_value)
+}
+
+fn json_color_value(value: &JsonValue) -> Option<String> {
+    match value {
+        JsonValue::String(value) => json_color_from_str(value),
+        JsonValue::Number(value) => value
+            .as_u64()
+            .and_then(|value| u32::try_from(value).ok())
+            .map(css_hex_from_u32_color),
+        _ => None,
+    }
+}
+
+fn json_color_from_str(value: &str) -> Option<String> {
+    let value = value.trim();
+    if is_hex_color(value) {
+        return Some(value.to_string());
+    }
+
+    let hex = value
+        .strip_prefix("0x")
+        .or_else(|| value.strip_prefix("0X"))
+        .unwrap_or(value);
+
+    if !matches!(hex.len(), 6 | 8) || !hex.chars().all(|ch| ch.is_ascii_hexdigit()) {
+        return None;
+    }
+
+    u32::from_str_radix(hex, 16)
+        .ok()
+        .map(css_hex_from_u32_color)
+}
+
+fn css_hex_from_u32_color(value: u32) -> String {
+    if value <= 0x00ff_ffff {
+        return format!("#{value:06X}");
+    }
+
+    let alpha = (value >> 24) & 0xff;
+    let red = (value >> 16) & 0xff;
+    let green = (value >> 8) & 0xff;
+    let blue = value & 0xff;
+
+    if alpha == 0xff {
+        format!("#{red:02X}{green:02X}{blue:02X}")
+    } else {
+        format!("#{red:02X}{green:02X}{blue:02X}{alpha:02X}")
+    }
 }
 
 fn visual_style_conflicts(
@@ -1146,6 +1191,85 @@ fn overkeys_custom_shift_mappings(json: &JsonValue) -> BTreeMap<String, String> 
                 .collect()
         })
         .unwrap_or_default()
+}
+
+fn overkeys_visual_style(json: &JsonValue) -> VisualStyle {
+    let style_slug = overkeys_style_slug(json);
+
+    VisualStyle {
+        id: format!("style-overkeys-{style_slug}"),
+        variant_id: format!("overkeys-{style_slug}"),
+        density: overkeys_style_density(json),
+        colors: overkeys_style_colors(json),
+    }
+}
+
+fn overkeys_style_slug(json: &JsonValue) -> String {
+    overkeys_nested_string_field(json, "styles", "theme")
+        .or_else(|| overkeys_nested_string_field(json, "styles", "style"))
+        .map(|value| sanitize_id_or(&value, "preview"))
+        .unwrap_or_else(|| "preview".to_string())
+}
+
+fn overkeys_style_density(json: &JsonValue) -> StyleDensity {
+    let key_size = overkeys_number_field(json, "keySize");
+    let key_font_size = overkeys_number_field(json, "keyFontSize");
+
+    if key_size.is_some_and(|size| size <= 48.0) || key_font_size.is_some_and(|size| size <= 20.0) {
+        StyleDensity::Compact
+    } else if key_size.is_some_and(|size| size >= 72.0)
+        || key_font_size.is_some_and(|size| size >= 32.0)
+    {
+        StyleDensity::Rich
+    } else {
+        StyleDensity::Standard
+    }
+}
+
+fn overkeys_style_colors(json: &JsonValue) -> VisualStyleColors {
+    VisualStyleColors {
+        keycap_background: overkeys_color_field(json, "keyColorNotPressed"),
+        keycap_text: overkeys_color_field(json, "keyTextColorNotPressed")
+            .or_else(|| overkeys_color_field(json, "keyTextColor")),
+        keycap_border: overkeys_color_field(json, "keyBorderColorNotPressed"),
+        modifier_accent: overkeys_color_field(json, "keyColorPressed")
+            .or_else(|| overkeys_color_field(json, "markerColor")),
+        overlay_background: None,
+    }
+}
+
+fn overkeys_color_field(json: &JsonValue, key: &str) -> Option<String> {
+    json.get(key)
+        .and_then(json_color_value)
+        .or_else(|| json.get("styles")?.get(key).and_then(json_color_value))
+}
+
+fn overkeys_overlay_opacity(json: &JsonValue) -> f32 {
+    overkeys_number_field(json, "opacity")
+        .map(|opacity| opacity.clamp(0.1, 1.0) as f32)
+        .unwrap_or(0.9)
+}
+
+fn overkeys_number_field(json: &JsonValue, key: &str) -> Option<f64> {
+    json.get(key)
+        .and_then(json_number)
+        .or_else(|| json.get("styles")?.get(key).and_then(json_number))
+}
+
+fn overkeys_nested_string_field(json: &JsonValue, section: &str, key: &str) -> Option<String> {
+    json.get(section)
+        .and_then(|section| section.get(key))
+        .and_then(json_scalar_to_string)
+        .map(|value| value.trim().to_string())
+        .filter(|value| !value.is_empty())
+}
+
+fn json_number(value: &JsonValue) -> Option<f64> {
+    match value {
+        JsonValue::Number(value) => value.as_f64(),
+        JsonValue::String(value) => value.trim().parse::<f64>().ok(),
+        _ => None,
+    }
 }
 
 fn overkeys_sentinel_bindings(
@@ -1854,11 +1978,17 @@ mod tests {
     }
     "#;
 
-    const OVERKEYS_COMPANION_FIXTURE: &str = r#"
+    const OVERKEYS_COMPANION_FIXTURE: &str = r##"
     {
       "defaultUserLayout": "Colemak Example",
       "kanataHost": "127.0.0.1",
       "kanataPort": 4039,
+      "opacity": 0.64,
+      "keySize": 76,
+      "keyColorPressed": 4278190335,
+      "keyColorNotPressed": "0xFF10151D",
+      "keyTextColorNotPressed": "#FAFBFE",
+      "keyBorderColorNotPressed": "273043",
       "aliases": {
         "spc": "Space"
       },
@@ -1893,7 +2023,7 @@ mod tests {
         }
       ]
     }
-    "#;
+    "##;
 
     const ZMK_KEYMAP_FIXTURE: &str = r#"
     / {
@@ -2390,6 +2520,12 @@ mod tests {
             "defaultUserLayout",
             "kanataHost",
             "kanataPort",
+            "keyBorderColorNotPressed",
+            "keyColorNotPressed",
+            "keyColorPressed",
+            "keySize",
+            "keyTextColorNotPressed",
+            "opacity",
             "styles",
             "triggers",
             "userLayouts",
@@ -2421,6 +2557,68 @@ mod tests {
                 port: 4039,
             })
         );
+    }
+
+    #[test]
+    fn overkeys_companion_imports_visual_style_preferences() {
+        let candidate =
+            import_overkeys_companion_json(OVERKEYS_COMPANION_FIXTURE).expect("fixture imports");
+        let profile = &candidate.preview_profile;
+
+        assert_eq!(profile.visual_style.id, "style-overkeys-nord");
+        assert_eq!(profile.visual_style.variant_id, "overkeys-nord");
+        assert_eq!(profile.visual_style.density, StyleDensity::Rich);
+        assert_eq!(
+            profile.visual_style.colors.keycap_background.as_deref(),
+            Some("#10151D")
+        );
+        assert_eq!(
+            profile.visual_style.colors.keycap_text.as_deref(),
+            Some("#FAFBFE")
+        );
+        assert_eq!(
+            profile.visual_style.colors.keycap_border.as_deref(),
+            Some("#273043")
+        );
+        assert_eq!(
+            profile.visual_style.colors.modifier_accent.as_deref(),
+            Some("#0000FF")
+        );
+        assert_eq!(profile.overlay_window.display_targeting.opacity, 0.64);
+        assert!(profile.source_precedence.iter().any(|rule| {
+            rule.field_scope == ":visual/style"
+                && rule.source_order[0] == "user-overrides"
+                && rule.source_order[1] == candidate.source.id
+        }));
+    }
+
+    #[test]
+    fn overkeys_companion_clamps_opacity_and_imports_alpha_argb_colors() {
+        let candidate = import_overkeys_companion_json(
+            r#"
+            {
+              "opacity": 5.0,
+              "styles": {
+                "keyColorNotPressed": "0x80112233"
+              },
+              "userLayouts": [
+                {
+                  "name": "base",
+                  "keys": [["A"]]
+                }
+              ]
+            }
+            "#,
+        )
+        .expect("fixture imports");
+        let profile = &candidate.preview_profile;
+
+        assert_eq!(profile.visual_style.id, "style-overkeys-preview");
+        assert_eq!(
+            profile.visual_style.colors.keycap_background.as_deref(),
+            Some("#11223380")
+        );
+        assert_eq!(profile.overlay_window.display_targeting.opacity, 1.0);
     }
 
     #[test]

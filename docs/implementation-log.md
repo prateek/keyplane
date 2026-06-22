@@ -30,6 +30,7 @@ Started the Tauri v2 implementation from the PRD.
 - Normalized OverKeys Kanata host/port settings into typed profile-owned Kanata TCP backend config, persisted it in EDN, and used the active Keyboard Snapshot to prefill Settings controls.
 - Imported all OverKeys user layouts as app layers and normalized per-layer or legacy trigger settings into Sentinel Key bindings behind a lower-confidence runtime backend, while keeping Kanata first in Runtime State precedence.
 - Normalized OverKeys `customAliases` into Display Legend action hints and `customShiftMappings` into shifted Legend Slots while preserving raw actions for Source Provenance.
+- Normalized OverKeys visual style preferences into Keyplane Visual Style colors, coarse density, and Profile-owned overlay opacity while preserving raw style fields for Source Provenance.
 - Added deterministic Backend Health Runtime Events for permission-missing and recovery states so permission health is visible through the same snapshot/event path as live backends.
 - Added a disconnected KeyPeek Live backend to the initial profile so firmware-backend capabilities and connection health are visible before hardware is connected.
 - Added ZMK `.keymap` import as a Best-Effort Preview path that parses layer binding rows, preserves raw source text, and derives common ZMK layer-action semantics for visualization.
@@ -80,10 +81,10 @@ Started the Tauri v2 implementation from the PRD.
 Verification:
 
 - `cargo fmt --check`
-- `cargo test` (105 Rust tests passed, 3 private local hardware canaries ignored by default)
+- `cargo test` (112 Rust tests passed, 3 private local hardware canaries ignored by default)
 - `KEYPLANE_LOCAL_VIL_CANDIDATE=<private .vil path> cargo test local_vil_candidate_file_imports_when_env_is_set -- --ignored`
 - `npm ci`
-- `npm test` (34 frontend tests)
+- `npm test` (35 frontend tests)
 - `npm run build`
 - `actionlint .github/workflows/signed-release.yml .github/workflows/desktop-build.yml`
 - `ruby -e 'require "yaml"; %w[.github/workflows/signed-release.yml .github/workflows/desktop-build.yml].each { |path| YAML.load_file(path) }'`
