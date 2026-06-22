@@ -82,6 +82,23 @@ const backend: BackendStatus = {
   },
 };
 
+const keyPeekBackend: BackendStatus = {
+  id: "keypeek-live",
+  name: "KeyPeek Live",
+  capabilities: [
+    "discover-devices",
+    "import-geometry",
+    "import-keymaps",
+    "stream-layer-stack",
+    "stream-pressed-keys",
+  ],
+  health: {
+    backend_id: "keypeek-live",
+    state: "disconnected",
+    message: "No KeyPeek-compatible device is connected",
+  },
+};
+
 const runtimeState: RuntimeState = {
   layer_stack: [
     {
@@ -94,7 +111,7 @@ const runtimeState: RuntimeState = {
     },
   ],
   pressed_keys: [],
-  backend_health: [backend.health],
+  backend_health: [backend.health, keyPeekBackend.health],
 };
 
 export const fakeSnapshot: KeyboardSnapshot = {
@@ -109,7 +126,7 @@ export const fakeSnapshot: KeyboardSnapshot = {
   },
   runtime_state: runtimeState,
   effective_keys: resolveEffectiveKeys({ layers: [baseLayer, navLayer] }, runtimeState),
-  backends: [backend],
+  backends: [backend, keyPeekBackend],
   source_conflicts: [
     {
       field_path: ":visual/style :style/variant-id",

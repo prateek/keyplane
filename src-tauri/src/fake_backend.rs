@@ -6,15 +6,22 @@ use crate::domain::{
     SourceConflict, SourcePrecedenceRule, SourceRef, StateConfidence, StateConfidenceLevel,
     StyleDensity, UserOverride, VisibilityPolicy, VisualStyle,
 };
+use crate::keypeek_backend;
 
 const FAKE_SOURCE_ID: &str = "fake-backend";
 const PROFILE_ID: &str = "profile-keyplane-demo";
 
 pub fn fake_profile() -> Profile {
-    let source = Source {
+    let fake_source = Source {
         id: FAKE_SOURCE_ID.to_string(),
         name: "Fake Backend".to_string(),
         kind: "fake".to_string(),
+        authority: SourceAuthority::Authoritative,
+    };
+    let keypeek_source = Source {
+        id: "keypeek-live".to_string(),
+        name: "KeyPeek Live".to_string(),
+        kind: "keypeek-firmware".to_string(),
         authority: SourceAuthority::Authoritative,
     };
     let keys = fake_keys();
@@ -92,23 +99,29 @@ pub fn fake_profile() -> Profile {
         schema_version: 1,
         id: PROFILE_ID.to_string(),
         name: "Keyplane Demo".to_string(),
-        sources: vec![source],
+        sources: vec![fake_source, keypeek_source],
         physical_layout: PhysicalLayout {
             keys: keys.clone(),
             fallback: false,
         },
         keymap: LogicalKeymap { layers },
-        runtime_backends: vec![BackendStatus {
-            id: FAKE_SOURCE_ID.to_string(),
-            name: "Fake Backend".to_string(),
-            capabilities: vec![
-                CapabilityFlag::ImportGeometry,
-                CapabilityFlag::ImportKeymaps,
-                CapabilityFlag::StreamLayerStack,
-                CapabilityFlag::StreamPressedKeys,
-            ],
-            health,
-        }],
+        runtime_backends: vec![
+            BackendStatus {
+                id: FAKE_SOURCE_ID.to_string(),
+                name: "Fake Backend".to_string(),
+                capabilities: vec![
+                    CapabilityFlag::ImportGeometry,
+                    CapabilityFlag::ImportKeymaps,
+                    CapabilityFlag::StreamLayerStack,
+                    CapabilityFlag::StreamPressedKeys,
+                ],
+                health,
+            },
+            keypeek_backend::keypeek_backend_status(
+                HealthState::Disconnected,
+                "No KeyPeek-compatible device is connected",
+            ),
+        ],
         visual_style: VisualStyle {
             variant_id: "keyplane-default".to_string(),
             density: StyleDensity::Rich,
@@ -129,7 +142,11 @@ pub fn fake_profile() -> Profile {
         source_precedence: vec![
             SourcePrecedenceRule {
                 field_scope: ":runtime/state".to_string(),
-                source_order: vec![FAKE_SOURCE_ID.to_string(), "sentinel".to_string()],
+                source_order: vec![
+                    "keypeek-live".to_string(),
+                    FAKE_SOURCE_ID.to_string(),
+                    "sentinel".to_string(),
+                ],
             },
             SourcePrecedenceRule {
                 field_scope: ":keyboard/physical-layout".to_string(),
@@ -314,6 +331,18 @@ mod tests {
             snapshot.effective_keys.len(),
             snapshot.physical_layout.keys.len()
         );
+        assert!(snapshot.backends.iter().any(|backend| {
+            backend.id == "keypeek-live" && backend.health.state == HealthState::Disconnected
+        }));
+        assert!(snapshot
+            .runtime_state
+            .backend_health
+            .iter()
+            .any(|health| health.backend_id == "keypeek-live"
+                && health.state == HealthState::Disconnected));
+        assert!(snapshot.source_precedence.iter().any(|rule| {
+            rule.field_scope == ":runtime/state" && rule.source_order[0] == "keypeek-live"
+        }));
     }
 
     #[test]
