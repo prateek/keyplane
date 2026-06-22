@@ -8,11 +8,23 @@ use crate::state::{AppState, Backend, EVENT_SNAPSHOT};
 use keyplane_core::import::{
     ImportCandidate, ImportReview, Importer, KeyvizStyleImporter, OverKeysImporter, VialFileImporter,
 };
-use keyplane_core::profile::Profile;
+use keyplane_core::profile::{DisplayTargeting, Profile};
 use keyplane_core::snapshot::KeyboardSnapshot;
+use crate::state::EVENT_RUNTIME;
 use keyplane_kanata::{KanataBackend, LayerMap};
 use keyplane_keypeek::{ConnectionSpec, KeyPeekBackend};
+use keyplane_sentinel::{SentinelAction, SentinelBackend, SentinelKey};
+use serde::Deserialize;
 use tauri::{AppHandle, Emitter, Manager, State};
+
+/// A sentinel-key config entry from the frontend.
+#[derive(Deserialize)]
+pub struct SentinelKeyDto {
+    pub host_key: String,
+    /// "momentary" or "toggle".
+    pub action: String,
+    pub layer: String,
+}
 
 /// The current fully-resolved snapshot for first paint.
 #[tauri::command]
@@ -151,6 +163,58 @@ pub fn connect_kanata(
     Ok(())
 }
 
+/// Enable the sentinel-key backend (ADR 0016): a lower-confidence source that
+/// infers layer changes from Host Input Events when no authoritative source is
+/// available. Capturing real OS key events is the remaining transport; events
+/// are fed via [`feed_host_event`]. Keeps the current model.
+#[tauri::command]
+pub fn connect_sentinel(
+    app: AppHandle,
+    state: State<AppState>,
+    keys: Vec<SentinelKeyDto>,
+) -> Result<(), String> {
+    let mut inner = state.inner.lock().expect("state");
+    let base = inner
+        .profile
+        .model
+        .base_layer()
+        .unwrap_or_else(|| keyplane_core::ids::LayerId::new("layer-0"));
+    let sentinel_keys = keys
+        .into_iter()
+        .map(|k| {
+            let layer = keyplane_core::ids::LayerId::new(k.layer);
+            let action = match k.action.as_str() {
+                "toggle" => SentinelAction::Toggle(layer),
+                _ => SentinelAction::Momentary(layer),
+            };
+            SentinelKey {
+                host_key: k.host_key,
+                action,
+            }
+        })
+        .collect();
+    inner.set_backend_keep_model(Backend::Sentinel(SentinelBackend::new(sentinel_keys, base)));
+    let snapshot = inner.composer.snapshot();
+    drop(inner);
+    let _ = app.emit(EVENT_SNAPSHOT, &snapshot);
+    Ok(())
+}
+
+/// Feed one Host Input Event to the sentinel backend and emit any resulting
+/// Layer Stack change immediately. A no-op unless the sentinel backend is active.
+#[tauri::command]
+pub fn feed_host_event(app: AppHandle, state: State<AppState>, key: String, down: bool) {
+    let mut inner = state.inner.lock().expect("state");
+    let backend_id = inner.backend.id();
+    inner.backend.feed_host_event(key, down);
+    let updates = inner.backend.poll();
+    for update in updates {
+        if let Some(event) = inner.composer.apply(&backend_id, update) {
+            let _ = app.emit(EVENT_RUNTIME, &event);
+        }
+    }
+}
+
 /// Promote a value to a User Override so future imports cannot replace it
 /// (ADR 0018). Recorded in the profile and persisted in EDN; applying overrides
 /// to live resolution is tracked as follow-up work.
@@ -188,6 +252,43 @@ pub fn set_positioning_mode(app: AppHandle, enabled: bool) -> Result<(), String>
         let _ = overlay.set_focus();
     }
     Ok(())
+}
+
+/// Apply Profile-owned Display Targeting to the overlay window (ADR 0027).
+/// Position/size are honored now; monitor selection is recorded but not yet
+/// used for placement.
+pub fn apply_display_targeting(window: &tauri::WebviewWindow, display: &DisplayTargeting) {
+    if let (Some(x), Some(y)) = (display.x, display.y) {
+        let _ = window.set_position(tauri::LogicalPosition::new(x, y));
+    }
+    if let (Some(w), Some(h)) = (display.width, display.height) {
+        let _ = window.set_size(tauri::LogicalSize::new(w, h));
+    }
+}
+
+/// Update the active Profile's Display Targeting and apply it immediately.
+#[tauri::command]
+pub fn set_display_targeting(
+    app: AppHandle,
+    state: State<AppState>,
+    x: Option<f64>,
+    y: Option<f64>,
+    width: Option<f64>,
+    height: Option<f64>,
+) -> Result<Profile, String> {
+    let mut inner = state.inner.lock().expect("state");
+    let display = &mut inner.profile.overlay.display;
+    display.x = x.or(display.x);
+    display.y = y.or(display.y);
+    display.width = width.or(display.width);
+    display.height = height.or(display.height);
+    let display = inner.profile.overlay.display.clone();
+    let profile = inner.profile.clone();
+    drop(inner);
+    if let Some(overlay) = app.get_webview_window("overlay") {
+        apply_display_targeting(&overlay, &display);
+    }
+    Ok(profile)
 }
 
 /// Show or hide the Overlay Window.

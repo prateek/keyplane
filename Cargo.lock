@@ -1639,6 +1639,7 @@ dependencies = [
  "keyplane-core",
  "keyplane-kanata",
  "keyplane-keypeek",
+ "keyplane-sentinel",
  "serde",
  "serde_json",
  "tauri",
@@ -1673,6 +1674,15 @@ dependencies = [
  "qmk-via-api",
  "serde",
  "serde_json",
+ "thiserror 2.0.18",
+]
+
+[[package]]
+name = "keyplane-sentinel"
+version = "0.1.0"
+dependencies = [
+ "keyplane-core",
+ "serde",
  "thiserror 2.0.18",
 ]
 

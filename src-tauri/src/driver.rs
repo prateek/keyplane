@@ -43,11 +43,14 @@ fn tick(handle: &AppHandle) {
     if reveal {
         inner.overlay_shown = true;
     }
+    let display = inner.profile.overlay.display.clone();
     drop(inner);
 
-    // Reveal the overlay on the first snapshot, click-through by default.
+    // Reveal the overlay on the first snapshot, click-through by default, placed
+    // per the Profile's Display Targeting (ADR 0027).
     if reveal {
         if let Some(overlay) = handle.get_webview_window("overlay") {
+            crate::commands::apply_display_targeting(&overlay, &display);
             let _ = overlay.set_ignore_cursor_events(true);
             let _ = overlay.show();
         }

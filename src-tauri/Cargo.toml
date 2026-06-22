@@ -18,6 +18,7 @@ tauri-build = { version = "2", features = [] }
 keyplane-core = { path = "../crates/keyplane-core" }
 keyplane-kanata = { path = "../crates/keyplane-kanata" }
 keyplane-keypeek = { path = "../crates/keyplane-keypeek" }
+keyplane-sentinel = { path = "../crates/keyplane-sentinel" }
 tauri = { version = "2", features = ["macos-private-api"] }
 serde = { workspace = true }
 serde_json = { workspace = true }

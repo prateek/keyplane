@@ -25,9 +25,12 @@ pub fn run() {
             commands::commit_import,
             commands::connect_keypeek,
             commands::connect_kanata,
+            commands::connect_sentinel,
+            commands::feed_host_event,
             commands::promote_override,
             commands::set_positioning_mode,
             commands::set_overlay_visible,
+            commands::set_display_targeting,
         ])
         .setup(|app| {
             driver::spawn(app.handle().clone());

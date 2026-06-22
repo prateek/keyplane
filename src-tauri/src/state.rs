@@ -11,6 +11,7 @@ use keyplane_core::model::{KeyboardModel, StateConfidence};
 use keyplane_core::profile::Profile;
 use keyplane_kanata::KanataBackend;
 use keyplane_keypeek::KeyPeekBackend;
+use keyplane_sentinel::{HostEvent, SentinelBackend};
 use std::sync::Mutex;
 
 /// Tauri event names the frontend subscribes to.
@@ -25,6 +26,7 @@ pub enum Backend {
     Fake(FakeBackend),
     KeyPeek(KeyPeekBackend),
     Kanata(KanataBackend),
+    Sentinel(SentinelBackend),
 }
 
 impl Backend {
@@ -33,6 +35,7 @@ impl Backend {
             Backend::Fake(b) => b.descriptor(),
             Backend::KeyPeek(b) => b.descriptor(),
             Backend::Kanata(b) => b.descriptor(),
+            Backend::Sentinel(b) => b.descriptor(),
         }
     }
 
@@ -41,6 +44,7 @@ impl Backend {
             Backend::Fake(b) => b.health(),
             Backend::KeyPeek(b) => b.health(),
             Backend::Kanata(b) => b.health(),
+            Backend::Sentinel(b) => b.health(),
         }
     }
 
@@ -49,6 +53,19 @@ impl Backend {
             Backend::Fake(b) => b.poll(),
             Backend::KeyPeek(b) => b.poll(),
             Backend::Kanata(b) => b.poll(),
+            Backend::Sentinel(b) => b.poll(),
+        }
+    }
+
+    /// Feed a Host Input Event to a sentinel backend (a no-op otherwise).
+    pub fn feed_host_event(&self, host_key: String, down: bool) {
+        if let Backend::Sentinel(b) = self {
+            let event = if down {
+                HostEvent::KeyDown(host_key)
+            } else {
+                HostEvent::KeyUp(host_key)
+            };
+            b.feed(event);
         }
     }
 

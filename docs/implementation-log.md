@@ -8,10 +8,32 @@ PRD stays stable; progress and decisions live here.
 ```
 keyplane/
 ├── Cargo.toml                 # workspace
-├── crates/keyplane-core/      # domain core (no Tauri/HID/UI deps)
+├── crates/
+│   ├── keyplane-core/         # domain core (no Tauri/HID/UI deps)
+│   ├── keyplane-keypeek/      # KeyPeek-derived protocol + keycode code (GPL, vendored)
+│   ├── keyplane-kanata/       # Kanata TCP backend
+│   └── keyplane-sentinel/     # sentinel-key (host-event) backend
 ├── src-tauri/                 # Tauri v2 shell: windows, commands/events, drivers
 └── src/                       # React + TypeScript + Vite frontend (app + overlay)
 ```
+
+### Protocol Backend family
+
+All implement `keyplane_core::backend::ProtocolBackend`; the app's `Backend` enum
+holds whichever is active.
+
+| Backend | Source | Live transport | Confidence |
+| --- | --- | --- | --- |
+| Fake | scripted demo | none (in-process) | Authoritative |
+| KeyPeek | VIA/Vial firmware | HID (`qmk-via-api`), hardware-gated | Authoritative |
+| Kanata | Kanata remapper | TCP (`--port`), daemon-gated | Authoritative |
+| Sentinel | Host Input Events | OS key capture (not yet wired), feedable | Inferred |
+
+`keyplane-keypeek` vendors KeyPeek's QMK/VIA keycode-label tables, `LayoutKey`
+model, and VIA/Vial HID protocol code (`src/vendor/`, GPL-attributed in
+`NOTICE`). A bridge maps `LayoutKey` → Keyplane Semantic Actions, so the
+numeric-VIA-keycode path uses KeyPeek's curated tables instead of the
+hand-rolled token parser (which still serves QMK/ZMK string tokens from `.vil`).
 
 `keyplane-core` is the testable heart and the contract everything else depends
 on. Per ADR 0036 it owns source composition, Backend Health, Layer Stack

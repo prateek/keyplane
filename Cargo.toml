@@ -4,6 +4,7 @@ members = [
     "crates/keyplane-core",
     "crates/keyplane-kanata",
     "crates/keyplane-keypeek",
+    "crates/keyplane-sentinel",
     "src-tauri",
 ]
 

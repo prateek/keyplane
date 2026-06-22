@@ -1,0 +1,13 @@
+[package]
+name = "keyplane-sentinel"
+description = "Sentinel-key Protocol Backend for Keyplane: infers layer state from Host Input Events."
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+rust-version.workspace = true
+
+[dependencies]
+keyplane-core = { path = "../keyplane-core" }
+serde = { workspace = true }
+thiserror = { workspace = true }
