@@ -201,6 +201,7 @@ const visualStyleProvenance: SourceRef[] = [
 
 export const fakeSnapshot: KeyboardSnapshot = {
   profile_id: "profile-keyplane-demo",
+  keyboard_id: "keyboard-keyplane-demo",
   profile_name: "Keyplane Demo",
   sources,
   physical_layout: {

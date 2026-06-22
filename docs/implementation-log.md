@@ -52,6 +52,7 @@ Started the Tauri v2 implementation from the PRD.
 - Added first-class Visual Style color tokens to the Profile contract, keyviz style import, EDN codec, and overlay renderer so imported keyviz keycap colors affect the full-keyboard overlay.
 - Added macOS Accessibility and Input Monitoring permission checks and request prompts, surfaced through persistent Sentinel Keys Backend Health and Settings controls.
 - Added typed Overlay Window Backend Health for window creation, transparency/click-through configuration, focusability, drag, and resize capability failures; Positioning Mode now makes the Overlay Window focusable only while placement controls are active.
+- Added stable keyboard/workflow IDs to the public Profile and Keyboard Snapshot contracts, persisted as `:keyboard/id` with backward-compatible loading for older EDN Profiles.
 - Added a GitHub Actions desktop build workflow that runs the Rust/frontend verification gate and uploads unsigned macOS debug `.app` and `.dmg` artifacts.
 - Refreshed npm dependency metadata and made the Rolldown wasm runtime peer dependencies explicit so the desktop build workflow can use `npm ci` reliably.
 - Extended the desktop build workflow with Linux and Windows debug binary builds using Tauri's no-bundle path.

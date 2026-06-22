@@ -302,6 +302,7 @@ function snapshotFromProfile(
 
   return {
     profile_id: profile.id,
+    keyboard_id: profile.keyboard_id,
     profile_name: profile.name,
     sources: profile.sources,
     physical_layout: profile.physical_layout,

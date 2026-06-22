@@ -123,6 +123,7 @@ mod tests {
 
         assert_eq!(backend.status().id, "fake-backend");
         assert_eq!(snapshot.profile_id, "profile-keyplane-demo");
+        assert_eq!(snapshot.keyboard_id, "keyboard-keyplane-demo");
         assert!(!backend.demo_events().is_empty());
     }
 

@@ -4,7 +4,7 @@ Keyplane is a cross-platform keyboard layer overlay built with Tauri, Rust, Reac
 
 The current implementation includes:
 
-- a normalized Keyboard Model DTO boundary shared by Rust and the frontend
+- a normalized Keyboard Model DTO boundary shared by Rust and the frontend, including stable Profile and keyboard/workflow IDs
 - a Fake Backend that emits Keyboard Snapshots and Layer Stack Runtime Events
 - a transparent, frameless, always-on-top Tauri Overlay Window owned by Rust
 - Effective Action resolution for transparent keys and inherited legends

@@ -234,6 +234,8 @@ describe("Keyplane app", () => {
 
     await user.click(await screen.findByRole("button", { name: /source inspector/i }));
 
+    expect(screen.getByText("Active Profile")).toBeInTheDocument();
+    expect(screen.getByText("Keyboard ID: keyboard-keyplane-demo")).toBeInTheDocument();
     expect(screen.getAllByText("Overlay Window").length).toBeGreaterThanOrEqual(1);
     expect(screen.getByText(/render-overlay-window/)).toBeInTheDocument();
     expect(screen.getAllByText("KeyPeek Live").length).toBeGreaterThanOrEqual(2);
@@ -271,6 +273,7 @@ describe("Keyplane app", () => {
     const previewProfile = {
       schema_version: 1,
       id: "profile-small-preview",
+      keyboard_id: "keyboard-small-preview",
       name: "Small Preview",
       sources: fakeSnapshot.sources.slice(0, 1),
       physical_layout: {
@@ -319,6 +322,8 @@ describe("Keyplane app", () => {
     expect(screen.getByText("12 -> 1")).toBeInTheDocument();
     expect(screen.getByText("Visual Style")).toBeInTheDocument();
     expect(screen.getByText("keyplane-default -> vial-preview")).toBeInTheDocument();
+    expect(screen.getByText("Keyboard ID")).toBeInTheDocument();
+    expect(screen.getByText("keyboard-keyplane-demo -> keyboard-small-preview")).toBeInTheDocument();
     expect(screen.getByText("Fallback Layout")).toBeInTheDocument();
     expect(screen.getByText("no -> yes")).toBeInTheDocument();
     expect(screen.getByText(":visual/style :style/variant-id")).toBeInTheDocument();

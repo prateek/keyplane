@@ -243,6 +243,7 @@ export interface UserOverride {
 export interface Profile {
   schema_version: number;
   id: string;
+  keyboard_id: string;
   name: string;
   sources: Source[];
   physical_layout: PhysicalLayout;
@@ -258,6 +259,7 @@ export interface Profile {
 
 export interface KeyboardSnapshot {
   profile_id: string;
+  keyboard_id: string;
   profile_name: string;
   sources: Source[];
   physical_layout: PhysicalLayout;

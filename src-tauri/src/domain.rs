@@ -327,6 +327,7 @@ pub struct UserOverride {
 pub struct Profile {
     pub schema_version: u32,
     pub id: String,
+    pub keyboard_id: String,
     pub name: String,
     pub sources: Vec<Source>,
     pub physical_layout: PhysicalLayout,
@@ -343,6 +344,7 @@ pub struct Profile {
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct KeyboardSnapshot {
     pub profile_id: String,
+    pub keyboard_id: String,
     pub profile_name: String,
     pub sources: Vec<Source>,
     pub physical_layout: PhysicalLayout,
@@ -400,6 +402,7 @@ pub fn compose_snapshot(
 
     KeyboardSnapshot {
         profile_id: profile.id.clone(),
+        keyboard_id: profile.keyboard_id.clone(),
         profile_name: profile.name.clone(),
         sources: profile.sources.clone(),
         physical_layout: profile.physical_layout.clone(),

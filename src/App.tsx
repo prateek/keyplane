@@ -937,6 +937,15 @@ function SourceInspector({
       <div className="inspector-grid">
         <div>
           <section>
+            <h2>Active Profile</h2>
+            <article className="list-row">
+              <strong>{snapshot.profile_name}</strong>
+              <span className="badge">{snapshot.profile_id}</span>
+              <p>Keyboard ID: {snapshot.keyboard_id}</p>
+            </article>
+          </section>
+
+          <section>
             <h2>Sources</h2>
             {snapshot.sources.map((source) => (
               <article className="list-row" key={source.id}>
@@ -1113,6 +1122,11 @@ export function buildImportDiffRows(
       label: "Sources",
       current: String(activeSnapshot.sources.length),
       preview: String(profile.sources.length),
+    },
+    {
+      label: "Keyboard ID",
+      current: activeSnapshot.keyboard_id,
+      preview: profile.keyboard_id,
     },
     {
       label: "Source Provenance",

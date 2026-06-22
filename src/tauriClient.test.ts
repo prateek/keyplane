@@ -23,6 +23,7 @@ describe("Tauri client fallbacks", () => {
     const previewProfile: Profile = {
       schema_version: 1,
       id: "profile-imported-preview",
+      keyboard_id: "keyboard-imported-preview",
       name: "Imported Preview",
       sources: fakeSnapshot.sources,
       physical_layout: fakeSnapshot.physical_layout,
@@ -56,6 +57,7 @@ describe("Tauri client fallbacks", () => {
     const snapshot = await commitImportCandidate(candidate);
 
     expect(snapshot.profile_id).toBe("profile-imported-preview");
+    expect(snapshot.keyboard_id).toBe("keyboard-imported-preview");
     expect(snapshot.profile_name).toBe("Imported Preview");
     expect(snapshot.runtime_state.layer_stack[0].layer_id).toBe("layer-0");
     expect(snapshot.effective_keys.length).toBe(previewProfile.physical_layout.keys.length);
@@ -67,6 +69,7 @@ describe("Tauri client fallbacks", () => {
     const previewProfile: Profile = {
       schema_version: 1,
       id: "profile-preview-only",
+      keyboard_id: "keyboard-preview-only",
       name: "Preview Only",
       sources: fakeSnapshot.sources,
       physical_layout: fakeSnapshot.physical_layout,

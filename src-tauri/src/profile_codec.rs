@@ -33,10 +33,15 @@ pub fn load_profile(input: &str) -> Result<Profile, ProfileCodecError> {
     let value = parse_str(input).map_err(|err| ProfileCodecError::Parse(err.to_string()))?;
     let value = migrate_profile_value(value)?;
     let map = as_map(&value, "top-level profile map")?;
+    let profile_id = as_string(get(map, "profile", "id")?, ":profile/id")?;
 
     Ok(Profile {
         schema_version: as_u32(get(map, "schema", "version")?, ":schema/version")?,
-        id: as_string(get(map, "profile", "id")?, ":profile/id")?,
+        id: profile_id.clone(),
+        keyboard_id: match get_optional(map, "keyboard", "id") {
+            Some(value) => as_string(value, ":keyboard/id")?,
+            None => profile_id,
+        },
         name: as_string(get(map, "profile", "name")?, ":profile/name")?,
         sources: parse_sources(get(map, "sources", "items")?)?,
         physical_layout: parse_physical_layout(get(map, "keyboard", "physical-layout")?)?,
@@ -84,6 +89,10 @@ fn migrate_v0_to_v1(value: Value) -> Result<Value, ProfileCodecError> {
 
 fn profile_to_value(profile: &Profile) -> Value {
     map([
+        (
+            kw("keyboard", "id"),
+            Value::from(profile.keyboard_id.clone()),
+        ),
         (kw("keyboard", "keymap"), keymap_to_value(&profile.keymap)),
         (
             kw("keyboard", "physical-layout"),
@@ -812,6 +821,7 @@ fn get<'a>(
             ("profile", "id") => ":profile/id",
             ("profile", "name") => ":profile/name",
             ("sources", "items") => ":sources/items",
+            ("keyboard", "id") => ":keyboard/id",
             ("keyboard", "physical-layout") => ":keyboard/physical-layout",
             ("keyboard", "keymap") => ":keyboard/keymap",
             ("runtime", "backends") => ":runtime/backends",
@@ -1138,6 +1148,7 @@ mod tests {
 
         assert_eq!(loaded.schema_version, 1);
         assert_eq!(loaded.id, profile.id);
+        assert_eq!(loaded.keyboard_id, profile.keyboard_id);
         assert_eq!(
             loaded.physical_layout.keys.len(),
             profile.physical_layout.keys.len()
@@ -1146,6 +1157,7 @@ mod tests {
         assert_eq!(loaded.sentinel_keys.len(), 1);
         assert_eq!(loaded.sentinel_keys[0].host_input_code, "F24");
         assert!(saved.contains(":schema/version"));
+        assert!(saved.contains(":keyboard/id \"keyboard-keyplane-demo\""));
         assert!(saved.contains(":keyboard/physical-layout"));
         assert!(saved.contains(":runtime/sentinel-keys"));
         assert!(saved.contains(":source/provenance"));
@@ -1189,6 +1201,20 @@ mod tests {
             load_profile(&saved_without_sentinel_keys).expect("legacy profile should load");
 
         assert!(loaded.sentinel_keys.is_empty());
+    }
+
+    #[test]
+    fn profile_codec_defaults_missing_keyboard_id_to_profile_id() {
+        let profile = fake_profile();
+        let Value::Map(mut map) = profile_to_value(&profile) else {
+            panic!("profile should serialize as map");
+        };
+        map.remove(&kw("keyboard", "id"));
+        let saved_without_keyboard_id = emit_str(&Value::Map(map));
+
+        let loaded = load_profile(&saved_without_keyboard_id).expect("legacy profile should load");
+
+        assert_eq!(loaded.keyboard_id, profile.id);
     }
 
     #[test]

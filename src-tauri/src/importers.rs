@@ -71,6 +71,7 @@ pub fn import_vial_json(contents: &str) -> Result<ImportCandidate, ImportError> 
     let profile = Profile {
         schema_version: 1,
         id: format!("profile-{}", source.id),
+        keyboard_id: format!("keyboard-{}", source.id),
         name: format!("{} Preview", source.name),
         sources: vec![source.clone()],
         physical_layout: PhysicalLayout {
@@ -207,6 +208,7 @@ pub fn import_vial_device_snapshot(
     let profile = Profile {
         schema_version: 1,
         id: format!("profile-{}", source.id),
+        keyboard_id: format!("keyboard-{}", source.id),
         name: format!("{} Preview", source.name),
         sources: vec![source.clone()],
         physical_layout: PhysicalLayout {
@@ -403,6 +405,7 @@ pub fn import_overkeys_companion_json(contents: &str) -> Result<ImportCandidate,
     let profile = Profile {
         schema_version: 1,
         id: format!("profile-{}", source.id),
+        keyboard_id: format!("keyboard-{}", source.id),
         name: format!("{} Preview", source.name),
         sources: vec![source.clone()],
         physical_layout: PhysicalLayout {
@@ -518,6 +521,7 @@ pub fn import_zmk_keymap(contents: &str) -> Result<ImportCandidate, ImportError>
     let profile = Profile {
         schema_version: 1,
         id: format!("profile-{}", source.id),
+        keyboard_id: format!("keyboard-{}", source.id),
         name: format!("{} Preview", source.name),
         sources: vec![source.clone()],
         physical_layout: PhysicalLayout {
@@ -1550,6 +1554,10 @@ mod tests {
         let candidate = import_vial_json(VIAL_FIXTURE).expect("fixture imports");
 
         assert!(candidate.best_effort_preview);
+        assert_eq!(
+            candidate.preview_profile.keyboard_id,
+            format!("keyboard-{}", candidate.source.id)
+        );
         assert!(candidate.preview_profile.physical_layout.fallback);
         assert_eq!(candidate.summary.imported_keys, 4);
         assert_eq!(candidate.summary.imported_layers, 2);

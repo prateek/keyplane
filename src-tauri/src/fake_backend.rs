@@ -13,6 +13,7 @@ use crate::sentinel_backend;
 
 const FAKE_SOURCE_ID: &str = "fake-backend";
 const PROFILE_ID: &str = "profile-keyplane-demo";
+const KEYBOARD_ID: &str = "keyboard-keyplane-demo";
 
 pub fn fake_profile() -> Profile {
     let fake_source = Source {
@@ -113,6 +114,7 @@ pub fn fake_profile() -> Profile {
     Profile {
         schema_version: 1,
         id: PROFILE_ID.to_string(),
+        keyboard_id: KEYBOARD_ID.to_string(),
         name: "Keyplane Demo".to_string(),
         sources: vec![fake_source, keypeek_source, kanata_source, sentinel_source],
         physical_layout: PhysicalLayout {

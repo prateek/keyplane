@@ -340,6 +340,7 @@ mod tests {
         let snapshot = store.snapshot().expect("snapshot composes");
 
         assert_eq!(snapshot.profile_name, "Keyplane Demo");
+        assert_eq!(snapshot.keyboard_id, "keyboard-keyplane-demo");
         assert_eq!(snapshot.runtime_state.layer_stack[0].layer_id, "layer-0");
     }
 
@@ -348,6 +349,7 @@ mod tests {
         let store = ActiveProfileStore::new(crate::fake_backend::fake_profile());
         let mut imported_profile = crate::fake_backend::fake_profile();
         imported_profile.id = "profile-imported".to_string();
+        imported_profile.keyboard_id = "keyboard-imported".to_string();
         imported_profile.name = "Imported Profile".to_string();
         let candidate = crate::fake_backend::import_candidate_from_profile(imported_profile);
 
@@ -356,6 +358,7 @@ mod tests {
             .expect("candidate commits");
 
         assert_eq!(snapshot.profile_id, "profile-imported");
+        assert_eq!(snapshot.keyboard_id, "keyboard-imported");
         assert_eq!(snapshot.profile_name, "Imported Profile");
         assert_eq!(store.snapshot().unwrap().profile_id, "profile-imported");
     }
@@ -580,5 +583,6 @@ mod tests {
 
         assert!(saved.contains(":schema/version 1"));
         assert!(saved.contains(":profile/id \"profile-keyplane-demo\""));
+        assert!(saved.contains(":keyboard/id \"keyboard-keyplane-demo\""));
     }
 }
