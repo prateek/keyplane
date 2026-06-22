@@ -429,6 +429,8 @@ pub fn compose_snapshot(
         &profile.source_precedence,
         &profile.user_overrides,
     );
+    let mut physical_layout = profile.physical_layout.clone();
+    apply_physical_layout_conflict_selection(&mut physical_layout, &source_conflicts);
     let mut keymap = profile.keymap.clone();
     apply_keymap_conflict_selection(&mut keymap, &source_conflicts);
     let effective_keys = resolve_effective_keys(&keymap, &runtime_state);
@@ -440,7 +442,7 @@ pub fn compose_snapshot(
         keyboard_id: profile.keyboard_id.clone(),
         profile_name: profile.name.clone(),
         sources: profile.sources.clone(),
-        physical_layout: profile.physical_layout.clone(),
+        physical_layout,
         keymap,
         runtime_state,
         effective_keys,
@@ -555,6 +557,122 @@ fn select_conflict_source(conflict: &mut SourceConflict, source_id: &str) {
     for candidate in conflict.candidates.iter_mut() {
         candidate.selected = candidate.source_id == source_id;
     }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum PhysicalLayoutField {
+    GeometryX,
+    GeometryY,
+    GeometryWidth,
+    GeometryHeight,
+    GeometryRotation,
+    MatrixRow,
+    MatrixCol,
+}
+
+fn apply_physical_layout_conflict_selection(
+    physical_layout: &mut PhysicalLayout,
+    source_conflicts: &[SourceConflict],
+) {
+    for conflict in source_conflicts {
+        let Some((key_id, field)) = physical_layout_field_path(&conflict.field_path) else {
+            continue;
+        };
+        let Some(selected) = conflict
+            .candidates
+            .iter()
+            .find(|candidate| candidate.selected)
+        else {
+            continue;
+        };
+        let Some(key) = physical_layout
+            .keys
+            .iter_mut()
+            .find(|candidate| candidate.id == key_id)
+        else {
+            continue;
+        };
+
+        if !apply_physical_key_value(key, field, &selected.value) {
+            continue;
+        }
+        key.provenance = SourceRef {
+            source_id: selected.source_id.clone(),
+            field_path: conflict.field_path.clone(),
+            raw: Some(selected.value.clone()),
+        };
+    }
+}
+
+fn physical_layout_field_path(field_path: &str) -> Option<(String, PhysicalLayoutField)> {
+    let parts: Vec<&str> = field_path.split_whitespace().collect();
+    let [":keyboard/physical-layout", key_id, field] = parts.as_slice() else {
+        return None;
+    };
+
+    let field = match *field {
+        ":geometry/x" => PhysicalLayoutField::GeometryX,
+        ":geometry/y" => PhysicalLayoutField::GeometryY,
+        ":geometry/width" => PhysicalLayoutField::GeometryWidth,
+        ":geometry/height" => PhysicalLayoutField::GeometryHeight,
+        ":geometry/rotation" => PhysicalLayoutField::GeometryRotation,
+        ":matrix/row" => PhysicalLayoutField::MatrixRow,
+        ":matrix/col" => PhysicalLayoutField::MatrixCol,
+        _ => return None,
+    };
+
+    Some(((*key_id).to_string(), field))
+}
+
+fn apply_physical_key_value(
+    key: &mut PhysicalKey,
+    field: PhysicalLayoutField,
+    value: &str,
+) -> bool {
+    match field {
+        PhysicalLayoutField::GeometryX => parse_f32(value)
+            .map(|value| key.geometry.x = value)
+            .is_some(),
+        PhysicalLayoutField::GeometryY => parse_f32(value)
+            .map(|value| key.geometry.y = value)
+            .is_some(),
+        PhysicalLayoutField::GeometryWidth => parse_f32(value)
+            .map(|value| key.geometry.width = value)
+            .is_some(),
+        PhysicalLayoutField::GeometryHeight => parse_f32(value)
+            .map(|value| key.geometry.height = value)
+            .is_some(),
+        PhysicalLayoutField::GeometryRotation => parse_f32(value)
+            .map(|value| key.geometry.rotation = value)
+            .is_some(),
+        PhysicalLayoutField::MatrixRow => {
+            let Some(value) = parse_u16(value) else {
+                return false;
+            };
+            matrix_position(key).row = value;
+            true
+        }
+        PhysicalLayoutField::MatrixCol => {
+            let Some(value) = parse_u16(value) else {
+                return false;
+            };
+            matrix_position(key).col = value;
+            true
+        }
+    }
+}
+
+fn parse_f32(value: &str) -> Option<f32> {
+    let value: f32 = value.trim().parse().ok()?;
+    value.is_finite().then_some(value)
+}
+
+fn parse_u16(value: &str) -> Option<u16> {
+    value.trim().parse().ok()
+}
+
+fn matrix_position(key: &mut PhysicalKey) -> &mut MatrixPosition {
+    key.matrix.get_or_insert(MatrixPosition { row: 0, col: 0 })
 }
 
 fn apply_keymap_conflict_selection(
@@ -1350,6 +1468,44 @@ mod tests {
         }
     }
 
+    fn physical_layout_conflict(selected_source_id: &str) -> SourceConflict {
+        SourceConflict {
+            field_path: ":keyboard/physical-layout k-q :geometry/x".to_string(),
+            selected_source_id: selected_source_id.to_string(),
+            candidates: vec![
+                SourceCandidate {
+                    source_id: "fake-backend".to_string(),
+                    value: "1.08".to_string(),
+                    selected: selected_source_id == "fake-backend",
+                },
+                SourceCandidate {
+                    source_id: "vial-import".to_string(),
+                    value: "2.5".to_string(),
+                    selected: selected_source_id == "vial-import",
+                },
+            ],
+        }
+    }
+
+    fn physical_layout_matrix_conflict(selected_source_id: &str) -> SourceConflict {
+        SourceConflict {
+            field_path: ":keyboard/physical-layout k-q :matrix/row".to_string(),
+            selected_source_id: selected_source_id.to_string(),
+            candidates: vec![
+                SourceCandidate {
+                    source_id: "fake-backend".to_string(),
+                    value: "0".to_string(),
+                    selected: selected_source_id == "fake-backend",
+                },
+                SourceCandidate {
+                    source_id: "vial-import".to_string(),
+                    value: "9".to_string(),
+                    selected: selected_source_id == "vial-import",
+                },
+            ],
+        }
+    }
+
     fn precedence_rule(field_scope: &str, source_order: Vec<&str>) -> SourcePrecedenceRule {
         SourcePrecedenceRule {
             field_scope: field_scope.to_string(),
@@ -1487,6 +1643,107 @@ mod tests {
         );
         assert_eq!(snapshot.source_precedence, profile.source_precedence);
         assert!(snapshot.user_overrides.is_empty());
+    }
+
+    #[test]
+    fn composed_snapshot_applies_selected_physical_layout_field_conflicts() {
+        let mut profile = crate::fake_backend::fake_profile();
+        profile.source_precedence = vec![precedence_rule(
+            ":keyboard/physical-layout",
+            vec!["vial-import", "fake-backend"],
+        )];
+        let runtime_state = crate::fake_backend::initial_runtime_state(&profile);
+
+        let snapshot = compose_snapshot(
+            &profile,
+            runtime_state,
+            vec![physical_layout_conflict("fake-backend")],
+        );
+
+        let key = snapshot
+            .physical_layout
+            .keys
+            .iter()
+            .find(|key| key.id == "k-q")
+            .expect("k-q physical key exists");
+        assert_eq!(key.geometry.x, 2.5);
+        assert_eq!(key.provenance.source_id, "vial-import");
+        assert_eq!(
+            key.provenance.field_path,
+            ":keyboard/physical-layout k-q :geometry/x"
+        );
+        assert_eq!(
+            snapshot.source_conflicts[0].selected_source_id,
+            "vial-import"
+        );
+    }
+
+    #[test]
+    fn composed_snapshot_applies_selected_physical_layout_matrix_conflicts() {
+        let mut profile = crate::fake_backend::fake_profile();
+        profile.source_precedence = vec![precedence_rule(
+            ":keyboard/physical-layout",
+            vec!["vial-import", "fake-backend"],
+        )];
+        let runtime_state = crate::fake_backend::initial_runtime_state(&profile);
+
+        let snapshot = compose_snapshot(
+            &profile,
+            runtime_state,
+            vec![physical_layout_matrix_conflict("fake-backend")],
+        );
+
+        let key = snapshot
+            .physical_layout
+            .keys
+            .iter()
+            .find(|key| key.id == "k-q")
+            .expect("k-q physical key exists");
+        assert_eq!(key.matrix.as_ref().expect("matrix is present").row, 9);
+        assert_eq!(key.provenance.source_id, "vial-import");
+        assert_eq!(
+            key.provenance.field_path,
+            ":keyboard/physical-layout k-q :matrix/row"
+        );
+        assert_eq!(
+            snapshot.source_conflicts[0].selected_source_id,
+            "vial-import"
+        );
+    }
+
+    #[test]
+    fn composed_snapshot_applies_physical_layout_user_overrides_over_source_precedence() {
+        let mut profile = crate::fake_backend::fake_profile();
+        profile.source_precedence = vec![precedence_rule(
+            ":keyboard/physical-layout",
+            vec!["vial-import", "fake-backend"],
+        )];
+        profile.user_overrides = vec![UserOverride {
+            field_path: ":keyboard/physical-layout k-q :geometry/x".to_string(),
+            value: "3.25".to_string(),
+            reason: "Pinned by user".to_string(),
+        }];
+        let runtime_state = crate::fake_backend::initial_runtime_state(&profile);
+
+        let snapshot = compose_snapshot(
+            &profile,
+            runtime_state,
+            vec![physical_layout_conflict("fake-backend")],
+        );
+
+        let key = snapshot
+            .physical_layout
+            .keys
+            .iter()
+            .find(|key| key.id == "k-q")
+            .expect("k-q physical key exists");
+        assert_eq!(key.geometry.x, 3.25);
+        assert_eq!(key.provenance.source_id, USER_OVERRIDE_SOURCE_ID);
+        assert_eq!(
+            snapshot.source_conflicts[0].selected_source_id,
+            USER_OVERRIDE_SOURCE_ID
+        );
+        assert_eq!(snapshot.source_precedence, profile.source_precedence);
     }
 
     #[test]

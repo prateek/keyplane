@@ -4,6 +4,7 @@ import type {
   KeyboardSnapshot,
   KeyAction,
   LogicalKeymap,
+  PhysicalLayout,
   RuntimeEvent,
   RuntimeState,
   SourceConflict,
@@ -65,6 +66,12 @@ export function promoteSourceCandidate(
     selected.value,
     sourceId,
   );
+  applyPhysicalLayoutSelection(
+    next.physical_layout,
+    conflict.field_path,
+    selected.value,
+    userOverrideSourceId,
+  );
   applyVisualStyleSelection(next.visual_style, conflict.field_path, selected.value);
   applyKeymapSelection(next.keymap, conflict.field_path, selected.value, userOverrideSourceId);
   next.effective_keys = resolveEffectiveKeys(next.keymap, next.runtime_state);
@@ -92,6 +99,12 @@ export function promoteImportCandidateSource(
     conflict.field_path,
     selected.value,
     sourceId,
+  );
+  applyPhysicalLayoutSelection(
+    next.preview_profile.physical_layout,
+    conflict.field_path,
+    selected.value,
+    userOverrideSourceId,
   );
   applyVisualStyleSelection(next.preview_profile.visual_style, conflict.field_path, selected.value);
   applyKeymapSelection(
@@ -175,6 +188,84 @@ function applyVisualStyleSelection(
 
 function sourceConflictOptionalValue(value: string) {
   return value === "nil" ? null : value;
+}
+
+function applyPhysicalLayoutSelection(
+  physicalLayout: PhysicalLayout,
+  fieldPath: string,
+  value: string,
+  sourceId: string,
+) {
+  const target = physicalLayoutFieldPath(fieldPath);
+  if (!target) return;
+
+  const key = physicalLayout.keys.find((candidate) => candidate.id === target.keyId);
+  if (!key) return;
+
+  if (target.field === "matrix-row" || target.field === "matrix-col") {
+    const matrixCoordinate = sourceConflictMatrixCoordinate(value);
+    if (matrixCoordinate === null) return;
+    key.matrix ??= { row: 0, col: 0 };
+    if (target.field === "matrix-row") key.matrix.row = matrixCoordinate;
+    if (target.field === "matrix-col") key.matrix.col = matrixCoordinate;
+  } else {
+    const numericValue = sourceConflictFiniteNumber(value);
+    if (numericValue === null) return;
+
+    if (target.field === "geometry-x") key.geometry.x = numericValue;
+    if (target.field === "geometry-y") key.geometry.y = numericValue;
+    if (target.field === "geometry-width") key.geometry.width = numericValue;
+    if (target.field === "geometry-height") key.geometry.height = numericValue;
+    if (target.field === "geometry-rotation") key.geometry.rotation = numericValue;
+  }
+
+  key.provenance = {
+    source_id: sourceId,
+    field_path: fieldPath,
+    raw: value,
+  };
+}
+
+function sourceConflictFiniteNumber(value: string): number | null {
+  if (value.trim() === "") return null;
+  const numericValue = Number(value);
+  return Number.isFinite(numericValue) ? numericValue : null;
+}
+
+function sourceConflictMatrixCoordinate(value: string): number | null {
+  const trimmed = value.trim();
+  if (!/^\d+$/.test(trimmed)) return null;
+  const numericValue = Number(trimmed);
+  return Number.isInteger(numericValue) && numericValue <= 65535 ? numericValue : null;
+}
+
+type PhysicalLayoutTarget = {
+  keyId: string;
+  field:
+    | "geometry-x"
+    | "geometry-y"
+    | "geometry-width"
+    | "geometry-height"
+    | "geometry-rotation"
+    | "matrix-row"
+    | "matrix-col";
+};
+
+function physicalLayoutFieldPath(fieldPath: string): PhysicalLayoutTarget | null {
+  const parts = fieldPath.trim().split(/\s+/);
+  if (parts.length !== 3 || parts[0] !== ":keyboard/physical-layout") return null;
+
+  const field = {
+    ":geometry/x": "geometry-x",
+    ":geometry/y": "geometry-y",
+    ":geometry/width": "geometry-width",
+    ":geometry/height": "geometry-height",
+    ":geometry/rotation": "geometry-rotation",
+    ":matrix/row": "matrix-row",
+    ":matrix/col": "matrix-col",
+  }[parts[2]] as PhysicalLayoutTarget["field"] | undefined;
+
+  return field ? { keyId: parts[1], field } : null;
 }
 
 function applyKeymapSelection(
