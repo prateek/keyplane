@@ -23,6 +23,7 @@ pub fn run() {
             commands::apply_profile_edn,
             commands::import_preview,
             commands::commit_import,
+            commands::connect_keypeek,
             commands::promote_override,
             commands::set_positioning_mode,
             commands::set_overlay_visible,

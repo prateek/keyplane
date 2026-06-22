@@ -4,12 +4,13 @@
 //! translate UI intents (import, hand edit, positioning) into core calls. No
 //! keyboard logic lives here.
 
-use crate::state::{AppState, EVENT_SNAPSHOT};
+use crate::state::{AppState, Backend, EVENT_SNAPSHOT};
 use keyplane_core::import::{
     ImportCandidate, ImportReview, Importer, KeyvizStyleImporter, OverKeysImporter, VialFileImporter,
 };
 use keyplane_core::profile::Profile;
 use keyplane_core::snapshot::KeyboardSnapshot;
+use keyplane_keypeek::{ConnectionSpec, KeyPeekBackend};
 use tauri::{AppHandle, Emitter, Manager, State};
 
 /// The current fully-resolved snapshot for first paint.
@@ -72,6 +73,42 @@ pub fn commit_import(
     let profile = candidate.into_new_profile("imported-profile");
     let mut inner = state.inner.lock().expect("state");
     inner.replace_model(profile.model.clone());
+    inner.profile = profile.clone();
+    let snapshot = inner.composer.snapshot();
+    drop(inner);
+    let _ = app.emit(EVENT_SNAPSHOT, &snapshot);
+    Ok(profile)
+}
+
+/// Connect a live KeyPeek-supported device (Vial by `vid`/`pid`, or VIA by a
+/// keyboard-definition `json_path`), reusing KeyPeek's protocol code. Replaces
+/// the active backend + model and starts streaming live Layer Stack changes.
+/// Hardware-gated: errors when no supported device is connected.
+#[tauri::command]
+pub fn connect_keypeek(
+    app: AppHandle,
+    state: State<AppState>,
+    kind: String,
+    vid: Option<u16>,
+    pid: Option<u16>,
+    json_path: Option<String>,
+    layout: Option<String>,
+) -> Result<Profile, String> {
+    let spec = match kind.as_str() {
+        "vial" => ConnectionSpec::Vial {
+            vid: vid.ok_or("vial requires vid")?,
+            pid: pid.ok_or("vial requires pid")?,
+        },
+        "via" => ConnectionSpec::Via {
+            json_path: json_path.ok_or("via requires json_path")?,
+        },
+        other => return Err(format!("unknown KeyPeek connection kind: {other}")),
+    };
+
+    let (backend, model) = KeyPeekBackend::connect(spec, layout.as_deref())?;
+    let profile = Profile::new("keypeek-profile", model.clone());
+    let mut inner = state.inner.lock().expect("state");
+    inner.set_backend(Backend::KeyPeek(backend), model);
     inner.profile = profile.clone();
     let snapshot = inner.composer.snapshot();
     drop(inner);

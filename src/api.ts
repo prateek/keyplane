@@ -17,6 +17,20 @@ export const commitImport = (format: string, contents: string) =>
   invoke<unknown>("commit_import", { format, contents });
 export const promoteOverride = (field: string, value: unknown, note?: string) =>
   invoke<unknown>("promote_override", { field, value, note: note ?? null });
+export const connectKeypeek = (args: {
+  kind: "vial" | "via";
+  vid?: number;
+  pid?: number;
+  jsonPath?: string;
+  layout?: string;
+}) =>
+  invoke<unknown>("connect_keypeek", {
+    kind: args.kind,
+    vid: args.vid ?? null,
+    pid: args.pid ?? null,
+    jsonPath: args.jsonPath ?? null,
+    layout: args.layout ?? null,
+  });
 export const setPositioningMode = (enabled: boolean) =>
   invoke<void>("set_positioning_mode", { enabled });
 export const setOverlayVisible = (visible: boolean) =>

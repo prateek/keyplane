@@ -74,7 +74,8 @@ body {
 }
 
 button,
-select {
+select,
+input {
   background: var(--keycap);
   color: var(--text);
   border: 1px solid #3a414f;
@@ -82,6 +83,15 @@ select {
   padding: 6px 10px;
   font-size: 13px;
   cursor: pointer;
+}
+
+input {
+  cursor: text;
+}
+
+.hex-input {
+  width: 110px;
+  font-family: ui-monospace, "SF Mono", Menlo, monospace;
 }
 
 button:hover {

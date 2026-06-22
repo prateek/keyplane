@@ -6,6 +6,7 @@ import {
   activeProfileEdn,
   applyProfileEdn,
   commitImport,
+  connectKeypeek,
   getSnapshot,
   importPreview,
   onRuntimeEvent,
@@ -76,6 +77,7 @@ export function App() {
               {snapshot.layers.length} layers · {snapshot.keys.length} keys
             </p>
           </section>
+          <DeviceConnect />
           <ImportPanel />
           <EdnEditor />
         </>
@@ -110,6 +112,52 @@ function OverlayControls() {
         {visible ? "Hide overlay" : "Show overlay"}
       </button>
     </div>
+  );
+}
+
+function DeviceConnect() {
+  const [vid, setVid] = useState("");
+  const [pid, setPid] = useState("");
+  const [status, setStatus] = useState<string | null>(null);
+
+  const connect = async () => {
+    setStatus("connecting…");
+    try {
+      await connectKeypeek({
+        kind: "vial",
+        vid: parseInt(vid, 16) || parseInt(vid, 10),
+        pid: parseInt(pid, 16) || parseInt(pid, 10),
+      });
+      setStatus("connected");
+    } catch (e) {
+      setStatus(String(e));
+    }
+  };
+
+  return (
+    <section className="panel">
+      <h2>Connect device (KeyPeek)</h2>
+      <p className="muted">
+        Stream live layer state from a Vial/VIA keyboard via the KeyPeek-derived
+        backend. Requires a connected, supported device.
+      </p>
+      <div className="row">
+        <input
+          className="hex-input"
+          placeholder="VID (hex)"
+          value={vid}
+          onChange={(e) => setVid(e.target.value)}
+        />
+        <input
+          className="hex-input"
+          placeholder="PID (hex)"
+          value={pid}
+          onChange={(e) => setPid(e.target.value)}
+        />
+        <button onClick={connect}>Connect Vial</button>
+        {status ? <span className="muted">{status}</span> : null}
+      </div>
+    </section>
   );
 }
 

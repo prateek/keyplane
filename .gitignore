@@ -28,3 +28,6 @@
 # Local fixtures and private keyboard exports
 /fixtures/private/
 *.local.vil
+
+# Cloned upstream sources for reference (KeyPeek etc.), not vendored in-tree
+/references/

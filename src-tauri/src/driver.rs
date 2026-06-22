@@ -5,8 +5,7 @@
 //! changes in the Overlay Window without real hardware. Time lives here, not in
 //! `keyplane-core`, so core resolution stays deterministic.
 
-use crate::state::{AppState, EVENT_RUNTIME, FAKE_BACKEND_ID};
-use keyplane_core::backend::ProtocolBackend;
+use crate::state::{AppState, EVENT_RUNTIME};
 use std::time::Duration;
 use tauri::{AppHandle, Emitter, Manager};
 
@@ -26,7 +25,8 @@ fn tick(handle: &AppHandle) {
     let state = handle.state::<AppState>();
     let mut inner = state.inner.lock().expect("state poisoned");
 
-    // Pull one scripted update, looping the demo when it runs dry.
+    // Pull pending updates, looping the Fake Backend's demo when it runs dry.
+    let backend_id = inner.backend.id();
     let mut updates = inner.backend.poll();
     if updates.is_empty() {
         inner.backend.replay();
@@ -34,7 +34,7 @@ fn tick(handle: &AppHandle) {
     }
 
     for update in updates {
-        if let Some(event) = inner.composer.apply(FAKE_BACKEND_ID, update) {
+        if let Some(event) = inner.composer.apply(&backend_id, update) {
             let _ = handle.emit(EVENT_RUNTIME, &event);
         }
     }
