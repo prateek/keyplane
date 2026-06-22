@@ -87,16 +87,25 @@ renders snapshots and applies runtime events.
   windows, and runs the Fake Backend driver loop without panicking. (A runtime
   smoke test caught and fixed an invalid-icon startup crash.)
 
-## Hardware-gated / deferred
+## Hardware/OS-gated / deferred
 
-- Real KeyPeek/HID live validation needs a supported device (ADR 0045); the
-  Fake Backend is the automated/dev source. The real backend trait is in place
-  but no HID transport is wired.
-- Applying User Overrides to live resolution (promotion records them in the
-  profile/EDN today), Fade Visibility, and full Display Targeting window
-  placement are modeled but not yet driving the window.
+- Real KeyPeek/HID and Kanata TCP live validation need a supported device and a
+  running Kanata daemon; the protocol code is in place and the pure adapters are
+  tested, but the live transports can't run in CI.
+- Sentinel keys: the inference logic is implemented and tested, but OS-level
+  host-event capture and macOS accessibility/input-monitoring permission
+  detection are not yet wired (a global input hook conflicts with Tauri's
+  main-thread event loop on macOS and needs real permissions).
+- ZMK live (needs the `zmk-studio-api` serial/BLE git dep) and ZMK `.keymap`
+  file import are not implemented.
+- Fade Visibility, monitor-name-based Display Targeting placement, and
+  Positioning Mode drag/resize affordances are modeled but not finished.
 - Signed builds, launch-at-login, and packaging are out of scope for the local
   MVP (ADR 0038, 0039).
+
+Done since the first pass: User Overrides are applied in resolution
+(`Profile::resolved_model`), Display Targeting position/size drives the overlay
+window, and KeyPeek's protocol/keycode code is reused rather than clean-roomed.
 
 ## Status
 
