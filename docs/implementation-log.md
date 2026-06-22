@@ -40,7 +40,7 @@ Started the Tauri v2 implementation from the PRD.
 - Added a Visual Style density Settings control backed by the Rust Active Profile store so compact, standard, and rich density choices persist into saved EDN Profiles.
 - Added macOS Accessibility and Input Monitoring permission checks and request prompts, surfaced through persistent Sentinel Keys Backend Health and Settings controls.
 - Added a GitHub Actions desktop build workflow that runs the Rust/frontend verification gate and uploads unsigned macOS debug `.app` and `.dmg` artifacts.
-- Refreshed `package-lock.json` so the desktop build workflow can use `npm ci` reliably.
+- Refreshed npm dependency metadata and made the Rolldown wasm runtime peer dependencies explicit so the desktop build workflow can use `npm ci` reliably.
 
 Verification:
 
