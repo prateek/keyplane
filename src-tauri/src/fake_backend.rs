@@ -6,6 +6,7 @@ use crate::domain::{
     SourceConflict, SourcePrecedenceRule, SourceRef, StateConfidence, StateConfidenceLevel,
     StyleDensity, UserOverride, VisibilityPolicy, VisualStyle,
 };
+use crate::kanata_backend;
 use crate::keypeek_backend;
 
 const FAKE_SOURCE_ID: &str = "fake-backend";
@@ -22,6 +23,12 @@ pub fn fake_profile() -> Profile {
         id: "keypeek-live".to_string(),
         name: "KeyPeek Live".to_string(),
         kind: "keypeek-firmware".to_string(),
+        authority: SourceAuthority::Authoritative,
+    };
+    let kanata_source = Source {
+        id: kanata_backend::KANATA_BACKEND_ID.to_string(),
+        name: "Kanata TCP".to_string(),
+        kind: "kanata".to_string(),
         authority: SourceAuthority::Authoritative,
     };
     let keys = fake_keys();
@@ -99,7 +106,7 @@ pub fn fake_profile() -> Profile {
         schema_version: 1,
         id: PROFILE_ID.to_string(),
         name: "Keyplane Demo".to_string(),
-        sources: vec![fake_source, keypeek_source],
+        sources: vec![fake_source, keypeek_source, kanata_source],
         physical_layout: PhysicalLayout {
             keys: keys.clone(),
             fallback: false,
@@ -120,6 +127,10 @@ pub fn fake_profile() -> Profile {
             keypeek_backend::keypeek_backend_status(
                 HealthState::Disconnected,
                 "No KeyPeek-compatible device is connected",
+            ),
+            kanata_backend::kanata_backend_status(
+                HealthState::Disconnected,
+                "Kanata TCP runtime is not connected",
             ),
         ],
         visual_style: VisualStyle {
@@ -144,6 +155,7 @@ pub fn fake_profile() -> Profile {
                 field_scope: ":runtime/state".to_string(),
                 source_order: vec![
                     "keypeek-live".to_string(),
+                    kanata_backend::KANATA_BACKEND_ID.to_string(),
                     FAKE_SOURCE_ID.to_string(),
                     "sentinel".to_string(),
                 ],
@@ -334,6 +346,10 @@ mod tests {
         assert!(snapshot.backends.iter().any(|backend| {
             backend.id == "keypeek-live" && backend.health.state == HealthState::Disconnected
         }));
+        assert!(snapshot.backends.iter().any(|backend| {
+            backend.id == kanata_backend::KANATA_BACKEND_ID
+                && backend.health.state == HealthState::Disconnected
+        }));
         assert!(snapshot
             .runtime_state
             .backend_health
@@ -341,7 +357,9 @@ mod tests {
             .any(|health| health.backend_id == "keypeek-live"
                 && health.state == HealthState::Disconnected));
         assert!(snapshot.source_precedence.iter().any(|rule| {
-            rule.field_scope == ":runtime/state" && rule.source_order[0] == "keypeek-live"
+            rule.field_scope == ":runtime/state"
+                && rule.source_order[0] == "keypeek-live"
+                && rule.source_order[1] == kanata_backend::KANATA_BACKEND_ID
         }));
     }
 

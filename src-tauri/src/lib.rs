@@ -3,6 +3,7 @@ pub mod backend;
 pub mod domain;
 pub mod fake_backend;
 pub mod importers;
+pub mod kanata_backend;
 pub mod keypeek_backend;
 pub mod profile_codec;
 

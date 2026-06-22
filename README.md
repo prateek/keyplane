@@ -14,6 +14,7 @@ The current implementation includes:
 - keyviz style JSON import as a style-only Import Candidate
 - OverKeys companion JSON import as a Best-Effort Preview Import Candidate with row-array fallback geometry
 - a Rust-owned Active Profile store with Import Review commit support
+- visible Backend Health for fake, KeyPeek Live, and Kanata TCP runtime backends
 - App Window surfaces for the overlay, Import Review, Source Inspector, Backend Health, and Positioning Mode
 - Rust-owned Overlay Window drag and resize controls while Positioning Mode is active
 

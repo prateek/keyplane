@@ -99,6 +99,17 @@ const keyPeekBackend: BackendStatus = {
   },
 };
 
+const kanataBackend: BackendStatus = {
+  id: "kanata-tcp",
+  name: "Kanata TCP",
+  capabilities: ["stream-layer-stack", "poll-state"],
+  health: {
+    backend_id: "kanata-tcp",
+    state: "disconnected",
+    message: "Kanata TCP runtime is not connected",
+  },
+};
+
 const runtimeState: RuntimeState = {
   layer_stack: [
     {
@@ -111,7 +122,7 @@ const runtimeState: RuntimeState = {
     },
   ],
   pressed_keys: [],
-  backend_health: [backend.health, keyPeekBackend.health],
+  backend_health: [backend.health, keyPeekBackend.health, kanataBackend.health],
 };
 
 export const fakeSnapshot: KeyboardSnapshot = {
@@ -126,7 +137,7 @@ export const fakeSnapshot: KeyboardSnapshot = {
   },
   runtime_state: runtimeState,
   effective_keys: resolveEffectiveKeys({ layers: [baseLayer, navLayer] }, runtimeState),
-  backends: [backend, keyPeekBackend],
+  backends: [backend, keyPeekBackend, kanataBackend],
   source_conflicts: [
     {
       field_path: ":visual/style :style/variant-id",

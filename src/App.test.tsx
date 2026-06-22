@@ -50,7 +50,8 @@ describe("Keyplane app", () => {
     await user.click(await screen.findByRole("button", { name: /source inspector/i }));
 
     expect(screen.getByText("KeyPeek Live")).toBeInTheDocument();
-    expect(screen.getByText("disconnected")).toBeInTheDocument();
+    expect(screen.getByText("Kanata TCP")).toBeInTheDocument();
+    expect(screen.getAllByText("disconnected").length).toBeGreaterThanOrEqual(2);
     expect(screen.getByText(":visual/style :style/variant-id")).toBeInTheDocument();
     expect(screen.getByText("keyviz-import")).toBeInTheDocument();
     expect(screen.getByText("keyviz-minimal")).toBeInTheDocument();
