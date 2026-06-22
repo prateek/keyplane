@@ -5,6 +5,7 @@ import type {
   HostInputEvent,
   ImportCandidate,
   KeyboardSnapshot,
+  KeyPeekDeviceDiscovery,
   Profile,
   RuntimeEvent,
   RuntimeState,
@@ -94,6 +95,43 @@ export async function requestHostInputPermissions(): Promise<KeyboardSnapshot | 
     return await invoke<KeyboardSnapshot>("request_host_input_permissions");
   } catch {
     return null;
+  }
+}
+
+export async function discoverKeyPeekDevices(): Promise<KeyPeekDeviceDiscovery | null> {
+  try {
+    return await invoke<KeyPeekDeviceDiscovery>("discover_keypeek_devices");
+  } catch {
+    return {
+      devices: [],
+      snapshot: {
+        ...fakeSnapshot,
+        backends: fakeSnapshot.backends.map((backend) =>
+          backend.id === "keypeek-live"
+            ? {
+                ...backend,
+                health: {
+                  backend_id: "keypeek-live",
+                  state: "disconnected",
+                  message: "KeyPeek device discovery unavailable",
+                },
+              }
+            : backend,
+        ),
+        runtime_state: {
+          ...fakeSnapshot.runtime_state,
+          backend_health: fakeSnapshot.runtime_state.backend_health.map((health) =>
+            health.backend_id === "keypeek-live"
+              ? {
+                  backend_id: "keypeek-live",
+                  state: "disconnected",
+                  message: "KeyPeek device discovery unavailable",
+                }
+              : health,
+          ),
+        },
+      },
+    };
   }
 }
 

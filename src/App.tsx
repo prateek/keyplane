@@ -13,6 +13,7 @@ import {
   Palette,
   PanelLeft,
   RadioTower,
+  Search,
   Settings,
   ShieldAlert,
   ShieldCheck,
@@ -24,6 +25,7 @@ import "./App.css";
 import type {
   EffectiveKey,
   ImportCandidate,
+  KeyPeekDiscoveredDevice,
   KeyboardSnapshot,
   RuntimeEvent,
   SourceConflict,
@@ -35,6 +37,7 @@ import { navLayerEvent } from "./fixtures";
 import { applyRuntimeEvent, promoteImportCandidateSource } from "./state";
 import {
   commitImportCandidate,
+  discoverKeyPeekDevices,
   importKeyvizStyleFile,
   importOverkeysCompanionFile,
   importVialDevice,
@@ -107,6 +110,7 @@ function App() {
   const [profileStatus, setProfileStatus] = useState<string | null>(null);
   const [keyPeekVid, setKeyPeekVid] = useState("");
   const [keyPeekPid, setKeyPeekPid] = useState("");
+  const [keyPeekDevices, setKeyPeekDevices] = useState<KeyPeekDiscoveredDevice[]>([]);
   const [kanataHost, setKanataHost] = useState("127.0.0.1");
   const [kanataPort, setKanataPort] = useState("7070");
   const [launchAtLogin, setLaunchAtLoginState] = useState<boolean | null>(null);
@@ -350,6 +354,34 @@ function App() {
       (candidate) => candidate.backend_id === "keypeek-live",
     );
     setProfileStatus(health?.message ?? "KeyPeek live backend updated");
+  }
+
+  async function discoverKeyPeekLiveDevices() {
+    setProfileStatus(null);
+    const discovery = await discoverKeyPeekDevices();
+    if (!discovery) {
+      setProfileStatus("KeyPeek device discovery unavailable");
+      return;
+    }
+
+    setKeyPeekDevices(discovery.devices);
+    setSnapshot(discovery.snapshot);
+    const firstDevice = discovery.devices[0];
+    if (firstDevice) {
+      setKeyPeekVid(firstDevice.vid);
+      setKeyPeekPid(firstDevice.pid);
+    }
+    const health = discovery.snapshot.runtime_state.backend_health.find(
+      (candidate) => candidate.backend_id === "keypeek-live",
+    );
+    setProfileStatus(health?.message ?? "KeyPeek device discovery complete");
+  }
+
+  function selectKeyPeekDevice(index: string) {
+    const device = keyPeekDevices[Number(index)];
+    if (!device) return;
+    setKeyPeekVid(device.vid);
+    setKeyPeekPid(device.pid);
   }
 
   async function importVialDevicePreview() {
@@ -624,6 +656,31 @@ function App() {
                 <RadioTower size={17} />
                 Connect
               </button>
+              <button
+                type="button"
+                aria-label="Scan KeyPeek devices"
+                onClick={() => void discoverKeyPeekLiveDevices()}
+              >
+                <Search size={17} />
+                Scan
+              </button>
+              {keyPeekDevices.length > 0 ? (
+                <select
+                  aria-label="Discovered KeyPeek device"
+                  value={selectedKeyPeekDeviceIndex(keyPeekDevices, keyPeekVid, keyPeekPid)}
+                  onChange={(event) => selectKeyPeekDevice(event.currentTarget.value)}
+                >
+                  <option value="">Select device</option>
+                  {keyPeekDevices.map((device, index) => (
+                    <option
+                      key={`${device.vid}-${device.pid}-${device.serial_number ?? index}`}
+                      value={String(index)}
+                    >
+                      {device.label}
+                    </option>
+                  ))}
+                </select>
+              ) : null}
               <button
                 type="button"
                 aria-label="Import Vial device"
@@ -1531,6 +1588,15 @@ function layoutBounds(snapshot: KeyboardSnapshot) {
 function clampOpacity(value: number) {
   if (!Number.isFinite(value)) return 1;
   return Math.min(Math.max(value, 0), 1);
+}
+
+function selectedKeyPeekDeviceIndex(
+  devices: KeyPeekDiscoveredDevice[],
+  vid: string,
+  pid: string,
+) {
+  const index = devices.findIndex((device) => device.vid === vid && device.pid === pid);
+  return index >= 0 ? String(index) : "";
 }
 
 function downloadTextFile(filename: string, contents: string) {

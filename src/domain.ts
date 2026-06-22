@@ -167,6 +167,21 @@ export interface BackendStatus {
   health: BackendHealth;
 }
 
+export interface KeyPeekDiscoveredDevice {
+  vid: string;
+  pid: string;
+  usage_page: string;
+  manufacturer: string | null;
+  product: string | null;
+  serial_number: string | null;
+  label: string;
+}
+
+export interface KeyPeekDeviceDiscovery {
+  devices: KeyPeekDiscoveredDevice[];
+  snapshot: KeyboardSnapshot;
+}
+
 export interface RuntimeState {
   layer_stack: LayerActivation[];
   pressed_keys: string[];

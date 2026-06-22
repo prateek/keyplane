@@ -191,7 +191,8 @@ button:hover {
   align-items: center;
 }
 
-.keypeek-connect input {
+.keypeek-connect input,
+.keypeek-connect select {
   width: 78px;
   min-height: 38px;
   border: 1px solid #bdcbc5;
@@ -199,7 +200,14 @@ button:hover {
   background: #ffffff;
   color: #17201f;
   padding: 0 8px;
+}
+
+.keypeek-connect input {
   text-transform: uppercase;
+}
+
+.keypeek-connect select {
+  width: 180px;
 }
 
 .backend-connect {

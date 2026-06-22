@@ -3,6 +3,7 @@ import type { ImportCandidate, Profile } from "./domain";
 import { fakeSnapshot } from "./fixtures";
 import {
   commitImportCandidate,
+  discoverKeyPeekDevices,
   loadLaunchAtLogin,
   refreshHostPermissionHealth,
   registerSentinelKeyShortcuts,
@@ -130,6 +131,20 @@ describe("Tauri client fallbacks", () => {
   it("reports Host Input permission health as unavailable when Tauri is absent", async () => {
     await expect(refreshHostPermissionHealth()).resolves.toBeNull();
     await expect(requestHostInputPermissions()).resolves.toBeNull();
+  });
+
+  it("reports KeyPeek device discovery as unavailable when Tauri is absent", async () => {
+    const discovery = await discoverKeyPeekDevices();
+
+    expect(discovery?.devices).toEqual([]);
+    const health = discovery?.snapshot.runtime_state.backend_health.find(
+      (candidate) => candidate.backend_id === "keypeek-live",
+    );
+    expect(health).toEqual({
+      backend_id: "keypeek-live",
+      state: "disconnected",
+      message: "KeyPeek device discovery unavailable",
+    });
   });
 
   it("reports Kanata TCP runtime control as unavailable when Tauri is absent", async () => {

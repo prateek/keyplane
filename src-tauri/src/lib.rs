@@ -19,8 +19,9 @@ pub mod vial_device;
 use crate::active_profile::ActiveProfileStore;
 use crate::backend::{FakeProtocolBackend, ProtocolBackend};
 use crate::domain::{
-    apply_runtime_event, HealthState, HostInputEvent, ImportCandidate, KeyboardSnapshot,
-    OverlayWindowConfig, Profile, RuntimeEvent, SourceConflict, StyleDensity, VisibilityPolicy,
+    apply_runtime_event, HealthState, HostInputEvent, ImportCandidate, KeyPeekDeviceDiscovery,
+    KeyboardSnapshot, OverlayWindowConfig, Profile, RuntimeEvent, SourceConflict, StyleDensity,
+    VisibilityPolicy,
 };
 use crate::kanata_tcp::{KanataLayerMap, KanataTcpRuntime, KanataTcpSession, TcpKanataTransport};
 use crate::keypeek_live::{KeyPeekLiveRuntime, KeyPeekLiveSession, QmkViaRawHidTransport};
@@ -249,6 +250,38 @@ fn request_host_input_permissions(
             host_permissions::request_host_input_permissions(),
         ))
         .map_err(|err| err.to_string())
+}
+
+#[tauri::command]
+fn discover_keypeek_devices(
+    active_profile: State<'_, ActiveProfileStore>,
+) -> Result<KeyPeekDeviceDiscovery, String> {
+    let (devices, status) = match keypeek_live::discover_keypeek_devices() {
+        Ok(devices) => {
+            let status = keypeek_backend::keypeek_discovery_backend_status(devices.len());
+            (devices, status)
+        }
+        Err(err) => {
+            let status = keypeek_backend::keypeek_backend_status(
+                keypeek_discovery_error_state(&err),
+                format!("Could not discover KeyPeek-compatible VIA Raw HID devices: {err}"),
+            );
+            (Vec::new(), status)
+        }
+    };
+    let snapshot = active_profile
+        .set_runtime_backend_status(status)
+        .map_err(|err| err.to_string())?;
+
+    Ok(KeyPeekDeviceDiscovery { devices, snapshot })
+}
+
+fn keypeek_discovery_error_state(error: &qmk_via_api::Error) -> HealthState {
+    match error {
+        qmk_via_api::Error::MaybePermissionDenied(_) => HealthState::PermissionMissing,
+        qmk_via_api::Error::UnsupportedFeature(_) => HealthState::Unsupported,
+        _ => HealthState::ProtocolError,
+    }
 }
 
 #[tauri::command]
@@ -690,6 +723,7 @@ pub fn run() {
             unregister_sentinel_key_shortcuts,
             refresh_host_permission_health,
             request_host_input_permissions,
+            discover_keypeek_devices,
             start_keypeek_live_backend,
             stop_keypeek_live_backend,
             start_kanata_tcp_backend,
@@ -931,6 +965,24 @@ mod tests {
         assert_eq!(
             ResizeDirection::from(OverlayResizeDirection::NorthWest),
             ResizeDirection::NorthWest
+        );
+    }
+
+    #[test]
+    fn keypeek_discovery_errors_map_to_typed_backend_health() {
+        assert_eq!(
+            keypeek_discovery_error_state(&qmk_via_api::Error::MaybePermissionDenied(
+                "hid unavailable".to_string()
+            )),
+            HealthState::PermissionMissing
+        );
+        assert_eq!(
+            keypeek_discovery_error_state(&qmk_via_api::Error::UnsupportedFeature("scan")),
+            HealthState::Unsupported
+        );
+        assert_eq!(
+            keypeek_discovery_error_state(&qmk_via_api::Error::Hid("boom".to_string())),
+            HealthState::ProtocolError
         );
     }
 

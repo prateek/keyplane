@@ -2,6 +2,16 @@
 
 Use this checklist when a QMK/Vial/ZMK device with the KeyPeek firmware module is connected.
 
+## VIA Raw HID Discovery
+
+1. Start the app with `npm run tauri dev`.
+2. Click `Scan` in the KeyPeek Live controls.
+3. Confirm Backend Health reports the discovered device count or a typed failure state.
+4. Select the discovered device from the menu and confirm the VID/PID fields are populated.
+
+Discovery finds VIA Raw HID endpoints. It does not prove the keyboard has the
+KeyPeek firmware module until the subscription or layer-change checks pass.
+
 ## Raw HID Subscription Canary
 
 Run the ignored subscription canary with the device VID/PID:

@@ -16,7 +16,7 @@ The current implementation includes:
 - keyviz style JSON import as a style-only Import Candidate with keycap color tokens and field-level Visual Style Source Conflicts
 - OverKeys companion JSON import as a Best-Effort Preview Import Candidate with row-array fallback geometry
 - a vendored KeyPeek protocol/domain source slice for live firmware packet attribution and drift checks
-- a KeyPeek Live Raw HID path using `qmk-via-api`, with VID/PID connection controls and Tauri Runtime Event streaming
+- a KeyPeek Live Raw HID path using `qmk-via-api`, with VIA Raw HID discovery, VID/PID connection controls, and Tauri Runtime Event streaming
 - a Kanata TCP runtime path with Settings host/port controls, newline JSON event parsing, and Layer Stack Runtime Event streaming
 - a Rust-owned Active Profile store with Import Review commit support
 - visible Backend Health and State Confidence reasons for fake, Overlay Window, KeyPeek Live, Kanata TCP, and Sentinel Keys runtime backends

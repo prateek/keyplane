@@ -27,6 +27,20 @@ pub fn keypeek_backend_status(health: HealthState, message: impl Into<String>) -
     }
 }
 
+pub fn keypeek_discovery_backend_status(device_count: usize) -> BackendStatus {
+    if device_count == 0 {
+        return keypeek_backend_status(
+            HealthState::Disconnected,
+            "No KeyPeek-compatible VIA Raw HID devices discovered",
+        );
+    }
+
+    keypeek_backend_status(
+        HealthState::Ok,
+        format!("Discovered {device_count} KeyPeek-compatible VIA Raw HID device(s)"),
+    )
+}
+
 pub fn layer_stack_from_keypeek_masks(
     default_layer_state: u32,
     layer_state: u32,
@@ -148,5 +162,22 @@ mod tests {
             keypeek_subscribe_message(false),
             vec![SUBSCRIBE_MARKER, SUBSCRIBE_INACTIVE]
         );
+    }
+
+    #[test]
+    fn discovery_status_reports_discovered_device_count() {
+        let empty = keypeek_discovery_backend_status(0);
+        assert_eq!(empty.health.state, HealthState::Disconnected);
+        assert!(empty
+            .health
+            .message
+            .contains("No KeyPeek-compatible VIA Raw HID devices"));
+
+        let discovered = keypeek_discovery_backend_status(2);
+        assert_eq!(discovered.health.state, HealthState::Ok);
+        assert!(discovered.health.message.contains("Discovered 2"));
+        assert!(discovered
+            .capabilities
+            .contains(&CapabilityFlag::DiscoverDevices));
     }
 }

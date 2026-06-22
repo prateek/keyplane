@@ -1,9 +1,12 @@
-use crate::domain::{BackendHealth, HealthState, PhysicalLayout, RuntimeEvent};
+use crate::domain::{
+    BackendHealth, HealthState, KeyPeekDiscoveredDevice, PhysicalLayout, RuntimeEvent,
+};
 use crate::keypeek_backend::{
     keypeek_backend_status, keypeek_subscribe_message, parse_keypeek_pressed_key_packet,
     runtime_event_from_keypeek_layer_packet,
 };
 use qmk_via_api::api::KeyboardApi;
+use qmk_via_api::scan::{scan_keyboards, KeyboardDeviceInfo};
 use std::collections::{BTreeMap, BTreeSet};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
@@ -136,6 +139,37 @@ pub fn parse_usb_id(value: &str) -> Result<u16, KeyPeekLiveError> {
     }
 
     u16::from_str_radix(hex, 16).map_err(|_| KeyPeekLiveError::InvalidUsbId(value.to_string()))
+}
+
+pub fn discover_keypeek_devices() -> Result<Vec<KeyPeekDiscoveredDevice>, qmk_via_api::Error> {
+    Ok(scan_keyboards()?
+        .iter()
+        .map(keypeek_device_from_qmk_via)
+        .collect())
+}
+
+pub fn keypeek_device_from_qmk_via(device: &KeyboardDeviceInfo) -> KeyPeekDiscoveredDevice {
+    let vid = format_usb_id(device.vendor_id);
+    let pid = format_usb_id(device.product_id);
+    let product_label = device
+        .product
+        .as_deref()
+        .or(device.manufacturer.as_deref())
+        .unwrap_or("VIA Raw HID device");
+
+    KeyPeekDiscoveredDevice {
+        vid: vid.clone(),
+        pid: pid.clone(),
+        usage_page: format_usb_id(device.usage_page),
+        manufacturer: device.manufacturer.clone(),
+        product: device.product.clone(),
+        serial_number: device.serial_number.clone(),
+        label: format!("{product_label} ({vid}:{pid})"),
+    }
+}
+
+fn format_usb_id(value: u16) -> String {
+    format!("{value:04x}")
 }
 
 pub fn connected_health(vid: u16, pid: u16) -> BackendHealth {
@@ -306,6 +340,27 @@ mod tests {
         assert_eq!(parse_usb_id("0Xcafe").unwrap(), 0xcafe);
         assert!(parse_usb_id("").is_err());
         assert!(parse_usb_id("not-a-vid").is_err());
+    }
+
+    #[test]
+    fn formats_discovered_via_raw_hid_devices_for_the_app_boundary() {
+        let device = KeyboardDeviceInfo {
+            vendor_id: 0xfeed,
+            product_id: 0xcafe,
+            usage_page: 0xff60,
+            manufacturer: Some("Acme".to_string()),
+            product: Some("Layer Board".to_string()),
+            serial_number: Some("abc123".to_string()),
+        };
+
+        let discovered = keypeek_device_from_qmk_via(&device);
+
+        assert_eq!(discovered.vid, "feed");
+        assert_eq!(discovered.pid, "cafe");
+        assert_eq!(discovered.usage_page, "ff60");
+        assert_eq!(discovered.label, "Layer Board (feed:cafe)");
+        assert_eq!(discovered.manufacturer.as_deref(), Some("Acme"));
+        assert_eq!(discovered.serial_number.as_deref(), Some("abc123"));
     }
 
     #[test]

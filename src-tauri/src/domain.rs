@@ -218,6 +218,23 @@ pub struct BackendStatus {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct KeyPeekDiscoveredDevice {
+    pub vid: String,
+    pub pid: String,
+    pub usage_page: String,
+    pub manufacturer: Option<String>,
+    pub product: Option<String>,
+    pub serial_number: Option<String>,
+    pub label: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct KeyPeekDeviceDiscovery {
+    pub devices: Vec<KeyPeekDiscoveredDevice>,
+    pub snapshot: KeyboardSnapshot,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct RuntimeState {
     pub layer_stack: Vec<LayerActivation>,
     pub pressed_keys: Vec<String>,

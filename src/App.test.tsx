@@ -134,11 +134,14 @@ describe("Keyplane app", () => {
   });
 
   it("exposes KeyPeek Live VID and PID connection controls", async () => {
+    const user = userEvent.setup();
     render(<App />);
 
     expect(await screen.findByLabelText("KeyPeek VID")).toBeInTheDocument();
     expect(screen.getByLabelText("KeyPeek PID")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /connect/i })).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: /scan keypeek devices/i }));
+    expect(await screen.findByText("KeyPeek device discovery unavailable")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /import vial device/i })).toBeInTheDocument();
   });
 
