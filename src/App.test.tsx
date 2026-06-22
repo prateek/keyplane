@@ -89,6 +89,9 @@ describe("Keyplane app", () => {
     expect(screen.getByRole("button", { name: /standard/i })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /rich/i })).toBeInTheDocument();
     expect(screen.getByLabelText(/sentinel keys/i)).toBeInTheDocument();
+    expect(screen.getByText(/host input permissions/i)).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /check/i })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /request/i })).toBeInTheDocument();
     expect(screen.getAllByText(/unavailable|enabled|disabled/i).length).toBeGreaterThanOrEqual(2);
   });
 

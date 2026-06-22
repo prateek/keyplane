@@ -220,6 +220,15 @@ button:hover {
   font-size: 0.78rem;
 }
 
+.backend-label {
+  display: inline-flex;
+  min-height: 38px;
+  align-items: center;
+  gap: 8px;
+  color: #37504a;
+  font-weight: 700;
+}
+
 .backend-connect input {
   width: 128px;
   min-height: 38px;
@@ -419,6 +428,14 @@ button:hover {
 .settings-view {
   display: grid;
   gap: 18px;
+}
+
+.settings-status {
+  max-width: 720px;
+  margin: -4px 0 0;
+  color: #5e716b;
+  font-size: 0.86rem;
+  overflow-wrap: anywhere;
 }
 
 .density-options {

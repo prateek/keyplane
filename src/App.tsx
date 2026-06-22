@@ -42,7 +42,9 @@ import {
   listenToRuntimeEvents,
   loadActiveProfileEdn,
   promoteActiveSourceCandidate,
+  refreshHostPermissionHealth,
   registerSentinelKeyShortcuts,
+  requestHostInputPermissions,
   saveActiveProfileEdn,
   setLaunchAtLogin,
   startKanataTcpBackend,
@@ -73,7 +75,14 @@ function App() {
   const [launchAtLogin, setLaunchAtLoginState] = useState<boolean | null>(null);
 
   useEffect(() => {
-    void loadInitialSnapshot().then(setSnapshot);
+    void loadInitialSnapshot().then((initialSnapshot) => {
+      setSnapshot(initialSnapshot);
+      void refreshHostPermissionHealth().then((permissionSnapshot) => {
+        if (permissionSnapshot) {
+          setSnapshot(permissionSnapshot);
+        }
+      });
+    });
     void loadFakeRuntimeEvents().then(setEvents);
     void loadLaunchAtLogin().then(setLaunchAtLoginState);
   }, []);
@@ -221,6 +230,23 @@ function App() {
       (candidate) => candidate.backend_id === "sentinel-keys",
     );
     setProfileStatus(health?.message ?? "Sentinel Keys updated");
+  }
+
+  async function updateHostPermissionHealth(requestPermissions: boolean) {
+    setProfileStatus(null);
+    const nextSnapshot = requestPermissions
+      ? await requestHostInputPermissions()
+      : await refreshHostPermissionHealth();
+    if (!nextSnapshot) {
+      setProfileStatus("Host Input permission health unavailable");
+      return;
+    }
+
+    setSnapshot(nextSnapshot);
+    const health = nextSnapshot.runtime_state.backend_health.find(
+      (candidate) => candidate.backend_id === "sentinel-keys",
+    );
+    setProfileStatus(health?.message ?? "Host Input permission health updated");
   }
 
   async function connectKanataTcp() {
@@ -528,12 +554,16 @@ function App() {
         {view === "settings" ? (
           <SettingsView
             density={snapshot.visual_style.density}
+            hostPermissionMessage={sentinelHealth?.message ?? null}
+            hostPermissionState={sentinelHealth?.state ?? null}
             launchAtLogin={launchAtLogin}
             kanataHealthState={kanataHealth?.state ?? null}
             kanataHost={kanataHost}
             kanataPort={kanataPort}
             sentinelKeysEnabled={sentinelKeysEnabled}
             onDensityChange={updateVisualStyleDensity}
+            onHostPermissionRefresh={() => updateHostPermissionHealth(false)}
+            onHostPermissionRequest={() => updateHostPermissionHealth(true)}
             onLaunchAtLoginChange={updateLaunchAtLogin}
             onKanataConnect={connectKanataTcp}
             onKanataDisconnect={disconnectKanataTcp}
@@ -927,12 +957,16 @@ export function ImportReview({
 
 function SettingsView({
   density,
+  hostPermissionMessage,
+  hostPermissionState,
   launchAtLogin,
   kanataHealthState,
   kanataHost,
   kanataPort,
   sentinelKeysEnabled,
   onDensityChange,
+  onHostPermissionRefresh,
+  onHostPermissionRequest,
   onLaunchAtLoginChange,
   onKanataConnect,
   onKanataDisconnect,
@@ -941,12 +975,16 @@ function SettingsView({
   onSentinelKeysChange,
 }: {
   density: StyleDensity;
+  hostPermissionMessage: string | null;
+  hostPermissionState: string | null;
   launchAtLogin: boolean | null;
   kanataHealthState: string | null;
   kanataHost: string;
   kanataPort: string;
   sentinelKeysEnabled: boolean | null;
   onDensityChange: (density: StyleDensity) => void;
+  onHostPermissionRefresh: () => void;
+  onHostPermissionRequest: () => void;
   onLaunchAtLoginChange: (enabled: boolean) => void;
   onKanataConnect: () => void;
   onKanataDisconnect: () => void;
@@ -1031,6 +1069,24 @@ function SettingsView({
             {sentinelKeysEnabled === null ? "unavailable" : sentinelKeysEnabled ? "enabled" : "disabled"}
           </span>
         </label>
+        <div className="backend-connect permission-controls">
+          <span className="backend-label">
+            <ShieldAlert size={17} />
+            Host Input Permissions
+          </span>
+          <button type="button" onClick={onHostPermissionRefresh}>
+            <ShieldCheck size={17} />
+            Check
+          </button>
+          <button type="button" onClick={onHostPermissionRequest}>
+            <ShieldAlert size={17} />
+            Request
+          </button>
+          <span className="badge">{hostPermissionState ?? "unknown"}</span>
+        </div>
+        {hostPermissionMessage ? (
+          <p className="settings-status">{hostPermissionMessage}</p>
+        ) : null}
       </section>
     </section>
   );

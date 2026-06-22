@@ -80,6 +80,22 @@ export async function unregisterSentinelKeyShortcuts(): Promise<KeyboardSnapshot
   }
 }
 
+export async function refreshHostPermissionHealth(): Promise<KeyboardSnapshot | null> {
+  try {
+    return await invoke<KeyboardSnapshot>("refresh_host_permission_health");
+  } catch {
+    return null;
+  }
+}
+
+export async function requestHostInputPermissions(): Promise<KeyboardSnapshot | null> {
+  try {
+    return await invoke<KeyboardSnapshot>("request_host_input_permissions");
+  } catch {
+    return null;
+  }
+}
+
 export async function startKeyPeekLiveBackend(
   request: KeyPeekConnectionRequest,
 ): Promise<KeyboardSnapshot | null> {

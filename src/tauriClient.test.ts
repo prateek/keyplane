@@ -4,7 +4,9 @@ import { fakeSnapshot } from "./fixtures";
 import {
   commitImportCandidate,
   loadLaunchAtLogin,
+  refreshHostPermissionHealth,
   registerSentinelKeyShortcuts,
+  requestHostInputPermissions,
   setLaunchAtLogin,
   setVisualStyleDensity,
   startKanataTcpBackend,
@@ -116,6 +118,11 @@ describe("Tauri client fallbacks", () => {
   it("reports Sentinel Key shortcut registration as unavailable when Tauri is absent", async () => {
     await expect(registerSentinelKeyShortcuts()).resolves.toBeNull();
     await expect(unregisterSentinelKeyShortcuts()).resolves.toBeNull();
+  });
+
+  it("reports Host Input permission health as unavailable when Tauri is absent", async () => {
+    await expect(refreshHostPermissionHealth()).resolves.toBeNull();
+    await expect(requestHostInputPermissions()).resolves.toBeNull();
   });
 
   it("reports Kanata TCP runtime control as unavailable when Tauri is absent", async () => {

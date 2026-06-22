@@ -2,6 +2,7 @@ pub mod active_profile;
 pub mod backend;
 pub mod domain;
 pub mod fake_backend;
+pub mod host_permissions;
 pub mod importers;
 pub mod kanata_backend;
 pub mod kanata_tcp;
@@ -219,6 +220,28 @@ fn unregister_sentinel_key_shortcuts(
         .set_runtime_backend_status(sentinel_backend::sentinel_backend_status(
             HealthState::Unsupported,
             "Sentinel Key shortcut registration is unavailable on this platform",
+        ))
+        .map_err(|err| err.to_string())
+}
+
+#[tauri::command]
+fn refresh_host_permission_health(
+    active_profile: State<'_, ActiveProfileStore>,
+) -> Result<KeyboardSnapshot, String> {
+    active_profile
+        .set_runtime_backend_status(host_permissions::host_permission_backend_status(
+            host_permissions::current_host_permission_state(),
+        ))
+        .map_err(|err| err.to_string())
+}
+
+#[tauri::command]
+fn request_host_input_permissions(
+    active_profile: State<'_, ActiveProfileStore>,
+) -> Result<KeyboardSnapshot, String> {
+    active_profile
+        .set_runtime_backend_status(host_permissions::host_permission_backend_status(
+            host_permissions::request_host_input_permissions(),
         ))
         .map_err(|err| err.to_string())
 }
@@ -574,6 +597,8 @@ pub fn run() {
             ingest_sentinel_host_input_event,
             register_sentinel_key_shortcuts,
             unregister_sentinel_key_shortcuts,
+            refresh_host_permission_health,
+            request_host_input_permissions,
             start_keypeek_live_backend,
             stop_keypeek_live_backend,
             start_kanata_tcp_backend,

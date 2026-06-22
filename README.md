@@ -25,9 +25,10 @@ The current implementation includes:
 - Profile-owned Overlay Window placement, size, click-through, visibility, and renderer opacity application
 - Sentinel Key bindings in the public Profile contract, with lower-confidence Host Input Event ingestion through a Rust Protocol Backend
 - native Sentinel Key global shortcut registration through a Rust-owned Tauri backend and Settings toggle
+- macOS Accessibility and Input Monitoring permission checks and prompts surfaced as persistent Sentinel Keys Backend Health
 - launch-at-login Settings backed by the Tauri autostart plugin and scoped autostart permissions
 
-The remaining PRD scope includes real KeyPeek-supported hardware validation, deeper native input-monitoring permission prompts beyond shortcut registration, and release packaging work beyond local debug bundles.
+The remaining PRD scope includes real KeyPeek-supported hardware validation and release packaging work beyond local debug bundles.
 
 ## Decisions
 
