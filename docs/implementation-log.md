@@ -50,6 +50,7 @@ Started the Tauri v2 implementation from the PRD.
 - Added a GitHub Actions desktop build workflow that runs the Rust/frontend verification gate and uploads unsigned macOS debug `.app` and `.dmg` artifacts.
 - Refreshed npm dependency metadata and made the Rolldown wasm runtime peer dependencies explicit so the desktop build workflow can use `npm ci` reliably.
 - Extended the desktop build workflow with Linux and Windows debug binary builds using Tauri's no-bundle path.
+- Updated GitHub-managed workflow actions to Node 24-compatible majors for checkout, Node setup, and artifact upload.
 - Added env-gated KeyPeek Live hardware canaries for Raw HID subscription start/stop and observed layer-change Runtime Events, plus a hardware validation checklist for manual layer-change acceptance.
 - Added a signed macOS release workflow scaffold that imports Apple signing certificates from GitHub Actions secrets, runs Tauri signing/notarization, uploads signed `.app` and `.dmg` artifacts, and documents the unverified Apple-credential boundary.
 

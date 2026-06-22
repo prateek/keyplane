@@ -13,10 +13,10 @@ jobs:
     runs-on: macos-latest
     steps:
       - name: Check out repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Set up Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v6
         with:
           node-version: "24"
           cache: npm
@@ -45,14 +45,14 @@ jobs:
         run: npm run tauri build -- --debug
 
       - name: Upload macOS app bundle
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: keyplane-macos-debug-app
           path: src-tauri/target/debug/bundle/macos/Keyplane.app
           if-no-files-found: error
 
       - name: Upload macOS dmg
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: keyplane-macos-debug-dmg
           path: src-tauri/target/debug/bundle/dmg/*.dmg
@@ -63,7 +63,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Check out repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Install Linux desktop dependencies
         run: |
@@ -82,7 +82,7 @@ jobs:
             wget
 
       - name: Set up Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v6
         with:
           node-version: "24"
           cache: npm
@@ -99,7 +99,7 @@ jobs:
         run: npm run tauri build -- --debug --no-bundle
 
       - name: Upload Linux binary
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: keyplane-linux-debug-binary
           path: src-tauri/target/debug/keyplane
@@ -110,10 +110,10 @@ jobs:
     runs-on: windows-latest
     steps:
       - name: Check out repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Set up Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v6
         with:
           node-version: "24"
           cache: npm
@@ -131,7 +131,7 @@ jobs:
         run: npm run tauri build -- --debug --no-bundle
 
       - name: Upload Windows binary
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: keyplane-windows-debug-binary
           path: src-tauri/target/debug/keyplane.exe
