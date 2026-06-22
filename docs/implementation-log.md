@@ -41,6 +41,7 @@ Started the Tauri v2 implementation from the PRD.
 - Added macOS Accessibility and Input Monitoring permission checks and request prompts, surfaced through persistent Sentinel Keys Backend Health and Settings controls.
 - Added a GitHub Actions desktop build workflow that runs the Rust/frontend verification gate and uploads unsigned macOS debug `.app` and `.dmg` artifacts.
 - Refreshed npm dependency metadata and made the Rolldown wasm runtime peer dependencies explicit so the desktop build workflow can use `npm ci` reliably.
+- Extended the desktop build workflow with Linux and Windows debug binary builds using Tauri's no-bundle path.
 
 Verification:
 
@@ -52,3 +53,4 @@ Verification:
 - `npm run build`
 - `ruby -e 'require "yaml"; YAML.load_file(".github/workflows/desktop-build.yml")'`
 - `npm run tauri build -- --debug`
+- `npm run tauri build -- --debug --no-bundle`
