@@ -9,7 +9,8 @@
 //! tested with synthetic device data; the live transport itself is
 //! hardware-gated.
 
-use crate::bridge::via_code_to_semantic;
+use crate::bridge::{layout_key_to_semantic, via_code_to_semantic};
+use crate::vendor::layout_key::LayoutKey;
 use crate::vendor::protocols::{
     connect_protocol, ConnectionSpec, Key, KeyboardLayout, KeyboardProtocol,
     KEYPEEK_SUBSCRIBE_MARKER,
@@ -49,6 +50,10 @@ fn provenance(raw: impl Into<String>) -> Provenance {
     Provenance::new("keypeek", SourceKind::KeyPeek).with_raw(raw)
 }
 
+fn zmk_provenance(raw: impl Into<String>) -> Provenance {
+    Provenance::new("zmk", SourceKind::Zmk).with_raw(raw)
+}
+
 impl KeyPeekBackend {
     /// Connect to a device, read its model, and start streaming layer state.
     ///
@@ -58,6 +63,7 @@ impl KeyPeekBackend {
         spec: ConnectionSpec,
         layout_name: Option<&str>,
     ) -> Result<(Self, KeyboardModel), String> {
+        let is_zmk = matches!(spec, ConnectionSpec::Zmk { .. });
         let protocol = connect_protocol(&spec).map_err(|e| e.to_string())?;
         let definition = protocol.get_layout_definition().clone();
         let layout = match layout_name {
@@ -69,13 +75,26 @@ impl KeyPeekBackend {
                 .ok_or("device exposes no layouts")?,
         };
         let layers = protocol.get_layer_count().map_err(|e| e.to_string())?;
-        let raw = protocol.read_all_raw(layers, definition.rows, definition.cols);
-        let model = build_model(&layout, &raw);
 
+        // ZMK supplies a LayoutKey keymap (from ZMK Studio); VIA/Vial supply raw
+        // numeric keycodes.
+        let model = if is_zmk {
+            let layout_keys = protocol.read_all_keys(layers, definition.rows, definition.cols);
+            build_model_from_layout_keys(&layout, &layout_keys)
+        } else {
+            let raw = protocol.read_all_raw(layers, definition.rows, definition.cols);
+            build_model(&layout, &raw)
+        };
+
+        let (id, kind, family) = if is_zmk {
+            ("zmk", SourceKind::Zmk, "ZMK")
+        } else {
+            ("keypeek", SourceKind::KeyPeek, "KeyPeek")
+        };
         let descriptor = BackendDescriptor {
-            id: "keypeek".to_string(),
-            name: format!("KeyPeek ({})", layout.name),
-            kind: SourceKind::KeyPeek,
+            id: id.to_string(),
+            name: format!("{family} ({})", layout.name),
+            kind,
             capabilities: CapabilitySet::new([
                 Capability::ImportGeometry,
                 Capability::ImportKeymap,
@@ -235,6 +254,47 @@ pub fn build_model(layout: &KeyboardLayout, raw_layers: &[Vec<Vec<u16>>]) -> Key
             );
         }
         layers.push(layer);
+    }
+
+    let keymap = LogicalKeymap::new(layers).with_default(layer_id(0));
+    let mut model = KeyboardModel::new(physical, keymap);
+    model.name = Some(layout.name.clone());
+    model
+}
+
+/// Build a Keyplane model from a ZMK keymap, whose entries are already
+/// `LayoutKey`s (resolved by ZMK Studio) rather than raw VIA codes.
+/// `layer_keys` is indexed `[layer][row][col]`.
+pub fn build_model_from_layout_keys(
+    layout: &KeyboardLayout,
+    layer_keys: &[Vec<Vec<Option<LayoutKey>>>],
+) -> KeyboardModel {
+    let physical = PhysicalLayout::new(layout.keys.iter().map(physical_key).collect());
+
+    let resolver = |n: u16| layer_id(n as usize);
+    let mut layers = Vec::new();
+    for (index, layer) in layer_keys.iter().enumerate() {
+        let mut out = Layer::new(layer_id(index), index as u16);
+        for key in &layout.keys {
+            let Some(cell) = layer.get(key.row).and_then(|r| r.get(key.col)) else {
+                continue;
+            };
+            let Some(lk) = cell else {
+                continue;
+            };
+            let token = if lk.tap.full.is_empty() {
+                "&trans".to_string()
+            } else {
+                lk.tap.full.clone()
+            };
+            let raw = RawAction::Zmk(token.clone());
+            let semantic = layout_key_to_semantic(lk, &resolver);
+            out.entries.insert(
+                key_id(key.row, key.col),
+                LayerEntry::new(raw, semantic).with_provenance(zmk_provenance(token)),
+            );
+        }
+        layers.push(out);
     }
 
     let keymap = LogicalKeymap::new(layers).with_default(layer_id(0));

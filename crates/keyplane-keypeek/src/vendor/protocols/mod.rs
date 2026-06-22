@@ -1,17 +1,18 @@
-// ZMK (`zmk`, `zmk_rpc`) is omitted from this vendored copy: it depends on the
-// `zmk-studio-api` git crate plus serialport/BLE stacks. Keyplane vendors the
-// VIA and Vial HID paths; ZMK live support can be added later behind the same
-// trait.
 pub mod kle_parser;
 pub mod layout_geometry;
 pub mod qmk_json_parser;
 pub mod via;
 pub mod vial;
+pub mod zmk;
+pub mod zmk_rpc;
 
 use crate::vendor::layout_key::LayoutKey;
 use qmk_via_api::api::{KeyboardApi, MatrixInfo};
 use std::error::Error;
 use std::sync::Arc;
+
+use self::zmk::ZmkProtocol;
+pub use self::zmk_rpc::{ZmkTransport, ZmkData, DeviceLocked};
 
 /// Shared raw-keycode reader used by the VIA and Vial protocol impls.
 pub(crate) fn read_all_raw_via_api(
@@ -157,9 +158,25 @@ impl SubscriptionSender for RawHidSubscription {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
+pub enum ZmkTransportConfig {
+    Serial(String),
+    Ble(String),
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum ConnectionSpec {
-    Via { json_path: String },
-    Vial { vid: u16, pid: u16 },
+    Via {
+        json_path: String,
+    },
+    Vial {
+        vid: u16,
+        pid: u16,
+    },
+    Zmk {
+        vid: u16,
+        pid: u16,
+        transport: ZmkTransportConfig,
+    },
 }
 
 pub fn connect_protocol(
@@ -172,6 +189,18 @@ pub fn connect_protocol(
         }
         ConnectionSpec::Vial { vid, pid } => {
             let protocol = VialProtocol::connect(*vid, *pid)?;
+            Ok(Box::new(protocol))
+        }
+        ConnectionSpec::Zmk {
+            vid,
+            pid,
+            transport,
+        } => {
+            let zmk_transport = match transport {
+                ZmkTransportConfig::Serial(port) => ZmkTransport::SerialPort(port.clone()),
+                ZmkTransportConfig::Ble(id) => ZmkTransport::BleDevice(id.clone()),
+            };
+            let protocol = ZmkProtocol::connect_live(*vid, *pid, &zmk_transport)?;
             Ok(Box::new(protocol))
         }
     }

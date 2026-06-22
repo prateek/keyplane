@@ -20,11 +20,13 @@ export const commitImport = (format: string, contents: string) =>
 export const promoteOverride = (field: string, value: unknown, note?: string) =>
   invoke<unknown>("promote_override", { field, value, note: note ?? null });
 export const connectKeypeek = (args: {
-  kind: "vial" | "via";
+  kind: "vial" | "via" | "zmk";
   vid?: number;
   pid?: number;
   jsonPath?: string;
   layout?: string;
+  serialPort?: string;
+  bleId?: string;
 }) =>
   invoke<unknown>("connect_keypeek", {
     kind: args.kind,
@@ -32,6 +34,8 @@ export const connectKeypeek = (args: {
     pid: args.pid ?? null,
     jsonPath: args.jsonPath ?? null,
     layout: args.layout ?? null,
+    serialPort: args.serialPort ?? null,
+    bleId: args.bleId ?? null,
   });
 export const connectKanata = (port: number, host?: string) =>
   invoke<unknown>("connect_kanata", { host: host ?? null, port });

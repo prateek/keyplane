@@ -159,8 +159,41 @@ function DeviceConnect() {
         <button onClick={connect}>Connect Vial</button>
         {status ? <span className="muted">{status}</span> : null}
       </div>
+      <ZmkConnect vid={vid} pid={pid} />
       <KanataConnect />
     </section>
+  );
+}
+
+function ZmkConnect({ vid, pid }: { vid: string; pid: string }) {
+  const [port, setPort] = useState("");
+  const [status, setStatus] = useState<string | null>(null);
+  const connect = async () => {
+    setStatus("connecting…");
+    try {
+      await connectKeypeek({
+        kind: "zmk",
+        vid: parseInt(vid, 16) || parseInt(vid, 10),
+        pid: parseInt(pid, 16) || parseInt(pid, 10),
+        serialPort: port,
+      });
+      setStatus("connected");
+    } catch (e) {
+      setStatus(String(e));
+    }
+  };
+  return (
+    <div className="row">
+      <span className="muted">ZMK Studio (uses VID/PID above):</span>
+      <input
+        className="hex-input"
+        placeholder="serial port"
+        value={port}
+        onChange={(e) => setPort(e.target.value)}
+      />
+      <button onClick={connect}>Connect ZMK</button>
+      {status ? <span className="muted">{status}</span> : null}
+    </div>
   );
 }
 

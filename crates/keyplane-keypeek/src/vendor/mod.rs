@@ -15,3 +15,4 @@ pub mod glyphs;
 pub mod keycode_labels;
 pub mod layout_key;
 pub mod protocols;
+pub mod zmk_keycode_labels;

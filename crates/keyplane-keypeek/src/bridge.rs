@@ -27,10 +27,13 @@ pub fn via_code_to_semantic(code: u16, layer_of: &LayerIndexResolver<'_>) -> Sem
     let Some(lk) = get_layout_key(code) else {
         return SemanticAction::Transparent;
     };
-    classify(&lk, layer_of)
+    layout_key_to_semantic(&lk, layer_of)
 }
 
-fn classify(lk: &LayoutKey, layer_of: &LayerIndexResolver<'_>) -> SemanticAction {
+/// Classify a KeyPeek [`LayoutKey`] into a [`SemanticAction`]. Used directly by
+/// the ZMK path, whose keymap comes from ZMK Studio as `LayoutKey`s rather than
+/// numeric VIA codes.
+pub fn layout_key_to_semantic(lk: &LayoutKey, layer_of: &LayerIndexResolver<'_>) -> SemanticAction {
     let tap = lk.tap.full.clone();
     let behavior = lk.behavior.as_ref().map(|b| b.full.as_str());
 

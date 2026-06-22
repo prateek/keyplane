@@ -13,7 +13,7 @@ use keyplane_core::profile::{DisplayTargeting, Profile};
 use keyplane_core::snapshot::KeyboardSnapshot;
 use crate::state::EVENT_RUNTIME;
 use keyplane_kanata::{KanataBackend, LayerMap};
-use keyplane_keypeek::{ConnectionSpec, KeyPeekBackend};
+use keyplane_keypeek::{ConnectionSpec, KeyPeekBackend, ZmkTransportConfig};
 use keyplane_sentinel::{SentinelAction, SentinelBackend, SentinelKey};
 use serde::Deserialize;
 use tauri::{AppHandle, Emitter, Manager, State};
@@ -99,6 +99,7 @@ pub fn commit_import(
 /// the active backend + model and starts streaming live Layer Stack changes.
 /// Hardware-gated: errors when no supported device is connected.
 #[tauri::command]
+#[allow(clippy::too_many_arguments)] // Tauri command: one optional param per transport field.
 pub fn connect_keypeek(
     app: AppHandle,
     state: State<AppState>,
@@ -107,6 +108,8 @@ pub fn connect_keypeek(
     pid: Option<u16>,
     json_path: Option<String>,
     layout: Option<String>,
+    serial_port: Option<String>,
+    ble_id: Option<String>,
 ) -> Result<Profile, String> {
     let spec = match kind.as_str() {
         "vial" => ConnectionSpec::Vial {
@@ -116,6 +119,20 @@ pub fn connect_keypeek(
         "via" => ConnectionSpec::Via {
             json_path: json_path.ok_or("via requires json_path")?,
         },
+        "zmk" => {
+            let transport = if let Some(port) = serial_port {
+                ZmkTransportConfig::Serial(port)
+            } else if let Some(id) = ble_id {
+                ZmkTransportConfig::Ble(id)
+            } else {
+                return Err("zmk requires serial_port or ble_id".to_string());
+            };
+            ConnectionSpec::Zmk {
+                vid: vid.ok_or("zmk requires vid")?,
+                pid: pid.ok_or("zmk requires pid")?,
+                transport,
+            }
+        }
         other => return Err(format!("unknown KeyPeek connection kind: {other}")),
     };
 

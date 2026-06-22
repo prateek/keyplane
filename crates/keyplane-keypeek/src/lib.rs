@@ -18,4 +18,4 @@ pub mod vendor;
 
 pub use backend::{KeyPeekBackend, KeyPeekConnection};
 pub use bridge::via_code_to_semantic;
-pub use vendor::protocols::ConnectionSpec;
+pub use vendor::protocols::{ConnectionSpec, ZmkTransportConfig};

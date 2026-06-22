@@ -30,6 +30,11 @@ pub const FAST_FORWARD: &str = "⏩";
 pub const POWER: &str = "Power";
 pub const LIST: &str = "Menu";
 
+pub const GLOBE: &str = "Globe";
+pub const MICROPHONE: &str = "Mic";
+pub const REPEAT: &str = "Repeat";
+pub const SHUFFLE: &str = "Shuffle";
+
 pub const MOUSE_SIMPLE: &str = "Mouse";
 pub const MOUSE_SCROLL: &str = "Scroll";
 pub const MOUSE_LEFT_CLICK: &str = "LMB";
