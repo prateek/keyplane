@@ -5,6 +5,7 @@ import App, {
   FADE_VISIBILITY_INACTIVITY_MS,
   ImportReview,
   OverlaySurface,
+  backendHealthSummary,
   kanataTcpSettingsFromSnapshot,
 } from "./App";
 import type { ImportCandidate } from "./domain";
@@ -18,10 +19,10 @@ describe("Keyplane app", () => {
     expect(overlay).toBeInTheDocument();
     expect(overlay).toHaveStyle({ opacity: "0.92" });
     expect(screen.getByRole("button", { name: /k-q q/i })).toBeInTheDocument();
-    expect(screen.getAllByText("ok").length).toBeGreaterThan(0);
+    expect(within(overlay).getByText("3 backend issues")).toBeInTheDocument();
     expect(screen.getByText("click-through")).toBeInTheDocument();
     expect(within(overlay).getByText("Default layer from fake backend")).toBeInTheDocument();
-    expect(within(overlay).getByText("Streaming deterministic layer stack events")).toBeInTheDocument();
+    expect(within(overlay).getByText(/Sentinel Keys: Input monitoring permission/)).toBeInTheDocument();
   });
 
   it("renders inherited legends after a fake layer event", async () => {
@@ -126,6 +127,47 @@ describe("Keyplane app", () => {
     expect(overlay.getAttribute("style")).toContain("--keyplane-keycap-border: #222222");
     expect(overlay.getAttribute("style")).toContain("--keyplane-modifier-accent: #3a86ff");
     expect(overlay.getAttribute("style")).toContain("--keyplane-overlay-background: #ffffff99");
+  });
+
+  it("surfaces stale Backend Health when the first backend is healthy", () => {
+    const snapshot = structuredClone(fakeSnapshot);
+    snapshot.runtime_state.backend_health = [
+      fakeSnapshot.runtime_state.backend_health[0],
+      {
+        backend_id: "vial-import",
+        state: "stale",
+        message: "Vial import preview is older than the connected keyboard",
+      },
+    ];
+    snapshot.backends = [
+      fakeSnapshot.backends[0],
+      {
+        id: "vial-import",
+        name: "Vial Import",
+        capabilities: ["preview-only"],
+        health: snapshot.runtime_state.backend_health[1],
+        config: null,
+      },
+    ];
+
+    render(
+      <OverlaySurface
+        snapshot={snapshot}
+        onAdvance={() => undefined}
+        onDragOverlay={() => undefined}
+        onResizeOverlay={() => undefined}
+        onTogglePositioningMode={() => undefined}
+      />,
+    );
+
+    const overlay = screen.getByRole("region", { name: "Keyboard overlay" });
+    expect(within(overlay).getByText("stale")).toBeInTheDocument();
+    expect(
+      within(overlay).getByText(
+        "Vial Import: Vial import preview is older than the connected keyboard",
+      ),
+    ).toBeInTheDocument();
+    expect(backendHealthSummary(snapshot).ok).toBe(false);
   });
 
   it("exposes active Profile EDN save and load actions", async () => {

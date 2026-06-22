@@ -55,6 +55,7 @@ Started the Tauri v2 implementation from the PRD.
 - Added Layer Stack precedence, Activation Kind, and State Confidence rows to Source Inspector so active-layer ordering is inspectable outside the Overlay Surface.
 - Added Transparent Entries to Source Inspector so transparent Raw Actions remain visible with the inherited lower-layer source and effective label.
 - Added State Confidence reasons and Backend Health messages to the Overlay Surface status strip so inferred, stale, and disconnected state is visible without opening Source Inspector.
+- Summarized all non-OK Backend Health in the App Window and Overlay Surface so stale, disconnected, permission-missing, unsupported, parse-error, and protocol-error states are not hidden behind a healthy first backend.
 - Added an Active Profile diff summary to Import Review so Import Candidates show changed keys, layers, sources, provenance records, backends, style, and fallback-layout state before commit.
 - Added selected-winner and raw Source Provenance rows to Import Review Source Conflicts before Import Candidate commit.
 - Added Import Review promotion controls that turn selected Source Conflict candidates into pending Profile User Overrides before Import Candidate commit.
@@ -96,7 +97,7 @@ Verification:
 - `cargo test` (126 Rust tests passed, 3 private local hardware canaries ignored by default)
 - `KEYPLANE_LOCAL_VIL_CANDIDATE=<private .vil path> cargo test local_vil_candidate_file_imports_when_env_is_set -- --ignored`
 - `npm ci`
-- `npm test` (45 frontend tests)
+- `npm test` (46 frontend tests)
 - `npm run build`
 - `npm run check:workflows`
 - `KEYPLANE_LOCAL_VIL_CANDIDATE=<private .vil path> npm run validate:mvp` (fails with only the expected external evidence gaps: real KeyPeek live layer-change proof and signed-release proof)

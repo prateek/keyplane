@@ -23,7 +23,9 @@ import type { CSSProperties } from "react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import "./App.css";
 import type {
+  BackendHealth,
   EffectiveKey,
+  HealthState,
   ImportCandidate,
   KeyPeekDiscoveredDevice,
   KeyboardSnapshot,
@@ -71,6 +73,61 @@ import {
 type View = "overlay" | "inspector" | "import" | "settings";
 
 export const FADE_VISIBILITY_INACTIVITY_MS = 3_000;
+
+const healthStateRank: Record<HealthState, number> = {
+  "permission-missing": 0,
+  "protocol-error": 1,
+  "parse-error": 2,
+  unsupported: 3,
+  disconnected: 4,
+  stale: 5,
+  ok: 6,
+};
+
+interface BackendHealthSummary {
+  state: string;
+  message: string;
+  ok: boolean;
+}
+
+export function backendHealthSummary(snapshot: KeyboardSnapshot): BackendHealthSummary {
+  const health = snapshot.runtime_state.backend_health;
+  if (health.length === 0) {
+    return {
+      state: "unknown",
+      message: "No Backend Health reported",
+      ok: false,
+    };
+  }
+
+  const unhealthy = health
+    .filter((candidate) => candidate.state !== "ok")
+    .sort((left, right) => healthStateRank[left.state] - healthStateRank[right.state]);
+
+  if (unhealthy.length === 0) {
+    const primary = health[0];
+    return {
+      state: primary.state,
+      message: primary.message,
+      ok: true,
+    };
+  }
+
+  return {
+    state: unhealthy.length === 1 ? unhealthy[0].state : `${unhealthy.length} backend issues`,
+    message: unhealthy
+      .map((candidate) => `${backendHealthName(snapshot, candidate)}: ${candidate.message}`)
+      .join(" | "),
+    ok: false,
+  };
+}
+
+function backendHealthName(snapshot: KeyboardSnapshot, health: BackendHealth) {
+  return (
+    snapshot.backends.find((backend) => backend.id === health.backend_id)?.name ??
+    health.backend_id
+  );
+}
 
 function snapshotWithOverlayVisible(snapshot: KeyboardSnapshot, visible: boolean): KeyboardSnapshot {
   return {
@@ -246,7 +303,7 @@ function App() {
 
   const activeLayer = snapshot?.runtime_state.layer_stack[0];
   const health = snapshot?.runtime_state.backend_health ?? [];
-  const topHealth = health[0];
+  const topHealth = snapshot ? backendHealthSummary(snapshot) : null;
   const kanataHealth = health.find((candidate) => candidate.backend_id === "kanata-tcp");
   const sentinelHealth = health.find((candidate) => candidate.backend_id === "sentinel-keys");
   const sentinelKeysEnabled = sentinelHealth ? sentinelHealth.state === "ok" : null;
@@ -646,7 +703,7 @@ function App() {
           </button>
         </nav>
         <section className="health-block" aria-label="Backend health">
-          {topHealth?.state === "ok" ? <ShieldCheck size={18} /> : <ShieldAlert size={18} />}
+          {topHealth?.ok ? <ShieldCheck size={18} /> : <ShieldAlert size={18} />}
           <div>
             <span>{topHealth?.state ?? "unknown"}</span>
             <p>{topHealth?.message ?? "No backend health reported"}</p>
@@ -858,7 +915,7 @@ export function OverlaySurface({
     snapshot.keymap.layers.find(
       (layer) => layer.id === snapshot.runtime_state.layer_stack[0]?.layer_id,
     )?.name ?? "Unknown";
-  const health = snapshot.runtime_state.backend_health[0];
+  const health = backendHealthSummary(snapshot);
   const activeLayer = snapshot.runtime_state.layer_stack[0] ?? null;
   const bounds = useMemo(() => layoutBounds(snapshot), [snapshot]);
   const overlayOpacity = clampOpacity(snapshot.overlay_window.display_targeting.opacity);
@@ -884,9 +941,9 @@ export function OverlaySurface({
           <small>{activeLayer?.confidence.reason ?? "No State Confidence reason reported"}</small>
         </div>
         <div>
-          <span>{health?.state ?? "unknown"}</span>
+          <span>{health.state}</span>
           <strong>{snapshot.overlay_window.click_through ? "click-through" : "positioning"}</strong>
-          <small>{health?.message ?? "No Backend Health reported"}</small>
+          <small>{health.message}</small>
         </div>
         <div>
           <span>{snapshot.overlay_window.visibility}</span>
