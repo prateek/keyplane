@@ -5,6 +5,7 @@ use crate::domain::{
     SourceConflict, SourcePrecedenceRule, SourceRef, StyleDensity, VisibilityPolicy, VisualStyle,
     VisualStyleColors,
 };
+use crate::kanata_backend;
 use qmk_via_api::keycodes::Keycode;
 use serde_json::Value as JsonValue;
 use thiserror::Error;
@@ -361,6 +362,12 @@ pub fn import_overkeys_companion_json(contents: &str) -> Result<ImportCandidate,
         kind: "overkeys-companion-import".to_string(),
         authority: SourceAuthority::BestEffortPreview,
     };
+    let kanata_source = Source {
+        id: kanata_backend::KANATA_BACKEND_ID.to_string(),
+        name: "Kanata TCP".to_string(),
+        kind: "kanata".to_string(),
+        authority: SourceAuthority::Authoritative,
+    };
     let physical_keys =
         import_matrix_rows_as_fallback_layout(&layer_values, &source.id, "overkeys");
     let mut layers = import_layers(
@@ -387,16 +394,15 @@ pub fn import_overkeys_companion_json(contents: &str) -> Result<ImportCandidate,
     let backend_health = BackendHealth {
         backend_id: source.id.clone(),
         state: HealthState::Stale,
-        message:
-            "Imported OverKeys companion profile is renderable; Kanata runtime connection is not active"
-                .to_string(),
+        message: "Imported OverKeys companion profile provides renderable layout/keymap data as Best-Effort Preview"
+            .to_string(),
     };
     let profile = Profile {
         schema_version: 1,
         id: format!("profile-{}", source.id),
         keyboard_id: format!("keyboard-{}", source.id),
         name: format!("{} Preview", source.name),
-        sources: vec![source.clone()],
+        sources: vec![source.clone(), kanata_source],
         physical_layout: PhysicalLayout {
             keys: physical_keys.clone(),
             fallback: true,
@@ -404,16 +410,22 @@ pub fn import_overkeys_companion_json(contents: &str) -> Result<ImportCandidate,
         keymap: LogicalKeymap {
             layers: layers.clone(),
         },
-        runtime_backends: vec![BackendStatus {
-            id: source.id.clone(),
-            name: source.name.clone(),
-            capabilities: vec![
-                CapabilityFlag::ImportGeometry,
-                CapabilityFlag::ImportKeymaps,
-                CapabilityFlag::PreviewOnly,
-            ],
-            health: backend_health,
-        }],
+        runtime_backends: vec![
+            BackendStatus {
+                id: source.id.clone(),
+                name: source.name.clone(),
+                capabilities: vec![
+                    CapabilityFlag::ImportGeometry,
+                    CapabilityFlag::ImportKeymaps,
+                    CapabilityFlag::PreviewOnly,
+                ],
+                health: backend_health,
+            },
+            kanata_backend::kanata_backend_status(
+                HealthState::Disconnected,
+                "Kanata TCP runtime is not connected; imported OverKeys companion profile supplies layout/keymap data",
+            ),
+        ],
         sentinel_keys: Vec::new(),
         visual_style: VisualStyle {
             id: "style-overkeys-preview".to_string(),
@@ -436,6 +448,13 @@ pub fn import_overkeys_companion_json(contents: &str) -> Result<ImportCandidate,
             },
         },
         source_precedence: vec![
+            SourcePrecedenceRule {
+                field_scope: ":runtime/state".to_string(),
+                source_order: vec![
+                    kanata_backend::KANATA_BACKEND_ID.to_string(),
+                    source.id.clone(),
+                ],
+            },
             SourcePrecedenceRule {
                 field_scope: ":keyboard/physical-layout".to_string(),
                 source_order: vec!["user-overrides".to_string(), source.id.clone()],
@@ -1876,6 +1895,13 @@ mod tests {
         assert_eq!(candidate.source.kind, "overkeys-companion-import");
         assert!(candidate.best_effort_preview);
         assert!(candidate.preview_profile.physical_layout.fallback);
+        assert!(candidate
+            .preview_profile
+            .sources
+            .iter()
+            .any(|source| source.id == kanata_backend::KANATA_BACKEND_ID
+                && source.kind == "kanata"
+                && source.authority == SourceAuthority::Authoritative));
         assert_eq!(candidate.summary.imported_keys, 6);
         assert_eq!(candidate.summary.imported_layers, 1);
         assert_eq!(
@@ -1907,10 +1933,53 @@ mod tests {
             .source_precedence
             .iter()
             .any(|rule| {
+                rule.field_scope == ":runtime/state"
+                    && rule.source_order[0] == kanata_backend::KANATA_BACKEND_ID
+            }));
+        assert!(candidate
+            .preview_profile
+            .source_precedence
+            .iter()
+            .any(|rule| {
                 rule.field_scope == ":keyboard/keymap"
                     && rule.source_order[0] == "user-overrides"
                     && rule.source_order[1] == candidate.source.id
             }));
+    }
+
+    #[test]
+    fn overkeys_companion_pairs_renderable_profile_with_kanata_runtime_backend() {
+        let candidate =
+            import_overkeys_companion_json(OVERKEYS_COMPANION_FIXTURE).expect("fixture imports");
+        let profile = &candidate.preview_profile;
+
+        let import_backend = profile
+            .runtime_backends
+            .iter()
+            .find(|backend| backend.id == candidate.source.id)
+            .expect("OverKeys import backend exists");
+        assert_eq!(import_backend.health.state, HealthState::Stale);
+        assert_eq!(
+            import_backend.capabilities,
+            vec![
+                CapabilityFlag::ImportGeometry,
+                CapabilityFlag::ImportKeymaps,
+                CapabilityFlag::PreviewOnly,
+            ]
+        );
+
+        let kanata_status = profile
+            .runtime_backends
+            .iter()
+            .find(|backend| backend.id == kanata_backend::KANATA_BACKEND_ID)
+            .expect("Kanata runtime backend exists");
+        assert_eq!(kanata_status.health.state, HealthState::Disconnected);
+        assert!(kanata_status
+            .capabilities
+            .contains(&CapabilityFlag::StreamLayerStack));
+        assert!(kanata_status
+            .capabilities
+            .contains(&CapabilityFlag::PollState));
     }
 
     #[test]

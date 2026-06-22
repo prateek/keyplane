@@ -25,6 +25,7 @@ Started the Tauri v2 implementation from the PRD.
 - Corrected Import Candidate Source Precedence order so displayed Vial, OverKeys, ZMK, and keyviz preview rules list User Overrides before imported source winners.
 - Hardened NocFree/Vial `.vil` import for backup files whose `layout` is a layer matrix, with generated fallback geometry, numeric UID handling, and raw top-level section preservation.
 - Added OverKeys companion JSON import as an import-only Best-Effort Preview path with row-array fallback geometry, raw labels, aliases, triggers, styles, and Kanata settings preserved as Source Provenance.
+- Paired OverKeys companion Import Candidates with a disconnected Kanata TCP runtime backend and runtime Source Precedence so Kanata layer events can drive the imported layout/keymap once connected.
 - Added deterministic Backend Health Runtime Events for permission-missing and recovery states so permission health is visible through the same snapshot/event path as live backends.
 - Added a disconnected KeyPeek Live backend to the initial profile so firmware-backend capabilities and connection health are visible before hardware is connected.
 - Added ZMK `.keymap` import as a Best-Effort Preview path that parses layer binding rows, preserves raw source text, and derives common ZMK layer-action semantics for visualization.
@@ -75,7 +76,7 @@ Started the Tauri v2 implementation from the PRD.
 Verification:
 
 - `cargo fmt --check`
-- `cargo test` (104 Rust tests passed, 3 private local hardware canaries ignored by default)
+- `cargo test` (105 Rust tests passed, 3 private local hardware canaries ignored by default)
 - `KEYPLANE_LOCAL_VIL_CANDIDATE=<private .vil path> cargo test local_vil_candidate_file_imports_when_env_is_set -- --ignored`
 - `npm ci`
 - `npm test` (34 frontend tests)
