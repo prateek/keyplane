@@ -18,6 +18,7 @@ Started the Tauri v2 implementation from the PRD.
 - Added Rust-owned Overlay Window drag and resize commands, with Positioning Mode temporarily enabling window resizability.
 - Added a Rust-owned Active Profile store with Import Candidate commit, active EDN save/load commands, Source Inspector promotion against active profile state, and Best-Effort Preview state confidence.
 - Added toolbar actions to save and load the Active Profile as hand-editable EDN.
+- Added a Profile Codec migration hook that migrates legacy v0 EDN Profiles to v1 and rejects unsupported future schema versions before typed Profile parsing.
 - Added keyviz style JSON import as a style-only Import Candidate with visual-style Source Conflicts.
 - Hardened NocFree/Vial `.vil` import for backup files whose `layout` is a layer matrix, with generated fallback geometry, numeric UID handling, and raw top-level section preservation.
 - Added OverKeys companion JSON import as an import-only Best-Effort Preview path with row-array fallback geometry, raw labels, aliases, triggers, styles, and Kanata settings preserved as Source Provenance.
@@ -49,7 +50,7 @@ Started the Tauri v2 implementation from the PRD.
 Verification:
 
 - `cargo fmt --check`
-- `cargo test` (82 Rust tests passed, 3 private local hardware canaries ignored by default)
+- `cargo test` (84 Rust tests passed, 3 private local hardware canaries ignored by default)
 - `KEYPLANE_LOCAL_VIL_CANDIDATE=<private .vil path> cargo test local_vil_candidate_file_imports_when_env_is_set -- --ignored`
 - `npm ci`
 - `npm test` (24 frontend tests)

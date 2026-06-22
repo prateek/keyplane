@@ -10,6 +10,8 @@ use edn_format::{emit_str, parse_str, Keyword, Value};
 use std::collections::BTreeMap;
 use thiserror::Error;
 
+const CURRENT_PROFILE_SCHEMA_VERSION: u32 = 1;
+
 #[derive(Debug, Error, PartialEq)]
 pub enum ProfileCodecError {
     #[error("profile EDN parse failed: {0}")]
@@ -18,6 +20,8 @@ pub enum ProfileCodecError {
     Missing(&'static str),
     #[error("profile EDN has invalid {0}")]
     Invalid(&'static str),
+    #[error("profile schema version {0} is not supported")]
+    UnsupportedSchemaVersion(u32),
 }
 
 pub fn save_profile(profile: &Profile) -> String {
@@ -26,6 +30,7 @@ pub fn save_profile(profile: &Profile) -> String {
 
 pub fn load_profile(input: &str) -> Result<Profile, ProfileCodecError> {
     let value = parse_str(input).map_err(|err| ProfileCodecError::Parse(err.to_string()))?;
+    let value = migrate_profile_value(value)?;
     let map = as_map(&value, "top-level profile map")?;
 
     Ok(Profile {
@@ -46,6 +51,34 @@ pub fn load_profile(input: &str) -> Result<Profile, ProfileCodecError> {
         user_overrides: parse_user_overrides(get(map, "user", "overrides")?)?,
         source_provenance: parse_source_refs(get(map, "source", "provenance")?)?,
     })
+}
+
+fn migrate_profile_value(value: Value) -> Result<Value, ProfileCodecError> {
+    match schema_version_for_value(&value)? {
+        CURRENT_PROFILE_SCHEMA_VERSION => Ok(value),
+        0 => migrate_profile_value(migrate_v0_to_v1(value)?),
+        version => Err(ProfileCodecError::UnsupportedSchemaVersion(version)),
+    }
+}
+
+fn schema_version_for_value(value: &Value) -> Result<u32, ProfileCodecError> {
+    let map = as_map(value, "top-level profile map")?;
+    as_u32(get(map, "schema", "version")?, ":schema/version")
+}
+
+fn migrate_v0_to_v1(value: Value) -> Result<Value, ProfileCodecError> {
+    let Value::Map(mut map) = value else {
+        return Err(ProfileCodecError::Invalid("top-level profile map"));
+    };
+
+    map.insert(
+        kw("schema", "version"),
+        Value::from(CURRENT_PROFILE_SCHEMA_VERSION),
+    );
+    map.entry(kw("runtime", "sentinel-keys"))
+        .or_insert_with(|| Value::Vector(Vec::new()));
+
+    Ok(Value::Map(map))
 }
 
 fn profile_to_value(profile: &Profile) -> Value {
@@ -1034,5 +1067,35 @@ mod tests {
             load_profile(&saved_without_sentinel_keys).expect("legacy profile should load");
 
         assert!(loaded.sentinel_keys.is_empty());
+    }
+
+    #[test]
+    fn profile_codec_migrates_v0_profiles_to_v1() {
+        let profile = fake_profile();
+        let Value::Map(mut map) = profile_to_value(&profile) else {
+            panic!("profile should serialize as map");
+        };
+        map.insert(kw("schema", "version"), Value::from(0));
+        map.remove(&kw("runtime", "sentinel-keys"));
+        let saved_v0_profile = emit_str(&Value::Map(map));
+
+        let loaded = load_profile(&saved_v0_profile).expect("v0 profile should migrate");
+
+        assert_eq!(loaded.schema_version, CURRENT_PROFILE_SCHEMA_VERSION);
+        assert!(loaded.sentinel_keys.is_empty());
+    }
+
+    #[test]
+    fn profile_codec_rejects_future_schema_versions() {
+        let profile = fake_profile();
+        let Value::Map(mut map) = profile_to_value(&profile) else {
+            panic!("profile should serialize as map");
+        };
+        map.insert(kw("schema", "version"), Value::from(99));
+        let saved_future_profile = emit_str(&Value::Map(map));
+
+        let error = load_profile(&saved_future_profile).expect_err("future schema should fail");
+
+        assert_eq!(error, ProfileCodecError::UnsupportedSchemaVersion(99));
     }
 }
