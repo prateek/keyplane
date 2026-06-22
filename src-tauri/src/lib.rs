@@ -9,6 +9,7 @@
 mod capture;
 mod commands;
 mod driver;
+mod macos_perms;
 mod state;
 
 use state::AppState;
@@ -34,6 +35,8 @@ pub fn run() {
             commands::connect_kanata,
             commands::connect_sentinel,
             commands::feed_host_event,
+            commands::input_monitoring_status,
+            commands::request_input_monitoring,
             commands::promote_override,
             commands::set_positioning_mode,
             commands::set_overlay_visible,

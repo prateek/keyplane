@@ -213,16 +213,50 @@ pub fn connect_sentinel(
         })
         .collect();
     inner.set_backend_keep_model(Backend::Sentinel(SentinelBackend::new(sentinel_keys, base)));
+
+    // Opt-in OS-level key capture. Off by default. Proactively check the OS grant
+    // and surface a missing permission as Backend Health (ADR 0023, story 24)
+    // before any capture is attempted.
+    let mut start_capture = false;
+    let mut request_permission = false;
+    if os_capture.unwrap_or(false) {
+        if crate::macos_perms::input_monitoring_granted() {
+            start_capture = true;
+        } else {
+            let _ = inner.composer.set_backend_health(
+                "sentinel",
+                keyplane_core::health::HealthState::PermissionMissing {
+                    permission: "input-monitoring".to_string(),
+                    detail: "grant Keyplane Input Monitoring in System Settings".to_string(),
+                },
+            );
+            request_permission = true;
+        }
+    }
+
     let snapshot = inner.composer.snapshot();
     drop(inner);
     let _ = app.emit(EVENT_SNAPSHOT, &snapshot);
 
-    // Opt-in OS-level key capture. Off by default; starts a global key listener
-    // and surfaces missing OS permission as Backend Health (ADR 0023).
-    if os_capture.unwrap_or(false) {
+    if start_capture {
         crate::capture::start_sentinel_capture(app);
     }
+    if request_permission {
+        crate::macos_perms::request_input_monitoring();
+    }
     Ok(())
+}
+
+/// Whether macOS Input Monitoring is currently granted (true on other OSes).
+#[tauri::command]
+pub fn input_monitoring_status() -> bool {
+    crate::macos_perms::input_monitoring_granted()
+}
+
+/// Prompt for macOS Input Monitoring (shows the system dialog first time).
+#[tauri::command]
+pub fn request_input_monitoring() -> bool {
+    crate::macos_perms::request_input_monitoring()
 }
 
 /// Feed one Host Input Event to the sentinel backend and emit any resulting

@@ -45,6 +45,10 @@ export const connectSentinel = (
 ) => invoke<unknown>("connect_sentinel", { keys, osCapture });
 export const feedHostEvent = (key: string, down: boolean) =>
   invoke<unknown>("feed_host_event", { key, down });
+export const inputMonitoringStatus = () =>
+  invoke<boolean>("input_monitoring_status");
+export const requestInputMonitoring = () =>
+  invoke<boolean>("request_input_monitoring");
 export const setDisplayTargeting = (args: {
   x?: number;
   y?: number;
