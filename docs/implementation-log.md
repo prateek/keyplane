@@ -51,6 +51,7 @@ Started the Tauri v2 implementation from the PRD.
 - Added derived `tap-role` and `hold-role` Display Legend Slots for QMK and ZMK layer-tap actions while preserving compact primary labels.
 - Added QMK mod-tap alias parsing and `tap-role`/`hold-role` Legend Slots with persisted optional hold labels for richer tap-hold visualization.
 - Added derived `shifted` Display Legend Slots for QMK and ZMK number/symbol key actions, with readable primary labels for punctuation and shifted aliases.
+- Added derived `action-hint` Display Legend Slots for macro, mouse, and unknown actions while preserving Raw Actions separately for exact source debugging.
 - Added optional `icon` Display Legend Slots derived from Semantic Action categories and rendered distinctly in rich keycap styles while compact and standard density remain uncluttered.
 - Added top active layer highlighting for non-inherited Effective Actions in the full-keyboard Overlay Surface.
 - Added a Visual Style density Settings control backed by the Rust Active Profile store so compact, standard, and rich density choices persist into saved EDN Profiles.

@@ -986,6 +986,31 @@ fn legend_for_action(raw_value: &str, semantic: &SemanticAction) -> DisplayLegen
         }
     }
 
+    match semantic.kind {
+        SemanticActionKind::Macro => insert_before_icon(
+            &mut legend.slots,
+            LegendSlot {
+                slot: LegendSlotKind::ActionHint,
+                text: raw_value.trim().to_string(),
+            },
+        ),
+        SemanticActionKind::Mouse => insert_before_icon(
+            &mut legend.slots,
+            LegendSlot {
+                slot: LegendSlotKind::ActionHint,
+                text: "mouse".to_string(),
+            },
+        ),
+        SemanticActionKind::Unknown => insert_before_icon(
+            &mut legend.slots,
+            LegendSlot {
+                slot: LegendSlotKind::ActionHint,
+                text: "unknown".to_string(),
+            },
+        ),
+        _ => {}
+    }
+
     legend
 }
 
@@ -1069,6 +1094,14 @@ fn insert_after_primary(slots: &mut Vec<LegendSlot>, slot: LegendSlot) {
     let index = slots
         .iter()
         .position(|candidate| candidate.slot != LegendSlotKind::Primary)
+        .unwrap_or(slots.len());
+    slots.insert(index, slot);
+}
+
+fn insert_before_icon(slots: &mut Vec<LegendSlot>, slot: LegendSlot) {
+    let index = slots
+        .iter()
+        .position(|candidate| candidate.slot == LegendSlotKind::Icon)
         .unwrap_or(slots.len());
     slots.insert(index, slot);
 }
@@ -1520,6 +1553,41 @@ mod tests {
             .slots
             .iter()
             .any(|slot| { slot.slot == LegendSlotKind::Shifted }));
+    }
+
+    #[test]
+    fn macro_mouse_and_unknown_actions_derive_action_hint_slots() {
+        let macro_action = derive_action("qmk", "DM_PLY1", source_ref(), "k-macro");
+        let mouse = derive_action("qmk", "KC_MS_UP", source_ref(), "k-mouse");
+        let unknown = derive_action("qmk", "CUSTOM_BEHAVIOR", source_ref(), "k-custom");
+
+        assert_eq!(
+            macro_action.legend.slots,
+            vec![
+                LegendSlot {
+                    slot: LegendSlotKind::Primary,
+                    text: "macro".to_string()
+                },
+                LegendSlot {
+                    slot: LegendSlotKind::ActionHint,
+                    text: "DM_PLY1".to_string()
+                },
+                LegendSlot {
+                    slot: LegendSlotKind::Icon,
+                    text: "macro".to_string()
+                }
+            ]
+        );
+        assert!(mouse
+            .legend
+            .slots
+            .iter()
+            .any(|slot| { slot.slot == LegendSlotKind::ActionHint && slot.text == "mouse" }));
+        assert!(unknown
+            .legend
+            .slots
+            .iter()
+            .any(|slot| { slot.slot == LegendSlotKind::ActionHint && slot.text == "unknown" }));
     }
 
     #[test]
