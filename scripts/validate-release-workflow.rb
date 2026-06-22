@@ -134,7 +134,7 @@ assert_run_contains(cleanup, "security delete-keychain build.keychain", "tempora
 
 desktop_job = desktop_build.dig("jobs", "release-workflow-static-validation")
 fail_with("Desktop Build must validate release workflow on PRs") unless desktop_job
-validation_step = step_named(desktop_job, "Validate release workflow and Tauri capabilities")
+validation_step = step_named(desktop_job, "Validate release workflow, Tauri capabilities, and evidence scripts")
 assert_run_contains(
   validation_step,
   "ruby scripts/validate-release-workflow.rb",
@@ -147,8 +147,8 @@ assert_run_contains(
 )
 assert_run_contains(
   validation_step,
-  "ruby scripts/collect-mvp-acceptance-evidence.rb --dry-run",
-  "Desktop Build must validate MVP acceptance evidence report shape on PRs"
+  "ruby scripts/validate-evidence-scripts.rb",
+  "Desktop Build must validate evidence report shape and fixture paths on PRs"
 )
 
 puts "release workflow validation passed"

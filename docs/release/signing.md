@@ -47,7 +47,8 @@ actionlint .github/workflows/signed-release.yml .github/workflows/desktop-build.
 ```
 
 The `Desktop Build` PR workflow runs `npm run check:workflows` so the signed
-release scaffold stays checked before real Apple credentials are available.
+release scaffold and evidence collectors stay checked before real Apple
+credentials are available.
 
 The unsigned/debug build path remains covered by the `Desktop Build` workflow.
 Windows and Linux signed installers are intentionally not part of this scaffold;

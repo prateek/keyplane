@@ -83,7 +83,7 @@ npm run tauri build -- --debug
 ```
 
 The `Desktop Build` GitHub Actions workflow runs the same verification path on macOS, uploads unsigned debug `.app` and `.dmg` artifacts, and builds Linux/Windows debug binaries without installer bundling.
-It also runs `npm run check:workflows` so signed-release workflow and Tauri capability drift are caught in PRs before real Apple credentials are available.
+It also runs `npm run check:workflows` so signed-release workflow, Tauri capability, and evidence-script drift are caught in PRs before real Apple credentials or KeyPeek hardware are available.
 
 Validate KeyPeek Live hardware canaries:
 
