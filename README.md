@@ -28,6 +28,8 @@ The MVP is being built against [the PRD](docs/prd/keyplane-prd.md) and the domai
 - [CONTEXT.md](CONTEXT.md): glossary and domain vocabulary
 - [ADRs](docs/adr/): accepted architectural and product decisions
 - [Ecosystem report](docs/research/keyboard-rendering-and-configuration-ecosystem.md): source research on keyboard rendering/configuration tools
+- [Implementation log](docs/implementation-log.md): architecture, backend family, validation
+- [Hardware validation runbook](docs/hardware-validation.md): turnkey steps to confirm a live KeyPeek layer change once a board is attached
 - [Agent instructions](AGENTS.md): how implementation agents should read the docs
 
 ## Layout
