@@ -26,8 +26,9 @@ holds whichever is active.
 | --- | --- | --- | --- |
 | Fake | scripted demo | none (in-process) | Authoritative |
 | KeyPeek | VIA/Vial firmware | HID (`qmk-via-api`), hardware-gated | Authoritative |
+| ZMK | ZMK Studio firmware | ZMK Studio (serial/BLE) + HID, hardware-gated | Authoritative |
 | Kanata | Kanata remapper | TCP (`--port`), daemon-gated | Authoritative |
-| Sentinel | Host Input Events | OS key capture (not yet wired), feedable | Inferred |
+| Sentinel | Host Input Events | OS key capture (`rdev`, opt-in) | Inferred |
 
 `keyplane-keypeek` vendors KeyPeek's QMK/VIA keycode-label tables, `LayoutKey`
 model, and VIA/Vial HID protocol code (`src/vendor/`, GPL-attributed in
@@ -87,25 +88,33 @@ renders snapshots and applies runtime events.
   windows, and runs the Fake Backend driver loop without panicking. (A runtime
   smoke test caught and fixed an invalid-icon startup crash.)
 
-## Hardware/OS-gated / deferred
+## Validation-gated (needs real devices / a screen — not code gaps)
 
-- Real KeyPeek/HID and Kanata TCP live validation need a supported device and a
-  running Kanata daemon; the protocol code is in place and the pure adapters are
-  tested, but the live transports can't run in CI.
-- Sentinel keys: the inference logic is implemented and tested, but OS-level
-  host-event capture and macOS accessibility/input-monitoring permission
-  detection are not yet wired (a global input hook conflicts with Tauri's
-  main-thread event loop on macOS and needs real permissions).
-- ZMK live (needs the `zmk-studio-api` serial/BLE git dep) and ZMK `.keymap`
-  file import are not implemented.
-- Fade Visibility, monitor-name-based Display Targeting placement, and
-  Positioning Mode drag/resize affordances are modeled but not finished.
-- Signed builds, launch-at-login, and packaging are out of scope for the local
-  MVP (ADR 0038, 0039).
+The features below are implemented and build; what remains is validation that
+this environment can't provide:
 
-Done since the first pass: User Overrides are applied in resolution
-(`Profile::resolved_model`), Display Targeting position/size drives the overlay
-window, and KeyPeek's protocol/keycode code is reused rather than clean-roomed.
+- Live KeyPeek/Vial HID, ZMK Studio (serial/BLE) + HID, and Kanata TCP need a
+  real device or daemon. The protocol code is vendored from KeyPeek and the
+  pure adapters (model build, layer decode) are unit tested; the transports
+  can't run in CI.
+- Sentinel OS key capture (`rdev`) and macOS input-monitoring permission
+  detection are wired (opt-in) and surface permission failures as Backend
+  Health, but capturing real global input needs the OS grant and isn't run
+  here.
+- Visually confirming the overlay pixels needs a desktop session; the app
+  launches and the snapshot/event contract is tested.
+
+## Out of scope (ADR 0038, 0039)
+
+- Signed builds, launch-at-login, and packaging are deferred until the MVP works
+  locally.
+
+## Done across the build
+
+User Overrides apply in resolution (`Profile::resolved_model`); Display
+Targeting (position/size/monitor) drives the overlay; Fade Visibility,
+Positioning Mode drag/resize, ZMK `.keymap` import, and the full backend family
+are implemented; KeyPeek's protocol/keycode code is reused, not clean-roomed.
 
 ## Status
 
