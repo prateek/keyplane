@@ -9,16 +9,24 @@ pub mod keypeek_contract;
 pub mod keypeek_live;
 pub mod profile_codec;
 pub mod sentinel_backend;
+#[cfg(desktop)]
+pub mod sentinel_shortcuts;
 
 use crate::active_profile::ActiveProfileStore;
 use crate::backend::{FakeProtocolBackend, ProtocolBackend};
 use crate::domain::{
-    apply_runtime_event, HostInputEvent, ImportCandidate, KeyboardSnapshot, OverlayWindowConfig,
-    Profile, RuntimeEvent, SourceConflict, VisibilityPolicy,
+    apply_runtime_event, HealthState, HostInputEvent, ImportCandidate, KeyboardSnapshot,
+    OverlayWindowConfig, Profile, RuntimeEvent, SourceConflict, VisibilityPolicy,
 };
 use crate::keypeek_live::{KeyPeekLiveRuntime, KeyPeekLiveSession, QmkViaRawHidTransport};
+#[cfg(desktop)]
+use crate::sentinel_shortcuts::SentinelShortcutRuntime;
 use serde::Deserialize;
-use tauri::{LogicalPosition, LogicalSize, Manager, State, WebviewUrl, WebviewWindowBuilder};
+use tauri::{
+    Emitter, LogicalPosition, LogicalSize, Manager, State, WebviewUrl, WebviewWindowBuilder,
+};
+#[cfg(desktop)]
+use tauri_plugin_global_shortcut::{GlobalShortcutExt, Shortcut, ShortcutEvent, ShortcutState};
 use tauri_runtime::ResizeDirection;
 
 #[derive(Debug, Clone, Copy, Deserialize, PartialEq, Eq)]
@@ -77,6 +85,132 @@ fn ingest_sentinel_host_input_event(
 ) -> Result<Option<RuntimeEvent>, String> {
     active_profile
         .ingest_sentinel_host_input_event(event)
+        .map_err(|err| err.to_string())
+}
+
+#[cfg(desktop)]
+#[tauri::command]
+fn register_sentinel_key_shortcuts(
+    app: tauri::AppHandle,
+    active_profile: State<'_, ActiveProfileStore>,
+    sentinel_shortcuts: State<'_, SentinelShortcutRuntime>,
+) -> Result<KeyboardSnapshot, String> {
+    let profile = active_profile
+        .profile_snapshot()
+        .map_err(|err| err.to_string())?;
+    let registrations =
+        match sentinel_shortcuts::shortcut_registrations_from_bindings(&profile.sentinel_keys) {
+            Ok(registrations) => registrations,
+            Err(err @ sentinel_shortcuts::SentinelShortcutError::NoBindings) => {
+                return active_profile
+                    .set_runtime_backend_status(sentinel_backend::sentinel_backend_status(
+                        HealthState::Unsupported,
+                        err.to_string(),
+                    ))
+                    .map_err(|err| err.to_string());
+            }
+            Err(err) => {
+                return active_profile
+                    .set_runtime_backend_status(sentinel_backend::sentinel_backend_status(
+                        HealthState::ParseError,
+                        err.to_string(),
+                    ))
+                    .map_err(|err| err.to_string());
+            }
+        };
+
+    if let Err(err) = unregister_registered_sentinel_shortcuts(&app, &sentinel_shortcuts) {
+        return active_profile
+            .set_runtime_backend_status(sentinel_backend::sentinel_backend_status(
+                sentinel_shortcuts::registration_health_state(&err),
+                format!("Could not refresh Sentinel Key shortcuts: {err}"),
+            ))
+            .map_err(|err| err.to_string());
+    }
+
+    let mut registered_accelerators = Vec::<String>::new();
+    for registration in &registrations {
+        if let Err(err) = app
+            .global_shortcut()
+            .register(registration.accelerator.as_str())
+        {
+            let message = err.to_string();
+            rollback_sentinel_shortcuts(&app, &registered_accelerators);
+            sentinel_shortcuts
+                .clear_registered()
+                .map_err(|err| err.to_string())?;
+            return active_profile
+                .set_runtime_backend_status(sentinel_backend::sentinel_backend_status(
+                    sentinel_shortcuts::registration_health_state(&message),
+                    format!("Could not register Sentinel Key shortcuts: {message}"),
+                ))
+                .map_err(|err| err.to_string());
+        }
+        registered_accelerators.push(registration.accelerator.clone());
+    }
+
+    sentinel_shortcuts
+        .replace_registered(registrations.clone())
+        .map_err(|err| err.to_string())?;
+    active_profile
+        .set_runtime_backend_status(sentinel_backend::sentinel_backend_status(
+            HealthState::Ok,
+            format!(
+                "Registered {} Sentinel Key shortcut{} for Host Input Events",
+                registrations.len(),
+                if registrations.len() == 1 { "" } else { "s" }
+            ),
+        ))
+        .map_err(|err| err.to_string())
+}
+
+#[cfg(not(desktop))]
+#[tauri::command]
+fn register_sentinel_key_shortcuts(
+    active_profile: State<'_, ActiveProfileStore>,
+) -> Result<KeyboardSnapshot, String> {
+    active_profile
+        .set_runtime_backend_status(sentinel_backend::sentinel_backend_status(
+            HealthState::Unsupported,
+            "Sentinel Key shortcut registration is unavailable on this platform",
+        ))
+        .map_err(|err| err.to_string())
+}
+
+#[cfg(desktop)]
+#[tauri::command]
+fn unregister_sentinel_key_shortcuts(
+    app: tauri::AppHandle,
+    active_profile: State<'_, ActiveProfileStore>,
+    sentinel_shortcuts: State<'_, SentinelShortcutRuntime>,
+) -> Result<KeyboardSnapshot, String> {
+    if let Err(err) = unregister_registered_sentinel_shortcuts(&app, &sentinel_shortcuts) {
+        return active_profile
+            .set_runtime_backend_status(sentinel_backend::sentinel_backend_status(
+                sentinel_shortcuts::registration_health_state(&err),
+                format!("Could not unregister Sentinel Key shortcuts: {err}"),
+            ))
+            .map_err(|err| err.to_string());
+    }
+
+    active_profile
+        .set_runtime_backend_status(sentinel_backend::sentinel_backend_status(
+            HealthState::Disconnected,
+            "Sentinel Key shortcuts disabled",
+        ))
+        .map_err(|err| err.to_string())
+}
+
+#[cfg(not(desktop))]
+#[tauri::command]
+fn unregister_sentinel_key_shortcuts(
+    active_profile: State<'_, ActiveProfileStore>,
+) -> Result<KeyboardSnapshot, String> {
+    active_profile
+        .set_runtime_backend_status(sentinel_backend::sentinel_backend_status(
+            HealthState::Unsupported,
+            "Sentinel Key shortcut registration is unavailable on this platform",
+        ))
         .map_err(|err| err.to_string())
 }
 
@@ -301,16 +435,30 @@ fn start_overlay_resize(
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
-    tauri::Builder::default()
+    let mut builder = tauri::Builder::default()
         .manage(ActiveProfileStore::new(fake_backend::fake_profile()))
-        .manage(KeyPeekLiveRuntime::new())
+        .manage(KeyPeekLiveRuntime::new());
+
+    #[cfg(desktop)]
+    {
+        builder = builder.manage(SentinelShortcutRuntime::new());
+    }
+
+    builder
         .plugin(tauri_plugin_opener::init())
         .setup(|app| {
             #[cfg(desktop)]
-            app.handle().plugin(tauri_plugin_autostart::init(
-                tauri_plugin_autostart::MacosLauncher::LaunchAgent,
-                None,
-            ))?;
+            {
+                app.handle().plugin(tauri_plugin_autostart::init(
+                    tauri_plugin_autostart::MacosLauncher::LaunchAgent,
+                    None,
+                ))?;
+                app.handle().plugin(
+                    tauri_plugin_global_shortcut::Builder::new()
+                        .with_handler(handle_global_shortcut_event)
+                        .build(),
+                )?;
+            }
             create_overlay_window(app.handle())?;
             Ok(())
         })
@@ -318,6 +466,8 @@ pub fn run() {
             initial_snapshot,
             fake_runtime_events,
             ingest_sentinel_host_input_event,
+            register_sentinel_key_shortcuts,
+            unregister_sentinel_key_shortcuts,
             start_keypeek_live_backend,
             stop_keypeek_live_backend,
             apply_event,
@@ -338,6 +488,84 @@ pub fn run() {
         ])
         .run(tauri::generate_context!())
         .expect("error while running Keyplane");
+}
+
+#[cfg(desktop)]
+fn unregister_registered_sentinel_shortcuts(
+    app: &tauri::AppHandle,
+    sentinel_shortcuts: &SentinelShortcutRuntime,
+) -> Result<(), String> {
+    let accelerators = sentinel_shortcuts
+        .registered_accelerators()
+        .map_err(|err| err.to_string())?;
+    let registered: Vec<&str> = accelerators
+        .iter()
+        .filter(|accelerator| app.global_shortcut().is_registered(accelerator.as_str()))
+        .map(String::as_str)
+        .collect();
+
+    if !registered.is_empty() {
+        app.global_shortcut()
+            .unregister_multiple(registered)
+            .map_err(|err| err.to_string())?;
+    }
+    sentinel_shortcuts
+        .clear_registered()
+        .map_err(|err| err.to_string())
+}
+
+#[cfg(desktop)]
+fn rollback_sentinel_shortcuts(app: &tauri::AppHandle, accelerators: &[String]) {
+    if accelerators.is_empty() {
+        return;
+    }
+    let registered: Vec<&str> = accelerators
+        .iter()
+        .filter(|accelerator| app.global_shortcut().is_registered(accelerator.as_str()))
+        .map(String::as_str)
+        .collect();
+    if !registered.is_empty() {
+        let _ = app.global_shortcut().unregister_multiple(registered);
+    }
+}
+
+#[cfg(desktop)]
+fn handle_global_shortcut_event(app: &tauri::AppHandle, shortcut: &Shortcut, event: ShortcutEvent) {
+    let host_input_code = match app
+        .state::<SentinelShortcutRuntime>()
+        .host_input_code_for_shortcut(shortcut.id())
+    {
+        Ok(Some(code)) => code,
+        _ => return,
+    };
+    let pressed = match event.state() {
+        ShortcutState::Pressed => true,
+        ShortcutState::Released => false,
+    };
+
+    match app
+        .state::<ActiveProfileStore>()
+        .ingest_sentinel_host_input_event(HostInputEvent {
+            code: host_input_code,
+            pressed,
+        }) {
+        Ok(Some(runtime_event)) => {
+            let _ = app.emit(keypeek_live::RUNTIME_EVENT_NAME, runtime_event);
+        }
+        Ok(None) => {}
+        Err(err) => {
+            let _ = app.emit(
+                keypeek_live::RUNTIME_EVENT_NAME,
+                RuntimeEvent::BackendHealthChanged {
+                    health: sentinel_backend::sentinel_backend_status(
+                        HealthState::ProtocolError,
+                        format!("Could not apply Sentinel Key Host Input Event: {err}"),
+                    )
+                    .health,
+                },
+            );
+        }
+    }
 }
 
 fn overlay_window(app: &tauri::AppHandle) -> Result<tauri::Window, String> {

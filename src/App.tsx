@@ -4,6 +4,7 @@ import {
   Download,
   FileJson,
   FileUp,
+  Keyboard,
   Layers3,
   Maximize2,
   Move,
@@ -39,12 +40,14 @@ import {
   listenToRuntimeEvents,
   loadActiveProfileEdn,
   promoteActiveSourceCandidate,
+  registerSentinelKeyShortcuts,
   saveActiveProfileEdn,
   setLaunchAtLogin,
   startOverlayDrag,
   startOverlayResize,
   startKeyPeekLiveBackend,
   setOverlayPositioningMode,
+  unregisterSentinelKeyShortcuts,
 } from "./tauriClient";
 
 type View = "overlay" | "inspector" | "import" | "settings";
@@ -91,6 +94,8 @@ function App() {
   const activeLayer = snapshot?.runtime_state.layer_stack[0];
   const health = snapshot?.runtime_state.backend_health ?? [];
   const topHealth = health[0];
+  const sentinelHealth = health.find((candidate) => candidate.backend_id === "sentinel-keys");
+  const sentinelKeysEnabled = sentinelHealth ? sentinelHealth.state === "ok" : null;
 
   async function togglePositioningMode() {
     if (!snapshot) return;
@@ -156,6 +161,23 @@ function App() {
           ? "Launch at login enabled"
           : "Launch at login disabled",
     );
+  }
+
+  async function updateSentinelKeyShortcuts(enabled: boolean) {
+    setProfileStatus(null);
+    const nextSnapshot = enabled
+      ? await registerSentinelKeyShortcuts()
+      : await unregisterSentinelKeyShortcuts();
+    if (!nextSnapshot) {
+      setProfileStatus("Sentinel Key shortcuts unavailable");
+      return;
+    }
+
+    setSnapshot(nextSnapshot);
+    const health = nextSnapshot.runtime_state.backend_health.find(
+      (candidate) => candidate.backend_id === "sentinel-keys",
+    );
+    setProfileStatus(health?.message ?? "Sentinel Keys updated");
   }
 
   async function handleImport(file: File | null) {
@@ -417,7 +439,12 @@ function App() {
           />
         ) : null}
         {view === "settings" ? (
-          <SettingsView launchAtLogin={launchAtLogin} onLaunchAtLoginChange={updateLaunchAtLogin} />
+          <SettingsView
+            launchAtLogin={launchAtLogin}
+            sentinelKeysEnabled={sentinelKeysEnabled}
+            onLaunchAtLoginChange={updateLaunchAtLogin}
+            onSentinelKeysChange={updateSentinelKeyShortcuts}
+          />
         ) : null}
       </section>
     </main>
@@ -684,10 +711,14 @@ function ImportReview({
 
 function SettingsView({
   launchAtLogin,
+  sentinelKeysEnabled,
   onLaunchAtLoginChange,
+  onSentinelKeysChange,
 }: {
   launchAtLogin: boolean | null;
+  sentinelKeysEnabled: boolean | null;
   onLaunchAtLoginChange: (enabled: boolean) => void;
+  onSentinelKeysChange: (enabled: boolean) => void;
 }) {
   return (
     <section className="settings-view" aria-label="App settings">
@@ -703,6 +734,24 @@ function SettingsView({
           />
           <span className="badge">
             {launchAtLogin === null ? "unavailable" : launchAtLogin ? "enabled" : "disabled"}
+          </span>
+        </label>
+      </section>
+      <section>
+        <h2>Protocol Backends</h2>
+        <label className="setting-toggle">
+          <span>
+            <Keyboard size={17} />
+            Sentinel Keys
+          </span>
+          <input
+            type="checkbox"
+            checked={sentinelKeysEnabled === true}
+            disabled={sentinelKeysEnabled === null}
+            onChange={(event) => onSentinelKeysChange(event.currentTarget.checked)}
+          />
+          <span className="badge">
+            {sentinelKeysEnabled === null ? "unavailable" : sentinelKeysEnabled ? "enabled" : "disabled"}
           </span>
         </label>
       </section>

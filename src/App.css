@@ -363,6 +363,11 @@ button:hover {
   font-size: 1.05rem;
 }
 
+.settings-view {
+  display: grid;
+  gap: 18px;
+}
+
 .setting-toggle {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto auto;
@@ -371,6 +376,13 @@ button:hover {
   min-height: 48px;
   border-top: 1px solid #edf2ef;
   padding: 12px 0;
+}
+
+.setting-toggle > span:first-child {
+  display: inline-flex;
+  min-width: 0;
+  align-items: center;
+  gap: 8px;
 }
 
 .setting-toggle input {

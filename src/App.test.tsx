@@ -42,7 +42,7 @@ describe("Keyplane app", () => {
     expect(screen.getByRole("button", { name: /connect/i })).toBeInTheDocument();
   });
 
-  it("exposes launch-at-login as an App Setting", async () => {
+  it("exposes startup and Sentinel Key backend settings", async () => {
     const user = userEvent.setup();
     render(<App />);
 
@@ -50,7 +50,8 @@ describe("Keyplane app", () => {
 
     expect(screen.getByRole("region", { name: /app settings/i })).toBeInTheDocument();
     expect(screen.getByLabelText(/launch at login/i)).toBeInTheDocument();
-    expect(screen.getByText(/unavailable|enabled|disabled/i)).toBeInTheDocument();
+    expect(screen.getByLabelText(/sentinel keys/i)).toBeInTheDocument();
+    expect(screen.getAllByText(/unavailable|enabled|disabled/i).length).toBeGreaterThanOrEqual(2);
   });
 
   it("shows overlay drag and resize affordances in Positioning Mode", async () => {

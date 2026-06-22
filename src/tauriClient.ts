@@ -58,6 +58,22 @@ export async function ingestSentinelHostInputEvent(
   }
 }
 
+export async function registerSentinelKeyShortcuts(): Promise<KeyboardSnapshot | null> {
+  try {
+    return await invoke<KeyboardSnapshot>("register_sentinel_key_shortcuts");
+  } catch {
+    return null;
+  }
+}
+
+export async function unregisterSentinelKeyShortcuts(): Promise<KeyboardSnapshot | null> {
+  try {
+    return await invoke<KeyboardSnapshot>("unregister_sentinel_key_shortcuts");
+  } catch {
+    return null;
+  }
+}
+
 export async function startKeyPeekLiveBackend(
   request: KeyPeekConnectionRequest,
 ): Promise<KeyboardSnapshot | null> {

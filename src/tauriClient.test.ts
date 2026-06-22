@@ -1,7 +1,13 @@
 import { describe, expect, it } from "vitest";
 import type { ImportCandidate, Profile } from "./domain";
 import { fakeSnapshot } from "./fixtures";
-import { commitImportCandidate, loadLaunchAtLogin, setLaunchAtLogin } from "./tauriClient";
+import {
+  commitImportCandidate,
+  loadLaunchAtLogin,
+  registerSentinelKeyShortcuts,
+  setLaunchAtLogin,
+  unregisterSentinelKeyShortcuts,
+} from "./tauriClient";
 
 describe("Tauri client fallbacks", () => {
   it("commits an Import Candidate into a Keyboard Snapshot when Tauri is unavailable", async () => {
@@ -100,5 +106,10 @@ describe("Tauri client fallbacks", () => {
   it("reports launch-at-login as unavailable when the Tauri plugin is absent", async () => {
     await expect(loadLaunchAtLogin()).resolves.toBeNull();
     await expect(setLaunchAtLogin(true)).resolves.toBeNull();
+  });
+
+  it("reports Sentinel Key shortcut registration as unavailable when Tauri is absent", async () => {
+    await expect(registerSentinelKeyShortcuts()).resolves.toBeNull();
+    await expect(unregisterSentinelKeyShortcuts()).resolves.toBeNull();
   });
 });
