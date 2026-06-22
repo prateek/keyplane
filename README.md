@@ -12,10 +12,11 @@ The current implementation includes:
 - EDN v1 Profile Codec save/load support with deterministic output, schema migration gating, stable style references, and toolbar import/export actions
 - NocFree/Vial `.vil` JSON import as a Best-Effort Preview Import Candidate, including backup-style layer matrices
 - Vial device HID import as a Best-Effort Preview Import Candidate, using KeyPeek-derived Vial definition and raw-matrix reads
+- KeyPeek/QMK `keyboard_info.json` import as a Best-Effort Preview Import Candidate, using KeyPeek-derived per-key matrix geometry parsing
 - ZMK `.keymap` import as a Best-Effort Preview Import Candidate with fallback geometry
 - keyviz style JSON import as a style-only Import Candidate with keycap color tokens and field-level Visual Style Source Conflicts
 - OverKeys companion JSON import as a Kanata-ready Best-Effort Preview Import Candidate with row-array fallback geometry, display aliases, custom alias hints, custom shifted legends, Visual Style colors/opacity, Sentinel Key trigger bindings, and profile-owned Kanata TCP settings
-- a vendored KeyPeek protocol/domain source slice for live firmware packet attribution and drift checks
+- a vendored KeyPeek protocol/domain source slice for live firmware packet and QMK info geometry attribution and drift checks
 - a KeyPeek Live Raw HID path using `qmk-via-api`, with VIA Raw HID discovery, VID/PID connection controls, and Tauri Runtime Event streaming
 - a Kanata TCP runtime path with Settings host/port controls, newline JSON event parsing, and Layer Stack Runtime Event streaming
 - a Rust-owned Active Profile store with Import Review commit support

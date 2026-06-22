@@ -38,6 +38,7 @@ import { applyRuntimeEvent, promoteImportCandidateSource } from "./state";
 import {
   commitImportCandidate,
   discoverKeyPeekDevices,
+  importKeyPeekQmkInfoFile,
   importKeyvizStyleFile,
   importOverkeysCompanionFile,
   importVialDevice,
@@ -512,6 +513,19 @@ function App() {
     }
   }
 
+  async function handleKeyPeekQmkImport(file: File | null) {
+    if (!file) return;
+    setImportError(null);
+    setProfileStatus(null);
+    try {
+      const contents = await file.text();
+      setImportCandidate(await importKeyPeekQmkInfoFile(contents));
+      setView("import");
+    } catch (error) {
+      setImportError(error instanceof Error ? error.message : String(error));
+    }
+  }
+
   async function handleOverkeysImport(file: File | null) {
     if (!file) return;
     setImportError(null);
@@ -735,6 +749,17 @@ function App() {
                 type="file"
                 accept=".json,application/json"
                 onChange={(event) => void handleStyleImport(event.currentTarget.files?.[0] ?? null)}
+              />
+            </label>
+            <label className="file-button">
+              <FileJson size={17} />
+              KeyPeek QMK info
+              <input
+                type="file"
+                accept=".json,application/json"
+                onChange={(event) =>
+                  void handleKeyPeekQmkImport(event.currentTarget.files?.[0] ?? null)
+                }
               />
             </label>
             <label className="file-button">
@@ -1354,7 +1379,7 @@ export function ImportReview({
   if (!candidate) {
     return (
       <section className="empty-state">
-        Select a `.vil`, `.keymap`, or companion JSON export to preview a Best-Effort Import Candidate.
+        Select a `.vil`, QMK info JSON, `.keymap`, style JSON, or companion JSON export to preview a Best-Effort Import Candidate.
       </section>
     );
   }

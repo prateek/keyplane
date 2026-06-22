@@ -12,10 +12,13 @@ substantiates Keyplane's current KeyPeek-compatible live packet adapter:
 
 - `src/keyboard.rs`: layer-state and pressed-key packet handling
 - `src/protocols/mod.rs`: raw HID subscription markers and sender contract
+- `src/protocols/qmk_json_parser.rs`: QMK `keyboard_info.json` layout parsing
+- `src/protocols/layout_geometry.rs`: rotated key geometry flattening
 - `src/protocols/via.rs`: VIA raw HID transport path
 - `src/protocols/vial.rs`: Vial raw HID transport path
 - `Cargo.toml` and `LICENSE`: upstream package and license metadata
 
 Keyplane does not vendor KeyPeek's egui overlay UI. The application code adapts
-the packet contract in `src-tauri/src/keypeek_contract.rs` and keeps tests that
+the packet contract in `src-tauri/src/keypeek_contract.rs`, adapts QMK info
+geometry import behavior in `src-tauri/src/importers.rs`, and keeps tests that
 compare the adapted constants against this vendored source slice.

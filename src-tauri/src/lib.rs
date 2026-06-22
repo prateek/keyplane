@@ -523,6 +523,11 @@ fn import_vial_device(request: KeyPeekConnectionRequest) -> Result<ImportCandida
 }
 
 #[tauri::command]
+fn import_keypeek_qmk_info_file(contents: String) -> Result<ImportCandidate, String> {
+    importers::import_keypeek_qmk_info_json(&contents).map_err(|err| err.to_string())
+}
+
+#[tauri::command]
 fn import_keyviz_style_file(
     active_profile: State<'_, ActiveProfileStore>,
     contents: String,
@@ -752,6 +757,7 @@ pub fn run() {
             load_active_profile_edn,
             import_vial_file,
             import_vial_device,
+            import_keypeek_qmk_info_file,
             import_keyviz_style_file,
             import_overkeys_companion_file,
             import_zmk_keymap_file,

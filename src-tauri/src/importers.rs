@@ -284,6 +284,130 @@ pub fn import_vial_device_snapshot(
     })
 }
 
+pub fn import_keypeek_qmk_info_json(contents: &str) -> Result<ImportCandidate, ImportError> {
+    let json: JsonValue =
+        serde_json::from_str(contents).map_err(|err| ImportError::Json(err.to_string()))?;
+    let keyboard_info = json.get("keyboard_info").unwrap_or(&json);
+    let keyboard_name = keyboard_info
+        .get("keyboard_name")
+        .and_then(JsonValue::as_str)
+        .or_else(|| json.get("keyboard_name").and_then(JsonValue::as_str))
+        .unwrap_or("qmk-keyboard");
+    let source_suffix = sanitize_id_or(keyboard_name, "qmk-info");
+    let source = Source {
+        id: format!("keypeek-qmk-info-{}", source_suffix),
+        name: format!("KeyPeek QMK info {}", keyboard_name),
+        kind: "keypeek-qmk-info-import".to_string(),
+        authority: SourceAuthority::BestEffortPreview,
+    };
+    let requested_layout = json
+        .get("layout_name")
+        .and_then(JsonValue::as_str)
+        .or_else(|| keyboard_info.get("layout_name").and_then(JsonValue::as_str));
+    let physical_keys =
+        import_keypeek_qmk_info_layout(keyboard_info, requested_layout, &source.id)?;
+    if physical_keys.is_empty() {
+        return Err(ImportError::Missing("layouts.*.layout"));
+    }
+
+    let layer_values =
+        import_qmk_layer_values(&json).or_else(|| import_qmk_layer_values(keyboard_info));
+    let has_imported_keymap = layer_values.is_some();
+    let layers = layer_values
+        .as_deref()
+        .map(|values| import_layers(Some(values), &physical_keys, &source.id, "qmk"))
+        .unwrap_or_else(|| import_placeholder_qmk_layer(&physical_keys, &source.id));
+    let mut capabilities = vec![CapabilityFlag::ImportGeometry];
+    if has_imported_keymap {
+        capabilities.push(CapabilityFlag::ImportKeymaps);
+    }
+    capabilities.push(CapabilityFlag::PreviewOnly);
+    let preserved_sections = preserved_top_level_sections(&json);
+    let mut source_provenance: Vec<SourceRef> = physical_keys
+        .iter()
+        .map(|key| key.provenance.clone())
+        .collect();
+    source_provenance.extend(top_level_source_refs(
+        &json,
+        &source.id,
+        &preserved_sections,
+    ));
+    let backend_health = BackendHealth {
+        backend_id: source.id.clone(),
+        state: HealthState::Stale,
+        message:
+            "Imported KeyPeek/QMK info as Best-Effort Preview; connect KeyPeek Live for authoritative layer changes"
+                .to_string(),
+    };
+    let profile = Profile {
+        schema_version: 1,
+        id: format!("profile-{}", source.id),
+        keyboard_id: format!("keyboard-{}", source.id),
+        name: format!("{} Preview", source.name),
+        sources: vec![source.clone()],
+        physical_layout: PhysicalLayout {
+            keys: physical_keys.clone(),
+            fallback: false,
+        },
+        keymap: LogicalKeymap {
+            layers: layers.clone(),
+        },
+        runtime_backends: vec![BackendStatus {
+            id: source.id.clone(),
+            name: source.name.clone(),
+            capabilities,
+            health: backend_health,
+            config: None,
+        }],
+        sentinel_keys: Vec::new(),
+        visual_style: VisualStyle {
+            id: "style-keypeek-qmk-preview".to_string(),
+            variant_id: "keypeek-qmk-preview".to_string(),
+            density: StyleDensity::Standard,
+            colors: VisualStyleColors::default(),
+        },
+        overlay_window: OverlayWindowConfig {
+            visibility: VisibilityPolicy::Pinned,
+            visible: true,
+            click_through: true,
+            positioning_mode: false,
+            display_targeting: DisplayTargeting {
+                display_id: None,
+                x: 80.0,
+                y: 80.0,
+                width: 920.0,
+                height: 320.0,
+                opacity: 0.9,
+            },
+        },
+        source_precedence: vec![
+            SourcePrecedenceRule {
+                field_scope: ":keyboard/physical-layout".to_string(),
+                source_order: vec!["user-overrides".to_string(), source.id.clone()],
+            },
+            SourcePrecedenceRule {
+                field_scope: ":keyboard/keymap".to_string(),
+                source_order: vec!["user-overrides".to_string(), source.id.clone()],
+            },
+        ],
+        user_overrides: Vec::new(),
+        source_provenance,
+    };
+
+    Ok(ImportCandidate {
+        id: format!("candidate-{}", source.id),
+        source,
+        best_effort_preview: true,
+        preview_profile: profile,
+        conflicts: Vec::<SourceConflict>::new(),
+        summary: ImportSummary {
+            imported_keys: physical_keys.len(),
+            imported_layers: layers.len(),
+            preserved_sections,
+        },
+    })
+}
+
 pub fn import_keyviz_style_json(
     contents: &str,
     base_profile: &Profile,
@@ -1488,6 +1612,211 @@ fn import_vial_layer_values(json: &JsonValue) -> Option<Vec<Vec<ImportedLayerCel
     }
 }
 
+fn import_keypeek_qmk_info_layout(
+    keyboard_info: &JsonValue,
+    requested_layout: Option<&str>,
+    source_id: &str,
+) -> Result<Vec<PhysicalKey>, ImportError> {
+    let layout = qmk_info_layout(keyboard_info, requested_layout)?;
+    let keys = layout
+        .get("layout")
+        .and_then(JsonValue::as_array)
+        .ok_or(ImportError::Missing("layouts.*.layout"))?;
+
+    Ok(keys
+        .iter()
+        .filter_map(|key| qmk_info_physical_key(key, source_id))
+        .collect())
+}
+
+fn qmk_info_layout<'a>(
+    keyboard_info: &'a JsonValue,
+    requested_layout: Option<&str>,
+) -> Result<&'a JsonValue, ImportError> {
+    let layouts = keyboard_info
+        .get("layouts")
+        .and_then(JsonValue::as_object)
+        .ok_or(ImportError::Missing("layouts"))?;
+
+    if let Some(requested_layout) = requested_layout {
+        if let Some(layout) = layouts.get(requested_layout) {
+            return Ok(layout);
+        }
+    }
+
+    layouts
+        .keys()
+        .min()
+        .and_then(|name| layouts.get(name))
+        .ok_or(ImportError::Missing("layouts"))
+}
+
+fn qmk_info_physical_key(key: &JsonValue, source_id: &str) -> Option<PhysicalKey> {
+    let matrix = key.get("matrix")?.as_array()?;
+    let row = u16::try_from(matrix.first()?.as_u64()?).ok()?;
+    let col = u16::try_from(matrix.get(1)?.as_u64()?).ok()?;
+    let x = key.get("x").and_then(JsonValue::as_f64).unwrap_or(0.0) as f32;
+    let y = key.get("y").and_then(JsonValue::as_f64).unwrap_or(0.0) as f32;
+    let width = key.get("w").and_then(JsonValue::as_f64).unwrap_or(1.0) as f32;
+    let height = key.get("h").and_then(JsonValue::as_f64).unwrap_or(1.0) as f32;
+    let rotation = key.get("r").and_then(JsonValue::as_f64).unwrap_or(0.0) as f32;
+    let pivot_x = key
+        .get("rx")
+        .and_then(JsonValue::as_f64)
+        .map(|value| value as f32)
+        .unwrap_or(x);
+    let pivot_y = key
+        .get("ry")
+        .and_then(JsonValue::as_f64)
+        .map(|value| value as f32)
+        .unwrap_or(y);
+    let (x, y) =
+        flattened_top_left_after_center_rotation(x, y, width, height, rotation, pivot_x, pivot_y);
+    let id = format!("keypeek-r{}c{}", row, col);
+
+    Some(PhysicalKey {
+        id: id.clone(),
+        matrix: Some(MatrixPosition { row, col }),
+        geometry: KeyGeometry {
+            x,
+            y,
+            width,
+            height,
+            rotation,
+        },
+        provenance: SourceRef {
+            source_id: source_id.to_string(),
+            field_path: format!(":keyboard/physical-layout {}", id),
+            raw: serde_json::to_string(key).ok(),
+        },
+    })
+}
+
+fn flattened_top_left_after_center_rotation(
+    x: f32,
+    y: f32,
+    width: f32,
+    height: f32,
+    angle_deg: f32,
+    pivot_x: f32,
+    pivot_y: f32,
+) -> (f32, f32) {
+    if angle_deg.abs() <= f32::EPSILON {
+        return (x, y);
+    }
+
+    let center_x = x + (width * 0.5);
+    let center_y = y + (height * 0.5);
+    let local_center_x = center_x - pivot_x;
+    let local_center_y = center_y - pivot_y;
+    let angle = angle_deg.to_radians();
+    let cos_a = angle.cos();
+    let sin_a = angle.sin();
+    let rotated_center_x = (local_center_x * cos_a) - (local_center_y * sin_a) + pivot_x;
+    let rotated_center_y = (local_center_x * sin_a) + (local_center_y * cos_a) + pivot_y;
+
+    (
+        rotated_center_x - (width * 0.5),
+        rotated_center_y - (height * 0.5),
+    )
+}
+
+fn import_qmk_layer_values(json: &JsonValue) -> Option<Vec<Vec<ImportedLayerCell>>> {
+    let layer_source = json
+        .get("layers")
+        .or_else(|| json.pointer("/keymap/layers"))
+        .or_else(|| json.get("layout").filter(|value| is_layer_matrix(value)))?;
+    let layers = flatten_qmk_layer_collection(layer_source);
+
+    if layers.is_empty() {
+        None
+    } else {
+        Some(layers)
+    }
+}
+
+fn flatten_qmk_layer_collection(layer_source: &JsonValue) -> Vec<Vec<ImportedLayerCell>> {
+    let Some(layers) = layer_source.as_array() else {
+        return Vec::new();
+    };
+
+    layers.iter().filter_map(flatten_qmk_layer).collect()
+}
+
+fn flatten_qmk_layer(layer: &JsonValue) -> Option<Vec<ImportedLayerCell>> {
+    let values = layer.as_array()?;
+    let cells: Vec<ImportedLayerCell> = if values.iter().all(JsonValue::is_array) {
+        values
+            .iter()
+            .enumerate()
+            .flat_map(|(row_index, row)| {
+                row.as_array().into_iter().flat_map(move |row_values| {
+                    row_values
+                        .iter()
+                        .enumerate()
+                        .filter_map(move |(col_index, value)| {
+                            qmk_raw_action_from_json(value).map(|raw| ImportedLayerCell {
+                                raw,
+                                row: Some(row_index),
+                                col: Some(col_index),
+                            })
+                        })
+                })
+            })
+            .collect()
+    } else {
+        values
+            .iter()
+            .filter_map(|value| {
+                qmk_raw_action_from_json(value).map(|raw| ImportedLayerCell {
+                    raw,
+                    row: None,
+                    col: None,
+                })
+            })
+            .collect()
+    };
+
+    if cells.is_empty() {
+        None
+    } else {
+        Some(cells)
+    }
+}
+
+fn qmk_raw_action_from_json(value: &JsonValue) -> Option<String> {
+    match value {
+        JsonValue::Number(value) => value
+            .as_u64()
+            .and_then(|number| u16::try_from(number).ok())
+            .map(qmk_keycode_label)
+            .or_else(|| Some(value.to_string())),
+        _ => raw_action_from_json(value),
+    }
+}
+
+fn import_placeholder_qmk_layer(keys: &[PhysicalKey], source_id: &str) -> Vec<Layer> {
+    vec![Layer {
+        id: "layer-0".to_string(),
+        name: "Imported".to_string(),
+        actions: keys
+            .iter()
+            .map(|key| {
+                derive_action(
+                    "qmk",
+                    "KC_NO",
+                    SourceRef {
+                        source_id: source_id.to_string(),
+                        field_path: format!(":keyboard/keymap :layer-0 {}", key.id),
+                        raw: Some("KC_NO".to_string()),
+                    },
+                    &key.id,
+                )
+            })
+            .collect(),
+    }]
+}
+
 pub(crate) fn vial_matrix_dimensions(json: &JsonValue) -> Option<(usize, usize)> {
     let keys = vial_geometry_rows(json)?;
     let mut max_row = None::<u16>;
@@ -1941,6 +2270,47 @@ mod tests {
     }
     "#;
 
+    const KEYPEEK_QMK_INFO_FIXTURE: &str = r#"
+    {
+      "layout_name": "LAYOUT_split_2x2",
+      "keyboard_info": {
+        "keyboard_name": "acme/split2",
+        "split": {"enabled": true},
+        "matrix_pins": {
+          "rows": ["GP0", "GP1"],
+          "cols": ["GP2", "GP3"]
+        },
+        "usb": {
+          "vid": "0xCAFE",
+          "pid": "0x4010"
+        },
+        "layouts": {
+          "LAYOUT_split_2x2": {
+            "layout": [
+              {"matrix": [0, 0], "x": 0, "y": 0},
+              {"matrix": [0, 1], "x": 1, "y": 0, "w": 1.5},
+              {"matrix": [2, 0], "x": 0, "y": 1, "r": 12, "rx": 0, "ry": 1},
+              {"matrix": [2, 1], "x": 1, "y": 1}
+            ]
+          }
+        }
+      },
+      "layers": [
+        [
+          ["KC_Q", "KC_W"],
+          ["KC_A", "KC_S"]
+        ],
+        [
+          ["KC_TRNS", "MO(1)"],
+          ["KC_NO", "KC_B"]
+        ]
+      ],
+      "notes": {
+        "source": "qmk info plus KeyPeek-compatible keymap rows"
+      }
+    }
+    "#;
+
     const NOCFREE_BACKUP_FIXTURE: &str = r#"
     {
       "version": 1,
@@ -2146,6 +2516,121 @@ mod tests {
 
         assert_eq!(nav.actions[0].raw.value, "KC_TRNS");
         assert_eq!(nav.actions[0].provenance.raw.as_deref(), Some("KC_TRNS"));
+    }
+
+    #[test]
+    fn keypeek_qmk_info_imports_per_key_geometry_and_keymap_preview() {
+        let candidate =
+            import_keypeek_qmk_info_json(KEYPEEK_QMK_INFO_FIXTURE).expect("fixture imports");
+
+        assert_eq!(candidate.source.kind, "keypeek-qmk-info-import");
+        assert!(candidate.best_effort_preview);
+        assert_eq!(candidate.summary.imported_keys, 4);
+        assert_eq!(candidate.summary.imported_layers, 2);
+        assert!(candidate
+            .summary
+            .preserved_sections
+            .contains(&"keyboard_info".to_string()));
+        assert!(candidate
+            .summary
+            .preserved_sections
+            .contains(&"layers".to_string()));
+        assert!(!candidate.preview_profile.physical_layout.fallback);
+
+        let wide_key = candidate
+            .preview_profile
+            .physical_layout
+            .keys
+            .iter()
+            .find(|key| key.id == "keypeek-r0c1")
+            .expect("wide key imported");
+        assert_eq!(wide_key.geometry.width, 1.5);
+        assert_eq!(wide_key.matrix, Some(MatrixPosition { row: 0, col: 1 }));
+
+        let rotated_key = candidate
+            .preview_profile
+            .physical_layout
+            .keys
+            .iter()
+            .find(|key| key.id == "keypeek-r2c0")
+            .expect("rotated key imported");
+        assert_eq!(rotated_key.geometry.rotation, 12.0);
+        assert!(rotated_key
+            .provenance
+            .raw
+            .as_deref()
+            .is_some_and(|raw| raw.contains("\"matrix\":[2,0]")));
+
+        let q_action = candidate.preview_profile.keymap.layers[0]
+            .actions
+            .iter()
+            .find(|action| action.key_id == "keypeek-r0c0")
+            .expect("Q action imported");
+        assert_eq!(q_action.raw.value, "KC_Q");
+        assert_eq!(q_action.semantic.label, "Q");
+
+        let import_backend = &candidate.preview_profile.runtime_backends[0];
+        assert_eq!(import_backend.health.state, HealthState::Stale);
+        assert_eq!(
+            import_backend.capabilities,
+            vec![
+                CapabilityFlag::ImportGeometry,
+                CapabilityFlag::ImportKeymaps,
+                CapabilityFlag::PreviewOnly,
+            ]
+        );
+        assert!(candidate
+            .preview_profile
+            .source_precedence
+            .iter()
+            .any(|rule| {
+                rule.field_scope == ":keyboard/keymap"
+                    && rule.source_order[0] == "user-overrides"
+                    && rule.source_order[1] == candidate.source.id
+            }));
+        assert!(candidate
+            .preview_profile
+            .source_provenance
+            .iter()
+            .any(|source_ref| source_ref.field_path == ":source/raw keyboard_info"));
+        assert!(candidate
+            .preview_profile
+            .source_provenance
+            .iter()
+            .any(|source_ref| source_ref.field_path == ":source/raw layers"));
+    }
+
+    #[test]
+    fn keypeek_qmk_info_geometry_only_import_does_not_claim_keymap_capability() {
+        let candidate = import_keypeek_qmk_info_json(
+            r#"
+            {
+              "keyboard_name": "acme/geometry-only",
+              "matrix_pins": {"rows": ["GP0"], "cols": ["GP1"]},
+              "usb": {"vid": "0xCAFE", "pid": "0x4011"},
+              "layouts": {
+                "LAYOUT": {
+                  "layout": [
+                    {"matrix": [0, 0], "x": 0, "y": 0}
+                  ]
+                }
+              }
+            }
+            "#,
+        )
+        .expect("geometry-only fixture imports");
+
+        assert_eq!(candidate.summary.imported_keys, 1);
+        assert_eq!(
+            candidate.preview_profile.runtime_backends[0].capabilities,
+            vec![CapabilityFlag::ImportGeometry, CapabilityFlag::PreviewOnly]
+        );
+        assert_eq!(
+            candidate.preview_profile.keymap.layers[0].actions[0]
+                .raw
+                .value,
+            "KC_NO"
+        );
     }
 
     #[test]
