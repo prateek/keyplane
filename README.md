@@ -64,6 +64,7 @@ npm run tauri build -- --debug
 - [CONTEXT.md](CONTEXT.md): glossary and domain vocabulary
 - [ADRs](docs/adr/): accepted architectural and product decisions
 - [Ecosystem report](docs/research/keyboard-rendering-and-configuration-ecosystem.md): source research on keyboard rendering/configuration tools
+- [Attribution](docs/attribution.md): GPL/source reuse notes
 - [Implementation log](docs/implementation-log.md): execution notes and verification history
 - [Agent instructions](AGENTS.md): how implementation agents should read the docs
 

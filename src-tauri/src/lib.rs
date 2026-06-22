@@ -1,6 +1,7 @@
 pub mod domain;
 pub mod fake_backend;
 pub mod importers;
+pub mod keypeek_backend;
 pub mod profile_codec;
 
 use crate::domain::{

@@ -11,6 +11,7 @@ Started the Tauri v2 implementation from the PRD.
 - Added EDN v1 Profile Codec save/load support behind a Rust boundary.
 - Added NocFree/Vial `.vil` JSON import as a Best-Effort Preview Import Candidate.
 - Added frontend surfaces for the overlay, Source Inspector, Import Review, Backend Health, fake Runtime Events, and Positioning Mode.
+- Added a KeyPeek-derived packet adapter for layer-state packets, pressed-key packets, subscription keepalive messages, and Layer Stack conversion.
 
 Verification:
 
