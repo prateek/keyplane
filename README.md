@@ -13,6 +13,7 @@ The current implementation includes:
 - ZMK `.keymap` import as a Best-Effort Preview Import Candidate with fallback geometry
 - keyviz style JSON import as a style-only Import Candidate
 - OverKeys companion JSON import as a Best-Effort Preview Import Candidate with row-array fallback geometry
+- a vendored KeyPeek protocol/domain source slice for live firmware packet attribution and drift checks
 - a Rust-owned Active Profile store with Import Review commit support
 - visible Backend Health for fake, KeyPeek Live, and Kanata TCP runtime backends
 - App Window surfaces for the overlay, Import Review, Source Inspector, Backend Health, and Positioning Mode

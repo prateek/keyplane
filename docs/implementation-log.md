@@ -25,11 +25,12 @@ Started the Tauri v2 implementation from the PRD.
 - Added a disconnected KeyPeek Live backend to the initial profile so firmware-backend capabilities and connection health are visible before hardware is connected.
 - Added ZMK `.keymap` import as a Best-Effort Preview path that parses layer binding rows, preserves raw source text, and derives common ZMK layer-action semantics for visualization.
 - Added a disconnected Kanata TCP Protocol Backend status with runtime-layer capabilities so Kanata health appears beside firmware backends before a runtime connection exists.
+- Vendored a narrow GPL-3.0-only KeyPeek source slice at `third_party/keypeek` and moved KeyPeek firmware packet parsing into a named Rust contract module adapted from that source.
 
 Verification:
 
 - `cargo fmt --check`
-- `cargo test` (38 Rust tests passed, 1 private local `.vil` canary ignored by default)
+- `cargo test` (43 Rust tests passed, 1 private local `.vil` canary ignored by default)
 - `KEYPLANE_LOCAL_VIL_CANDIDATE=<private .vil path> cargo test local_vil_candidate_file_imports_when_env_is_set -- --ignored`
 - `npm test` (12 frontend tests)
 - `npm run build`
