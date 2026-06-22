@@ -168,12 +168,18 @@ function App() {
     setSnapshot(await promoteActiveSourceCandidate(snapshot, conflict, sourceId));
   }
 
-  function dragOverlay() {
-    void startOverlayDrag();
+  async function dragOverlay() {
+    const nextSnapshot = await startOverlayDrag();
+    if (nextSnapshot) {
+      setSnapshot(nextSnapshot);
+    }
   }
 
-  function resizeOverlay() {
-    void startOverlayResize("south-east");
+  async function resizeOverlay() {
+    const nextSnapshot = await startOverlayResize("south-east");
+    if (nextSnapshot) {
+      setSnapshot(nextSnapshot);
+    }
   }
 
   async function connectKeyPeekLive() {

@@ -138,7 +138,11 @@ export type CapabilityFlag =
   | "stream-layer-stack"
   | "stream-pressed-keys"
   | "poll-state"
-  | "preview-only";
+  | "preview-only"
+  | "render-overlay-window"
+  | "transparent-overlay-window"
+  | "click-through-overlay-window"
+  | "position-overlay-window";
 
 export type HealthState =
   | "ok"

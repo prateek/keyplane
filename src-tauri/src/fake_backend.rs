@@ -8,6 +8,7 @@ use crate::domain::{
 };
 use crate::kanata_backend;
 use crate::keypeek_backend;
+use crate::overlay_backend;
 use crate::sentinel_backend;
 
 const FAKE_SOURCE_ID: &str = "fake-backend";
@@ -131,6 +132,10 @@ pub fn fake_profile() -> Profile {
                 ],
                 health,
             },
+            overlay_backend::overlay_window_backend_status(
+                HealthState::Ok,
+                "Overlay Window is ready",
+            ),
             keypeek_backend::keypeek_backend_status(
                 HealthState::Disconnected,
                 "No KeyPeek-compatible device is connected",
@@ -362,6 +367,13 @@ mod tests {
         assert!(snapshot.source_provenance.iter().any(|source_ref| {
             source_ref.field_path == ":keyboard/physical-layout k-q"
                 && source_ref.raw.as_deref() == Some("matrix:0,1")
+        }));
+        assert!(snapshot.backends.iter().any(|backend| {
+            backend.id == overlay_backend::OVERLAY_WINDOW_BACKEND_ID
+                && backend
+                    .capabilities
+                    .contains(&CapabilityFlag::ClickThroughOverlayWindow)
+                && backend.health.state == HealthState::Ok
         }));
         assert!(snapshot.backends.iter().any(|backend| {
             backend.id == "keypeek-live" && backend.health.state == HealthState::Disconnected

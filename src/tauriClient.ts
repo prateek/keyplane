@@ -183,19 +183,21 @@ export async function setVisualStyleDensity(
   }
 }
 
-export async function startOverlayDrag(): Promise<void> {
+export async function startOverlayDrag(): Promise<KeyboardSnapshot | null> {
   try {
-    await invoke("start_overlay_drag");
+    return await invoke<KeyboardSnapshot>("start_overlay_drag");
   } catch {
-    return;
+    return null;
   }
 }
 
-export async function startOverlayResize(direction: OverlayResizeDirection): Promise<void> {
+export async function startOverlayResize(
+  direction: OverlayResizeDirection,
+): Promise<KeyboardSnapshot | null> {
   try {
-    await invoke("start_overlay_resize", { direction });
+    return await invoke<KeyboardSnapshot>("start_overlay_resize", { direction });
   } catch {
-    return;
+    return null;
   }
 }
 

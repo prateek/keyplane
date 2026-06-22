@@ -846,6 +846,10 @@ fn capability_to_value(value: &CapabilityFlag) -> Value {
             CapabilityFlag::StreamPressedKeys => "stream-pressed-keys",
             CapabilityFlag::PollState => "poll-state",
             CapabilityFlag::PreviewOnly => "preview-only",
+            CapabilityFlag::RenderOverlayWindow => "render-overlay-window",
+            CapabilityFlag::TransparentOverlayWindow => "transparent-overlay-window",
+            CapabilityFlag::ClickThroughOverlayWindow => "click-through-overlay-window",
+            CapabilityFlag::PositionOverlayWindow => "position-overlay-window",
         },
     )
 }
@@ -859,6 +863,10 @@ fn parse_capability(value: &Value) -> Result<CapabilityFlag, ProfileCodecError> 
         "stream-pressed-keys" => Ok(CapabilityFlag::StreamPressedKeys),
         "poll-state" => Ok(CapabilityFlag::PollState),
         "preview-only" => Ok(CapabilityFlag::PreviewOnly),
+        "render-overlay-window" => Ok(CapabilityFlag::RenderOverlayWindow),
+        "transparent-overlay-window" => Ok(CapabilityFlag::TransparentOverlayWindow),
+        "click-through-overlay-window" => Ok(CapabilityFlag::ClickThroughOverlayWindow),
+        "position-overlay-window" => Ok(CapabilityFlag::PositionOverlayWindow),
         _ => Err(ProfileCodecError::Invalid(":backend/capabilities")),
     }
 }

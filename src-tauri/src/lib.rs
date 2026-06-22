@@ -9,6 +9,7 @@ pub mod kanata_tcp;
 pub mod keypeek_backend;
 pub mod keypeek_contract;
 pub mod keypeek_live;
+pub mod overlay_backend;
 pub mod profile_codec;
 pub mod sentinel_backend;
 #[cfg(desktop)]
@@ -79,8 +80,12 @@ fn initial_snapshot(
     active_profile: State<'_, ActiveProfileStore>,
 ) -> Result<KeyboardSnapshot, String> {
     let snapshot = active_profile.snapshot().map_err(|err| err.to_string())?;
-    apply_overlay_window_config_to_app(&app, &snapshot.overlay_window)?;
-    Ok(snapshot)
+    overlay_window_snapshot_from_result(
+        &active_profile,
+        apply_overlay_window_config_to_app(&app, &snapshot.overlay_window),
+        "Overlay Window is configured",
+        "Could not apply Overlay Window configuration",
+    )
 }
 
 #[tauri::command]
@@ -442,8 +447,12 @@ fn load_active_profile_edn(
     let snapshot = active_profile
         .load_profile(profile)
         .map_err(|err| err.to_string())?;
-    apply_overlay_window_config_to_app(&app, &snapshot.overlay_window)?;
-    Ok(snapshot)
+    overlay_window_snapshot_from_result(
+        &active_profile,
+        apply_overlay_window_config_to_app(&app, &snapshot.overlay_window),
+        "Overlay Window applied loaded Profile display targeting",
+        "Could not apply loaded Profile Overlay Window configuration",
+    )
 }
 
 #[tauri::command]
@@ -493,8 +502,12 @@ fn commit_import_candidate(
     let snapshot = active_profile
         .commit_import_candidate(candidate)
         .map_err(|err| err.to_string())?;
-    apply_overlay_window_config_to_app(&app, &snapshot.overlay_window)?;
-    Ok(snapshot)
+    overlay_window_snapshot_from_result(
+        &active_profile,
+        apply_overlay_window_config_to_app(&app, &snapshot.overlay_window),
+        "Overlay Window applied imported Profile display targeting",
+        "Could not apply imported Profile Overlay Window configuration",
+    )
 }
 
 #[tauri::command]
@@ -517,13 +530,27 @@ fn set_overlay_positioning_mode(
     let snapshot = active_profile
         .set_overlay_positioning_mode(enabled)
         .map_err(|err| err.to_string())?;
-    apply_overlay_window_config_to_app(&app, &snapshot.overlay_window)?;
+    let mut next_snapshot = overlay_window_snapshot_from_result(
+        &active_profile,
+        apply_overlay_window_config_to_app(&app, &snapshot.overlay_window),
+        if enabled {
+            "Overlay Window entered Positioning Mode"
+        } else {
+            "Overlay Window returned to Click-Through Mode"
+        },
+        "Could not update Overlay Window positioning state",
+    )?;
+
     if enabled {
-        overlay_window(&app)?
-            .set_focus()
-            .map_err(|err| err.to_string())?;
+        next_snapshot = overlay_window_snapshot_from_result(
+            &active_profile,
+            overlay_window(&app)
+                .and_then(|window| window.set_focus().map_err(|err| err.to_string())),
+            "Overlay Window is focused for Positioning Mode",
+            "Could not focus Overlay Window for Positioning Mode",
+        )?;
     }
-    Ok(snapshot)
+    Ok(next_snapshot)
 }
 
 #[tauri::command]
@@ -539,26 +566,47 @@ fn set_visual_style_density(
 #[tauri::command]
 fn apply_overlay_window_config(
     app: tauri::AppHandle,
+    active_profile: State<'_, ActiveProfileStore>,
     config: OverlayWindowConfig,
-) -> Result<(), String> {
-    apply_overlay_window_config_to_app(&app, &config)
+) -> Result<KeyboardSnapshot, String> {
+    overlay_window_snapshot_from_result(
+        &active_profile,
+        apply_overlay_window_config_to_app(&app, &config),
+        "Overlay Window configuration applied",
+        "Could not apply Overlay Window configuration",
+    )
 }
 
 #[tauri::command]
-fn start_overlay_drag(app: tauri::AppHandle) -> Result<(), String> {
-    overlay_window(&app)?
-        .start_dragging()
-        .map_err(|err| err.to_string())
+fn start_overlay_drag(
+    app: tauri::AppHandle,
+    active_profile: State<'_, ActiveProfileStore>,
+) -> Result<KeyboardSnapshot, String> {
+    overlay_window_snapshot_from_result(
+        &active_profile,
+        overlay_window(&app)
+            .and_then(|window| window.start_dragging().map_err(|err| err.to_string())),
+        "Overlay Window drag started",
+        "Could not start Overlay Window drag",
+    )
 }
 
 #[tauri::command]
 fn start_overlay_resize(
     app: tauri::AppHandle,
+    active_profile: State<'_, ActiveProfileStore>,
     direction: OverlayResizeDirection,
-) -> Result<(), String> {
-    overlay_window(&app)?
-        .start_resize_dragging(direction.into())
-        .map_err(|err| err.to_string())
+) -> Result<KeyboardSnapshot, String> {
+    overlay_window_snapshot_from_result(
+        &active_profile,
+        overlay_window(&app).and_then(|window| {
+            window
+                .start_resize_dragging(direction.into())
+                .map_err(|err| err.to_string())
+        }),
+        "Overlay Window resize started",
+        "Could not start Overlay Window resize",
+    )
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -588,7 +636,12 @@ pub fn run() {
                         .build(),
                 )?;
             }
-            create_overlay_window(app.handle())?;
+            let _ = overlay_window_snapshot_from_result(
+                &app.state::<ActiveProfileStore>(),
+                create_overlay_window(app.handle()).map_err(|err| err.to_string()),
+                "Overlay Window was created",
+                "Could not create Overlay Window",
+            );
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
@@ -723,6 +776,8 @@ fn create_overlay_window(app: &tauri::AppHandle) -> tauri::Result<()> {
     .decorations(false)
     .always_on_top(true)
     .skip_taskbar(true)
+    .focused(false)
+    .focusable(false)
     .resizable(false)
     .visible(false)
     .build()?;
@@ -750,6 +805,9 @@ fn apply_overlay_window_config_to_app(
     window
         .set_resizable(plan.resizable)
         .map_err(|err| err.to_string())?;
+    window
+        .set_focusable(plan.focusable)
+        .map_err(|err| err.to_string())?;
 
     if plan.visible {
         window.show().map_err(|err| err.to_string())?;
@@ -769,6 +827,7 @@ struct OverlayWindowPlan {
     visible: bool,
     ignore_cursor_events: bool,
     resizable: bool,
+    focusable: bool,
 }
 
 fn overlay_window_plan(config: &OverlayWindowConfig) -> OverlayWindowPlan {
@@ -781,7 +840,29 @@ fn overlay_window_plan(config: &OverlayWindowConfig) -> OverlayWindowPlan {
         visible: config.visibility == VisibilityPolicy::Pinned,
         ignore_cursor_events: config.click_through && !config.positioning_mode,
         resizable: config.positioning_mode,
+        focusable: config.positioning_mode,
     }
+}
+
+fn overlay_window_snapshot_from_result(
+    active_profile: &ActiveProfileStore,
+    result: Result<(), String>,
+    success_message: impl Into<String>,
+    failure_prefix: impl Into<String>,
+) -> Result<KeyboardSnapshot, String> {
+    let status = match result {
+        Ok(()) => {
+            overlay_backend::overlay_window_backend_status(HealthState::Ok, success_message.into())
+        }
+        Err(err) => overlay_backend::overlay_window_backend_status(
+            HealthState::Unsupported,
+            format!("{}: {err}", failure_prefix.into()),
+        ),
+    };
+
+    active_profile
+        .set_runtime_backend_status(status)
+        .map_err(|err| err.to_string())
 }
 
 fn clamp_window_dimension(value: f32, min: f64) -> f64 {
@@ -833,6 +914,7 @@ mod tests {
         assert!(plan.visible);
         assert!(plan.ignore_cursor_events);
         assert!(!plan.resizable);
+        assert!(!plan.focusable);
     }
 
     #[test]
@@ -845,6 +927,7 @@ mod tests {
 
         assert!(!plan.ignore_cursor_events);
         assert!(plan.resizable);
+        assert!(plan.focusable);
     }
 
     #[test]
@@ -859,5 +942,61 @@ mod tests {
         assert_eq!(plan.width, 320.0);
         assert_eq!(plan.height, 180.0);
         assert!(!plan.visible);
+    }
+
+    #[test]
+    fn overlay_window_result_surfaces_unsupported_health_in_snapshot() {
+        let active_profile = ActiveProfileStore::new(crate::fake_backend::fake_profile());
+
+        let snapshot = overlay_window_snapshot_from_result(
+            &active_profile,
+            Err("cursor event ignoring is unsupported".to_string()),
+            "Overlay Window is configured",
+            "Could not apply Overlay Window configuration",
+        )
+        .expect("snapshot should be returned with health");
+
+        let health = snapshot
+            .runtime_state
+            .backend_health
+            .iter()
+            .find(|health| health.backend_id == overlay_backend::OVERLAY_WINDOW_BACKEND_ID)
+            .expect("overlay health exists");
+        assert_eq!(health.state, HealthState::Unsupported);
+        assert!(health
+            .message
+            .contains("Could not apply Overlay Window configuration"));
+        assert!(health
+            .message
+            .contains("cursor event ignoring is unsupported"));
+    }
+
+    #[test]
+    fn overlay_window_result_restores_ok_health_after_success() {
+        let active_profile = ActiveProfileStore::new(crate::fake_backend::fake_profile());
+        overlay_window_snapshot_from_result(
+            &active_profile,
+            Err("not supported".to_string()),
+            "Overlay Window is configured",
+            "Could not apply Overlay Window configuration",
+        )
+        .expect("failure snapshot");
+
+        let snapshot = overlay_window_snapshot_from_result(
+            &active_profile,
+            Ok(()),
+            "Overlay Window is configured",
+            "Could not apply Overlay Window configuration",
+        )
+        .expect("success snapshot");
+
+        let health = snapshot
+            .runtime_state
+            .backend_health
+            .iter()
+            .find(|health| health.backend_id == overlay_backend::OVERLAY_WINDOW_BACKEND_ID)
+            .expect("overlay health exists");
+        assert_eq!(health.state, HealthState::Ok);
+        assert_eq!(health.message, "Overlay Window is configured");
     }
 }

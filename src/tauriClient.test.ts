@@ -9,6 +9,8 @@ import {
   requestHostInputPermissions,
   setLaunchAtLogin,
   setVisualStyleDensity,
+  startOverlayDrag,
+  startOverlayResize,
   startKanataTcpBackend,
   stopKanataTcpBackend,
   unregisterSentinelKeyShortcuts,
@@ -132,5 +134,10 @@ describe("Tauri client fallbacks", () => {
 
   it("reports Visual Style density updates as unavailable when Tauri is absent", async () => {
     await expect(setVisualStyleDensity("compact")).resolves.toBeNull();
+  });
+
+  it("reports Overlay Window placement controls as unavailable when Tauri is absent", async () => {
+    await expect(startOverlayDrag()).resolves.toBeNull();
+    await expect(startOverlayResize("south-east")).resolves.toBeNull();
   });
 });

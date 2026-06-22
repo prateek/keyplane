@@ -183,6 +183,10 @@ pub enum CapabilityFlag {
     StreamPressedKeys,
     PollState,
     PreviewOnly,
+    RenderOverlayWindow,
+    TransparentOverlayWindow,
+    ClickThroughOverlayWindow,
+    PositionOverlayWindow,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]

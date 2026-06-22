@@ -135,6 +135,8 @@ describe("Keyplane app", () => {
 
     await user.click(await screen.findByRole("button", { name: /source inspector/i }));
 
+    expect(screen.getAllByText("Overlay Window").length).toBeGreaterThanOrEqual(1);
+    expect(screen.getByText(/render-overlay-window/)).toBeInTheDocument();
     expect(screen.getAllByText("KeyPeek Live").length).toBeGreaterThanOrEqual(2);
     expect(screen.getAllByText("Kanata TCP").length).toBeGreaterThanOrEqual(2);
     expect(screen.getAllByText("disconnected").length).toBeGreaterThanOrEqual(2);

@@ -122,6 +122,22 @@ const sentinelBackend: BackendStatus = {
   },
 };
 
+const overlayWindowBackend: BackendStatus = {
+  id: "overlay-window",
+  name: "Overlay Window",
+  capabilities: [
+    "render-overlay-window",
+    "transparent-overlay-window",
+    "click-through-overlay-window",
+    "position-overlay-window",
+  ],
+  health: {
+    backend_id: "overlay-window",
+    state: "ok",
+    message: "Overlay Window is ready",
+  },
+};
+
 const sources: Source[] = [
   {
     id: sourceId,
@@ -161,7 +177,13 @@ const runtimeState: RuntimeState = {
     },
   ],
   pressed_keys: [],
-  backend_health: [backend.health, keyPeekBackend.health, kanataBackend.health, sentinelBackend.health],
+  backend_health: [
+    backend.health,
+    overlayWindowBackend.health,
+    keyPeekBackend.health,
+    kanataBackend.health,
+    sentinelBackend.health,
+  ],
 };
 
 export const fakeSnapshot: KeyboardSnapshot = {
@@ -177,7 +199,7 @@ export const fakeSnapshot: KeyboardSnapshot = {
   },
   runtime_state: runtimeState,
   effective_keys: resolveEffectiveKeys({ layers: [baseLayer, navLayer] }, runtimeState),
-  backends: [backend, keyPeekBackend, kanataBackend, sentinelBackend],
+  backends: [backend, overlayWindowBackend, keyPeekBackend, kanataBackend, sentinelBackend],
   sentinel_keys: [
     {
       host_input_code: "F24",

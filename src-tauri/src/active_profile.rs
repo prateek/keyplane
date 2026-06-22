@@ -253,6 +253,10 @@ fn state_confidence_for_profile(profile: &Profile) -> StateConfidence {
     let has_authoritative_runtime = profile.runtime_backends.iter().any(|backend| {
         backend.health.state == HealthState::Ok
             && !backend.capabilities.contains(&CapabilityFlag::PreviewOnly)
+            && (backend
+                .capabilities
+                .contains(&CapabilityFlag::StreamLayerStack)
+                || backend.capabilities.contains(&CapabilityFlag::PollState))
     });
 
     if has_authoritative_runtime {
