@@ -400,4 +400,28 @@ mod tests {
 
         assert!(session.poll_next_event().expect("read succeeds").is_none());
     }
+
+    #[test]
+    #[ignore = "requires KEYPLANE_KEYPEEK_LIVE_VID and KEYPLANE_KEYPEEK_LIVE_PID to point at a KeyPeek-compatible Raw HID device"]
+    fn local_keypeek_live_device_accepts_subscription_when_env_is_set() {
+        let vid = parse_usb_id(
+            &std::env::var("KEYPLANE_KEYPEEK_LIVE_VID").expect("KEYPLANE_KEYPEEK_LIVE_VID is set"),
+        )
+        .expect("VID is hex");
+        let pid = parse_usb_id(
+            &std::env::var("KEYPLANE_KEYPEEK_LIVE_PID").expect("KEYPLANE_KEYPEEK_LIVE_PID is set"),
+        )
+        .expect("PID is hex");
+
+        let transport = QmkViaRawHidTransport::open(vid, pid).expect("KeyPeek Raw HID opens");
+        let mut session =
+            KeyPeekLiveSession::new(transport, 3, matrix_key_ids_from_layout(&fake_layout()));
+
+        session
+            .start_subscription()
+            .expect("KeyPeek subscription starts");
+        session
+            .stop_subscription()
+            .expect("KeyPeek subscription stops");
+    }
 }

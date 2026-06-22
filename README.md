@@ -28,8 +28,9 @@ The current implementation includes:
 - macOS Accessibility and Input Monitoring permission checks and prompts surfaced as persistent Sentinel Keys Backend Health
 - launch-at-login Settings backed by the Tauri autostart plugin and scoped autostart permissions
 - a GitHub Actions desktop build workflow that verifies the app, uploads unsigned macOS debug bundles, and uploads Linux/Windows debug binaries
+- an env-gated KeyPeek Live hardware canary and validation checklist for compatible firmware devices
 
-The remaining PRD scope includes real KeyPeek-supported hardware validation and signed release packaging beyond unsigned/debug artifacts.
+The remaining PRD scope includes observed real KeyPeek-supported layer-change validation and signed release packaging beyond unsigned/debug artifacts.
 
 ## Decisions
 
@@ -85,6 +86,7 @@ The `Desktop Build` GitHub Actions workflow runs the same verification path on m
 - [Ecosystem report](docs/research/keyboard-rendering-and-configuration-ecosystem.md): source research on keyboard rendering/configuration tools
 - [Attribution](docs/attribution.md): GPL/source reuse notes
 - [Implementation log](docs/implementation-log.md): execution notes and verification history
+- [KeyPeek Live hardware validation](docs/validation/keypeek-live-hardware.md): opt-in hardware canary and manual layer-change checklist
 - [Agent instructions](AGENTS.md): how implementation agents should read the docs
 
 ## Source Boundaries
