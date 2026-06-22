@@ -39,11 +39,18 @@ The MVP is being built against [the PRD](docs/prd/keyplane-prd.md) and the domai
 ## Building
 
 ```sh
-pnpm install          # frontend deps
+pnpm install            # frontend deps
 cargo test --workspace  # Rust domain tests
-pnpm test             # frontend contract tests
-pnpm build            # build the web frontend into dist/
-cargo run -p keyplane   # run the desktop app (needs the dist/ build first)
+pnpm test               # frontend contract tests
+pnpm tauri dev          # run the app (Vite dev server + Tauri shell, with HMR)
+pnpm tauri build        # production build with the frontend embedded
 ```
+
+Run the app with `pnpm tauri dev`, not a bare `cargo run -p keyplane`: a debug
+build loads the Vite dev URL (`devUrl`), so without the dev server the window is
+blank. `pnpm tauri build` (or a release build) embeds the frontend and runs
+standalone. On first launch the App Window shows the controls and the
+transparent Overlay Window renders the full keyboard with live layer status from
+the Fake Backend.
 
 Do not copy OverKeys implementation code. OverKeys is design inspiration and an import target.

@@ -101,8 +101,13 @@ this environment can't provide:
   detection are wired (opt-in) and surface permission failures as Backend
   Health, but capturing real global input needs the OS grant and isn't run
   here.
-- Visually confirming the overlay pixels needs a desktop session; the app
-  launches and the snapshot/event contract is tested.
+- The overlay was visually verified by launching the app on macOS and
+  screenshotting it: the App Window renders its controls and the transparent
+  Overlay Window renders the full 4x4 keyboard with live status ("Live ·
+  Layer: layer-0 · Fake Backend: OK"). This also caught a real issue — a bare
+  `cargo run -p keyplane` debug build loads the Vite `devUrl`, so it is blank
+  without the dev server; run via `pnpm tauri dev`, or `pnpm tauri build` for a
+  standalone binary that embeds the frontend.
 
 ## Out of scope (ADR 0038, 0039)
 
