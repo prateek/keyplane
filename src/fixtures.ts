@@ -6,6 +6,7 @@ import type {
   PhysicalKey,
   RuntimeEvent,
   RuntimeState,
+  Source,
   SourceRef,
 } from "./domain";
 import { resolveEffectiveKeys } from "./state";
@@ -121,6 +122,33 @@ const sentinelBackend: BackendStatus = {
   },
 };
 
+const sources: Source[] = [
+  {
+    id: sourceId,
+    name: "Fake Backend",
+    kind: "fake",
+    authority: "authoritative",
+  },
+  {
+    id: "keypeek-live",
+    name: "KeyPeek Live",
+    kind: "keypeek-firmware",
+    authority: "authoritative",
+  },
+  {
+    id: "kanata-tcp",
+    name: "Kanata TCP",
+    kind: "kanata",
+    authority: "authoritative",
+  },
+  {
+    id: "sentinel-keys",
+    name: "Sentinel Keys",
+    kind: "sentinel-keys",
+    authority: "inferred",
+  },
+];
+
 const runtimeState: RuntimeState = {
   layer_stack: [
     {
@@ -139,6 +167,7 @@ const runtimeState: RuntimeState = {
 export const fakeSnapshot: KeyboardSnapshot = {
   profile_id: "profile-keyplane-demo",
   profile_name: "Keyplane Demo",
+  sources,
   physical_layout: {
     keys,
     fallback: false,
@@ -166,6 +195,7 @@ export const fakeSnapshot: KeyboardSnapshot = {
       ],
     },
   ],
+  source_provenance: keys.map((key) => key.provenance),
   source_precedence: [
     {
       field_scope: ":visual/style",

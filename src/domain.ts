@@ -244,6 +244,7 @@ export interface Profile {
 export interface KeyboardSnapshot {
   profile_id: string;
   profile_name: string;
+  sources: Source[];
   physical_layout: PhysicalLayout;
   keymap: LogicalKeymap;
   runtime_state: RuntimeState;
@@ -251,6 +252,7 @@ export interface KeyboardSnapshot {
   backends: BackendStatus[];
   sentinel_keys: SentinelKeyBinding[];
   source_conflicts: SourceConflict[];
+  source_provenance: SourceRef[];
   source_precedence: SourcePrecedenceRule[];
   user_overrides: UserOverride[];
   visual_style: VisualStyle;

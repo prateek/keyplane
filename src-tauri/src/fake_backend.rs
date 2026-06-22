@@ -359,6 +359,10 @@ mod tests {
             snapshot.effective_keys.len(),
             snapshot.physical_layout.keys.len()
         );
+        assert!(snapshot.source_provenance.iter().any(|source_ref| {
+            source_ref.field_path == ":keyboard/physical-layout k-q"
+                && source_ref.raw.as_deref() == Some("matrix:0,1")
+        }));
         assert!(snapshot.backends.iter().any(|backend| {
             backend.id == "keypeek-live" && backend.health.state == HealthState::Disconnected
         }));

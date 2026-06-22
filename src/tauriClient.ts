@@ -255,6 +255,7 @@ function snapshotFromProfile(
   return {
     profile_id: profile.id,
     profile_name: profile.name,
+    sources: profile.sources,
     physical_layout: profile.physical_layout,
     keymap: profile.keymap,
     runtime_state: runtimeState,
@@ -262,6 +263,7 @@ function snapshotFromProfile(
     backends: profile.runtime_backends,
     sentinel_keys: profile.sentinel_keys,
     source_conflicts: sourceConflicts,
+    source_provenance: profile.source_provenance,
     source_precedence: profile.source_precedence,
     user_overrides: profile.user_overrides,
     visual_style: profile.visual_style,

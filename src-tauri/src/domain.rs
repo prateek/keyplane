@@ -317,6 +317,7 @@ pub struct Profile {
 pub struct KeyboardSnapshot {
     pub profile_id: String,
     pub profile_name: String,
+    pub sources: Vec<Source>,
     pub physical_layout: PhysicalLayout,
     pub keymap: LogicalKeymap,
     pub runtime_state: RuntimeState,
@@ -324,6 +325,7 @@ pub struct KeyboardSnapshot {
     pub backends: Vec<BackendStatus>,
     pub sentinel_keys: Vec<SentinelKeyBinding>,
     pub source_conflicts: Vec<SourceConflict>,
+    pub source_provenance: Vec<SourceRef>,
     pub source_precedence: Vec<SourcePrecedenceRule>,
     pub user_overrides: Vec<UserOverride>,
     pub visual_style: VisualStyle,
@@ -372,6 +374,7 @@ pub fn compose_snapshot(
     KeyboardSnapshot {
         profile_id: profile.id.clone(),
         profile_name: profile.name.clone(),
+        sources: profile.sources.clone(),
         physical_layout: profile.physical_layout.clone(),
         keymap: profile.keymap.clone(),
         runtime_state,
@@ -379,6 +382,7 @@ pub fn compose_snapshot(
         backends: profile.runtime_backends.clone(),
         sentinel_keys: profile.sentinel_keys.clone(),
         source_conflicts,
+        source_provenance: profile.source_provenance.clone(),
         source_precedence: profile.source_precedence.clone(),
         user_overrides: profile.user_overrides.clone(),
         visual_style,

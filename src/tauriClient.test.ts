@@ -17,7 +17,7 @@ describe("Tauri client fallbacks", () => {
       schema_version: 1,
       id: "profile-imported-preview",
       name: "Imported Preview",
-      sources: [],
+      sources: fakeSnapshot.sources,
       physical_layout: fakeSnapshot.physical_layout,
       keymap: fakeSnapshot.keymap,
       runtime_backends: fakeSnapshot.backends,
@@ -52,6 +52,8 @@ describe("Tauri client fallbacks", () => {
     expect(snapshot.profile_name).toBe("Imported Preview");
     expect(snapshot.runtime_state.layer_stack[0].layer_id).toBe("layer-0");
     expect(snapshot.effective_keys.length).toBe(previewProfile.physical_layout.keys.length);
+    expect(snapshot.sources).toEqual(fakeSnapshot.sources);
+    expect(snapshot.source_provenance).toEqual(previewProfile.source_provenance);
   });
 
   it("marks preview-only committed profiles as medium-confidence fallback state", async () => {
@@ -59,7 +61,7 @@ describe("Tauri client fallbacks", () => {
       schema_version: 1,
       id: "profile-preview-only",
       name: "Preview Only",
-      sources: [],
+      sources: fakeSnapshot.sources,
       physical_layout: fakeSnapshot.physical_layout,
       keymap: fakeSnapshot.keymap,
       runtime_backends: [

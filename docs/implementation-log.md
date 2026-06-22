@@ -34,6 +34,7 @@ Started the Tauri v2 implementation from the PRD.
 - Fixed Vial layer import resolution so matrix-addressed layer cells map to Physical Keys by `MatrixPosition` even when KLE geometry order differs from row/column order.
 - Added a Vial device HID import path using KeyPeek-derived Vial definition reads, XZ decompression, `qmk-via-api` layer matrix reads, and Import Review wiring as a Best-Effort Preview rather than live layer sync.
 - Added a Kanata TCP runtime path with local host/port Settings controls, newline-delimited JSON protocol parsing, Layer Stack Runtime Events from `LayerChange` and `CurrentLayerName`, and typed Backend Health from `HelloOk`, errors, reloads, disconnects, and parse failures.
+- Added Source Provenance and Source records to the Keyboard Snapshot contract and surfaced them in the Source Inspector with raw preserved values.
 
 Verification:
 

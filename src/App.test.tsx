@@ -76,12 +76,16 @@ describe("Keyplane app", () => {
 
     await user.click(await screen.findByRole("button", { name: /source inspector/i }));
 
-    expect(screen.getByText("KeyPeek Live")).toBeInTheDocument();
-    expect(screen.getByText("Kanata TCP")).toBeInTheDocument();
+    expect(screen.getAllByText("KeyPeek Live").length).toBeGreaterThanOrEqual(2);
+    expect(screen.getAllByText("Kanata TCP").length).toBeGreaterThanOrEqual(2);
     expect(screen.getAllByText("disconnected").length).toBeGreaterThanOrEqual(2);
     expect(screen.getByText(":visual/style :style/variant-id")).toBeInTheDocument();
     expect(screen.getByText("keyviz-import")).toBeInTheDocument();
     expect(screen.getByText("keyviz-minimal")).toBeInTheDocument();
+    expect(screen.getByText("Sources")).toBeInTheDocument();
+    expect(screen.getByText("Source Provenance")).toBeInTheDocument();
+    expect(screen.getByText(":keyboard/physical-layout k-q")).toBeInTheDocument();
+    expect(screen.getByText("matrix:0,1")).toBeInTheDocument();
   });
 
   it("promotes a Source Conflict candidate to a User Override", async () => {

@@ -637,10 +637,24 @@ function SourceInspector({
   snapshot: KeyboardSnapshot;
   onPromote: (conflict: SourceConflict, sourceId: string) => void;
 }) {
+  const sourceName = (sourceId: string) =>
+    snapshot.sources.find((source) => source.id === sourceId)?.name ?? sourceId;
+
   return (
     <section className="inspector-view">
       <div className="inspector-grid">
         <div>
+          <section>
+            <h2>Sources</h2>
+            {snapshot.sources.map((source) => (
+              <article className="list-row" key={source.id}>
+                <strong>{source.name}</strong>
+                <span className="badge">{source.authority}</span>
+                <p>{source.kind}</p>
+              </article>
+            ))}
+          </section>
+
           <section>
             <h2>Backends</h2>
             {snapshot.backends.map((backend) => (
@@ -695,6 +709,18 @@ function SourceInspector({
                     </div>
                   ))}
                 </div>
+              </article>
+            ))}
+          </section>
+
+          <section>
+            <h2>Source Provenance</h2>
+            {snapshot.source_provenance.length === 0 ? <p>No provenance records.</p> : null}
+            {snapshot.source_provenance.map((sourceRef) => (
+              <article className="list-row" key={`${sourceRef.source_id}-${sourceRef.field_path}`}>
+                <strong>{sourceRef.field_path}</strong>
+                <span className="badge">{sourceName(sourceRef.source_id)}</span>
+                {sourceRef.raw ? <p className="provenance-raw">{sourceRef.raw}</p> : null}
               </article>
             ))}
           </section>
