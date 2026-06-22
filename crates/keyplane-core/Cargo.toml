@@ -1,0 +1,13 @@
+[package]
+name = "keyplane-core"
+description = "Keyplane domain core: keyboard model, layer resolution, EDN profiles, importers, and protocol backends."
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+rust-version.workspace = true
+
+[dependencies]
+serde = { workspace = true }
+serde_json = { workspace = true }
+thiserror = { workspace = true }

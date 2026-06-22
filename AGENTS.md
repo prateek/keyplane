@@ -26,7 +26,15 @@ This repo uses a single-context domain-doc layout. See `docs/agents/domain.md`.
 
 ## Current State
 
-The repo is intentionally docs-first. Do not assume a Tauri scaffold, KeyPeek fork, or Rust module layout exists until it has been created in this repo.
+The MVP is implemented. Layout:
+
+- `crates/keyplane-core/` — domain core (model, resolution, EDN Profile Codec, importers), no Tauri/HID/UI deps, fully unit-tested.
+- `crates/keyplane-keypeek/` — KeyPeek-derived protocol + keycode-label code, vendored in `src/vendor/` (GPL, attributed in `NOTICE`). The live KeyPeek/VIA/Vial HID backend lives here.
+- `crates/keyplane-kanata/` — Kanata TCP backend. `crates/keyplane-sentinel/` — sentinel-key (Host Input Event) backend.
+- `src-tauri/` — Tauri v2 shell: App + Overlay windows, command/event boundary, backend driver.
+- `src/` — React/TypeScript/Vite frontend (overlay + App Window).
+
+The Fake Backend is the automated/dev source (ADR 0045). Live HID (KeyPeek) and Kanata TCP transports are gated on real hardware/daemons; OS-level host-event capture for sentinel keys is not yet wired. See `docs/implementation-log.md` for architecture, the backend family, and the deferred list.
 
 ## Source Boundaries
 

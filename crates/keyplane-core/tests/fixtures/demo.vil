@@ -1,0 +1,17 @@
+{
+  "version": 1,
+  "uid": 0,
+  "layout": [
+    [
+      ["KC_A", "KC_B", "MO(1)"],
+      ["KC_C", "KC_D", "KC_SPC"]
+    ],
+    [
+      ["KC_1", "KC_2", "KC_TRNS"],
+      ["KC_TRNS", "KC_TRNS", "KC_ENT"]
+    ]
+  ],
+  "encoder_layout": [],
+  "layout_options": -1,
+  "macro": []
+}

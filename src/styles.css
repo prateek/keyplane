@@ -1,0 +1,274 @@
+:root {
+  --bg: #14161a;
+  --panel: #1c1f26;
+  --keycap: #2a2f3a;
+  --keycap-top: #343b49;
+  --text: #e7ebf0;
+  --muted: #98a2b3;
+  --accent: #5b9dff;
+  --inherited: #f0a500;
+  --ok: #3ecf8e;
+  --warn: #f0a500;
+  --err: #ff6b6b;
+  font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  color: var(--text);
+}
+
+/* The overlay window is transparent; only keycaps paint. */
+.overlay-body {
+  background: transparent;
+}
+
+.app {
+  background: var(--bg);
+  min-height: 100vh;
+  padding: 16px;
+}
+
+.app-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.app-header h1 {
+  font-size: 20px;
+  margin: 0;
+}
+
+.panel {
+  background: var(--panel);
+  border-radius: 10px;
+  padding: 14px 16px;
+  margin-top: 14px;
+}
+
+.panel h2 {
+  font-size: 15px;
+  margin: 0 0 10px;
+}
+
+.muted {
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.error {
+  color: var(--err);
+  font-size: 13px;
+}
+
+.row {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  margin-bottom: 8px;
+}
+
+button,
+select,
+input {
+  background: var(--keycap);
+  color: var(--text);
+  border: 1px solid #3a414f;
+  border-radius: 7px;
+  padding: 6px 10px;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+input {
+  cursor: text;
+}
+
+.hex-input {
+  width: 110px;
+  font-family: ui-monospace, "SF Mono", Menlo, monospace;
+}
+
+button:hover {
+  border-color: var(--accent);
+}
+
+textarea {
+  width: 100%;
+  background: #0f1115;
+  color: var(--text);
+  border: 1px solid #2a2f3a;
+  border-radius: 7px;
+  padding: 10px;
+  font-family: ui-monospace, "SF Mono", Menlo, monospace;
+  font-size: 12px;
+}
+
+.import-input {
+  min-height: 120px;
+}
+
+.edn-input {
+  min-height: 240px;
+}
+
+/* ---- Status badges ---- */
+
+.status-bar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 10px;
+}
+
+.badge {
+  font-size: 12px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: var(--keycap);
+  border: 1px solid #3a414f;
+}
+
+.confidence-authoritative {
+  border-color: var(--ok);
+  color: var(--ok);
+}
+.confidence-inferred {
+  border-color: var(--warn);
+  color: var(--warn);
+}
+.health-ok {
+  border-color: var(--ok);
+  color: var(--ok);
+}
+.health-disconnected,
+.health-protocol-error,
+.health-parse-error {
+  border-color: var(--err);
+  color: var(--err);
+}
+.health-permission-missing,
+.health-stale,
+.health-unsupported {
+  border-color: var(--warn);
+  color: var(--warn);
+}
+
+/* ---- Keyboard ---- */
+
+.overlay-surface {
+  display: inline-block;
+  padding: 10px;
+  position: relative;
+}
+
+.overlay-surface.positioning {
+  outline: 2px dashed var(--accent);
+  border-radius: 10px;
+}
+
+.drag-bar {
+  cursor: grab;
+  background: var(--accent);
+  color: #04122b;
+  font-size: 11px;
+  text-align: center;
+  padding: 3px;
+  border-radius: 6px;
+  margin-bottom: 6px;
+  user-select: none;
+}
+
+.resize-handle {
+  position: absolute;
+  right: 2px;
+  bottom: 2px;
+  width: 14px;
+  height: 14px;
+  cursor: nwse-resize;
+  background: linear-gradient(135deg, transparent 50%, var(--accent) 50%);
+  border-radius: 0 0 6px 0;
+}
+
+.overlay-loading {
+  color: var(--muted);
+  padding: 16px;
+}
+
+.keyboard {
+  position: relative;
+}
+
+.keycap {
+  position: absolute;
+  background: var(--keycap);
+  border: 1px solid #3a414f;
+  border-radius: 6px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  font-size: 13px;
+  user-select: none;
+  overflow: hidden;
+}
+
+.keycap.on-top {
+  background: var(--keycap-top);
+  border-color: var(--accent);
+}
+
+.keycap.inherited {
+  opacity: 0.85;
+}
+
+.keycap.blank {
+  opacity: 0.4;
+}
+
+.keycap.pressed {
+  outline: 2px solid var(--accent);
+}
+
+.legend-primary {
+  font-weight: 600;
+}
+
+.legend-hold,
+.legend-tap,
+.legend-layer,
+.legend-shifted {
+  font-size: 9px;
+  color: var(--muted);
+}
+
+.inherited-dot {
+  position: absolute;
+  top: 3px;
+  right: 3px;
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: var(--inherited);
+}
+
+/* ---- Conflicts table ---- */
+
+.conflicts {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12px;
+  margin-top: 8px;
+}
+
+.conflicts th,
+.conflicts td {
+  text-align: left;
+  padding: 4px 6px;
+  border-bottom: 1px solid #2a2f3a;
+}

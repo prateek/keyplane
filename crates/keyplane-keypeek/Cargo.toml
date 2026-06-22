@@ -1,0 +1,19 @@
+[package]
+name = "keyplane-keypeek"
+description = "KeyPeek-derived protocol and keycode-label code reshaped for Keyplane (GPL-3.0)."
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+rust-version.workspace = true
+
+[dependencies]
+keyplane-core = { path = "../keyplane-core" }
+qmk-via-api = "0.8.0"
+lzma-rs = "0.3"
+hidapi = "2.6"
+serialport = "4.9"
+zmk-studio-api = { git = "https://github.com/srwi/zmk-studio-api", features = ["serial", "ble"] }
+serde = { workspace = true }
+serde_json = { workspace = true }
+thiserror = { workspace = true }

@@ -1,0 +1,29 @@
+Keyplane — keyplane-keypeek crate
+=================================
+
+This crate contains code derived from KeyPeek:
+
+  KeyPeek — https://github.com/srwi/keypeek
+  Copyright (C) Stephan Rumswinkel
+  Licensed under the GNU General Public License v3.0 only (GPL-3.0-only)
+
+Files under `src/vendor/` are derived from KeyPeek:
+
+  - `layout_key.rs`, `keycode_labels/` — QMK/VIA keycode-label tables + model;
+  - `protocols/` — VIA, Vial, and ZMK HID/Studio protocol code, plus the
+    KLE/QMK-JSON/geometry parsers;
+  - `zmk_keycode_labels/` — ZMK behavior/HID-usage label tables;
+  - `device_discovery.rs` — HID/serial/BLE device discovery + classification,
+    with KeyPeek's own unit tests (the project's only test suite).
+
+They are reused and reshaped for Keyplane under the terms of the GPL-3.0.
+Modifications from upstream are noted in `src/vendor/mod.rs`:
+
+  - module paths rehomed under `crate::vendor::*`;
+  - icon-font glyphs (egui_phosphor) replaced with plain-text labels via
+    `glyphs.rs`, dropping the egui/eframe UI dependency (Keyplane renders in a
+    web frontend);
+  - a `read_all_raw` method added to the `KeyboardProtocol` trait so Keyplane
+    keeps raw VIA keycodes and derives Semantic Actions itself.
+
+The rest of Keyplane is likewise GPL-3.0-only; see the repository LICENSE.

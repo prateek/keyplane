@@ -1,0 +1,27 @@
+[package]
+name = "keyplane"
+description = "Keyplane desktop app: Tauri v2 shell, overlay window, and fake-backend driver."
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+rust-version.workspace = true
+
+[lib]
+name = "keyplane_lib"
+crate-type = ["staticlib", "cdylib", "rlib"]
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[dependencies]
+keyplane-core = { path = "../crates/keyplane-core" }
+keyplane-kanata = { path = "../crates/keyplane-kanata" }
+keyplane-keypeek = { path = "../crates/keyplane-keypeek" }
+keyplane-sentinel = { path = "../crates/keyplane-sentinel" }
+tauri = { version = "2", features = ["macos-private-api"] }
+tauri-plugin-autostart = "2"
+rdev = "0.5"
+serde = { workspace = true }
+serde_json = { workspace = true }
+thiserror = { workspace = true }

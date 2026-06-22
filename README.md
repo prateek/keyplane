@@ -10,7 +10,7 @@ The first product target is narrow:
 - save hand-editable app-native EDN profiles
 - make backend health and permission failures visible
 
-The repo is docs-first right now. The implementation should start from [the PRD](docs/prd/keyplane-prd.md) and the domain language in [CONTEXT.md](CONTEXT.md).
+The MVP is being built against [the PRD](docs/prd/keyplane-prd.md) and the domain language in [CONTEXT.md](CONTEXT.md). See [the implementation log](docs/implementation-log.md) for architecture and progress.
 
 ## Decisions
 
@@ -28,15 +28,31 @@ The repo is docs-first right now. The implementation should start from [the PRD]
 - [CONTEXT.md](CONTEXT.md): glossary and domain vocabulary
 - [ADRs](docs/adr/): accepted architectural and product decisions
 - [Ecosystem report](docs/research/keyboard-rendering-and-configuration-ecosystem.md): source research on keyboard rendering/configuration tools
+- [Implementation log](docs/implementation-log.md): architecture, backend family, validation
+- [Hardware validation runbook](docs/hardware-validation.md): turnkey steps to confirm a live KeyPeek layer change once a board is attached
 - [Agent instructions](AGENTS.md): how implementation agents should read the docs
 
-## Implementation Starting Point
+## Layout
 
-1. Fork or vendor the relevant KeyPeek Rust protocol/domain code.
-2. Scaffold a Tauri v2 app with React, TypeScript, and Vite.
-3. Implement the Fake Backend and Keyboard Snapshot DTO first.
-4. Render the full-keyboard overlay in a Rust-owned Tauri Overlay Window.
-5. Add EDN Profile Codec support.
-6. Add the NocFree/Vial `.vil` Import Candidate path.
+- `crates/keyplane-core/` — the domain core (no Tauri/HID/UI deps): Keyboard Model, Layer Stack resolution, Effective Actions, EDN Profile Codec, Protocol Backends, importers. Fully unit-tested.
+- `src-tauri/` — the Tauri v2 shell: App + Overlay windows, command/event boundary, Fake Backend driver loop.
+- `src/` — the React + TypeScript + Vite frontend: overlay surface and App Window.
+
+## Building
+
+```sh
+pnpm install            # frontend deps
+cargo test --workspace  # Rust domain tests
+pnpm test               # frontend contract tests
+pnpm tauri dev          # run the app (Vite dev server + Tauri shell, with HMR)
+pnpm tauri build        # production build with the frontend embedded
+```
+
+Run the app with `pnpm tauri dev`, not a bare `cargo run -p keyplane`: a debug
+build loads the Vite dev URL (`devUrl`), so without the dev server the window is
+blank. `pnpm tauri build` (or a release build) embeds the frontend and runs
+standalone. On first launch the App Window shows the controls and the
+transparent Overlay Window renders the full keyboard with live layer status from
+the Fake Backend.
 
 Do not copy OverKeys implementation code. OverKeys is design inspiration and an import target.

@@ -1,0 +1,687 @@
+{
+  "healthEvent": {
+    "health": {
+      "backend_id": "fake",
+      "capabilities": [
+        "import-geometry",
+        "import-keymap",
+        "stream-layer-stack",
+        "stream-pressed-keys"
+      ],
+      "health": {
+        "detail": "device unplugged",
+        "state": "disconnected"
+      },
+      "name": "Fake Backend"
+    },
+    "type": "backend-health"
+  },
+  "navEvent": {
+    "confidence": "authoritative",
+    "keys": [
+      {
+        "effective": {
+          "kind": "key",
+          "label": "1"
+        },
+        "geometry": {
+          "h": 1.0,
+          "w": 1.0,
+          "x": 0.0,
+          "y": 0.0
+        },
+        "inherited": false,
+        "key": "k0",
+        "legend": {
+          "primary": "1"
+        },
+        "source_layer": "layer-1"
+      },
+      {
+        "effective": {
+          "kind": "key",
+          "label": "2"
+        },
+        "geometry": {
+          "h": 1.0,
+          "w": 1.0,
+          "x": 1.0,
+          "y": 0.0
+        },
+        "inherited": false,
+        "key": "k1",
+        "legend": {
+          "primary": "2"
+        },
+        "source_layer": "layer-1"
+      },
+      {
+        "effective": {
+          "kind": "key",
+          "label": "3"
+        },
+        "geometry": {
+          "h": 1.0,
+          "w": 1.0,
+          "x": 2.0,
+          "y": 0.0
+        },
+        "inherited": false,
+        "key": "k2",
+        "legend": {
+          "primary": "3"
+        },
+        "source_layer": "layer-1"
+      },
+      {
+        "effective": {
+          "kind": "key",
+          "label": "4"
+        },
+        "geometry": {
+          "h": 1.0,
+          "w": 1.0,
+          "x": 3.0,
+          "y": 0.0
+        },
+        "inherited": false,
+        "key": "k3",
+        "legend": {
+          "primary": "4"
+        },
+        "source_layer": "layer-1"
+      },
+      {
+        "effective": {
+          "kind": "key",
+          "label": "5"
+        },
+        "geometry": {
+          "h": 1.0,
+          "w": 1.0,
+          "x": 0.0,
+          "y": 1.0
+        },
+        "inherited": false,
+        "key": "k4",
+        "legend": {
+          "primary": "5"
+        },
+        "source_layer": "layer-1"
+      },
+      {
+        "effective": {
+          "kind": "key",
+          "label": "6"
+        },
+        "geometry": {
+          "h": 1.0,
+          "w": 1.0,
+          "x": 1.0,
+          "y": 1.0
+        },
+        "inherited": false,
+        "key": "k5",
+        "legend": {
+          "primary": "6"
+        },
+        "source_layer": "layer-1"
+      },
+      {
+        "effective": {
+          "kind": "key",
+          "label": "7"
+        },
+        "geometry": {
+          "h": 1.0,
+          "w": 1.0,
+          "x": 2.0,
+          "y": 1.0
+        },
+        "inherited": false,
+        "key": "k6",
+        "legend": {
+          "primary": "7"
+        },
+        "source_layer": "layer-1"
+      },
+      {
+        "effective": {
+          "kind": "key",
+          "label": "8"
+        },
+        "geometry": {
+          "h": 1.0,
+          "w": 1.0,
+          "x": 3.0,
+          "y": 1.0
+        },
+        "inherited": false,
+        "key": "k7",
+        "legend": {
+          "primary": "8"
+        },
+        "source_layer": "layer-1"
+      },
+      {
+        "effective": {
+          "kind": "key",
+          "label": "I"
+        },
+        "geometry": {
+          "h": 1.0,
+          "w": 1.0,
+          "x": 0.0,
+          "y": 2.0
+        },
+        "inherited": true,
+        "key": "k8",
+        "legend": {
+          "primary": "I"
+        },
+        "source_layer": "layer-0"
+      },
+      {
+        "effective": {
+          "kind": "key",
+          "label": "J"
+        },
+        "geometry": {
+          "h": 1.0,
+          "w": 1.0,
+          "x": 1.0,
+          "y": 2.0
+        },
+        "inherited": true,
+        "key": "k9",
+        "legend": {
+          "primary": "J"
+        },
+        "source_layer": "layer-0"
+      },
+      {
+        "effective": {
+          "kind": "key",
+          "label": "K"
+        },
+        "geometry": {
+          "h": 1.0,
+          "w": 1.0,
+          "x": 2.0,
+          "y": 2.0
+        },
+        "inherited": true,
+        "key": "k10",
+        "legend": {
+          "primary": "K"
+        },
+        "source_layer": "layer-0"
+      },
+      {
+        "effective": {
+          "kind": "key",
+          "label": "L"
+        },
+        "geometry": {
+          "h": 1.0,
+          "w": 1.0,
+          "x": 3.0,
+          "y": 2.0
+        },
+        "inherited": true,
+        "key": "k11",
+        "legend": {
+          "primary": "L"
+        },
+        "source_layer": "layer-0"
+      },
+      {
+        "effective": {
+          "kind": "layer",
+          "layer": "layer-1",
+          "switch": "momentary"
+        },
+        "geometry": {
+          "h": 1.0,
+          "w": 1.0,
+          "x": 0.0,
+          "y": 3.0
+        },
+        "inherited": true,
+        "key": "k12",
+        "legend": {
+          "action": "mo",
+          "layer": "layer-1",
+          "primary": "Llayer-1"
+        },
+        "source_layer": "layer-0"
+      },
+      {
+        "effective": {
+          "kind": "layer",
+          "layer": "layer-2",
+          "switch": "momentary"
+        },
+        "geometry": {
+          "h": 1.0,
+          "w": 1.0,
+          "x": 1.0,
+          "y": 3.0
+        },
+        "inherited": true,
+        "key": "k13",
+        "legend": {
+          "action": "mo",
+          "layer": "layer-2",
+          "primary": "Llayer-2"
+        },
+        "source_layer": "layer-0"
+      },
+      {
+        "effective": {
+          "kind": "layer",
+          "layer": "layer-2",
+          "switch": "toggle"
+        },
+        "geometry": {
+          "h": 1.0,
+          "w": 1.0,
+          "x": 2.0,
+          "y": 3.0
+        },
+        "inherited": true,
+        "key": "k14",
+        "legend": {
+          "action": "tg",
+          "layer": "layer-2",
+          "primary": "Llayer-2"
+        },
+        "source_layer": "layer-0"
+      },
+      {
+        "effective": {
+          "kind": "key",
+          "label": "Space"
+        },
+        "geometry": {
+          "h": 1.0,
+          "w": 1.0,
+          "x": 3.0,
+          "y": 3.0
+        },
+        "inherited": true,
+        "key": "k15",
+        "legend": {
+          "primary": "Space"
+        },
+        "source_layer": "layer-0"
+      }
+    ],
+    "layer_stack": {
+      "active": [
+        {
+          "activation": "default",
+          "layer": "layer-0"
+        },
+        {
+          "activation": "momentary",
+          "layer": "layer-1"
+        }
+      ]
+    },
+    "type": "layer-stack"
+  },
+  "snapshot": {
+    "backends": [
+      {
+        "backend_id": "fake",
+        "capabilities": [
+          "import-geometry",
+          "import-keymap",
+          "stream-layer-stack",
+          "stream-pressed-keys"
+        ],
+        "health": {
+          "state": "ok"
+        },
+        "name": "Fake Backend"
+      }
+    ],
+    "confidence": "authoritative",
+    "extent": [
+      4.0,
+      4.0
+    ],
+    "keyboard_name": "Keyplane Demo 4x4",
+    "keys": [
+      {
+        "effective": {
+          "kind": "key",
+          "label": "A"
+        },
+        "geometry": {
+          "h": 1.0,
+          "w": 1.0,
+          "x": 0.0,
+          "y": 0.0
+        },
+        "inherited": false,
+        "key": "k0",
+        "legend": {
+          "primary": "A"
+        },
+        "source_layer": "layer-0"
+      },
+      {
+        "effective": {
+          "kind": "key",
+          "label": "B"
+        },
+        "geometry": {
+          "h": 1.0,
+          "w": 1.0,
+          "x": 1.0,
+          "y": 0.0
+        },
+        "inherited": false,
+        "key": "k1",
+        "legend": {
+          "primary": "B"
+        },
+        "source_layer": "layer-0"
+      },
+      {
+        "effective": {
+          "kind": "key",
+          "label": "C"
+        },
+        "geometry": {
+          "h": 1.0,
+          "w": 1.0,
+          "x": 2.0,
+          "y": 0.0
+        },
+        "inherited": false,
+        "key": "k2",
+        "legend": {
+          "primary": "C"
+        },
+        "source_layer": "layer-0"
+      },
+      {
+        "effective": {
+          "kind": "key",
+          "label": "D"
+        },
+        "geometry": {
+          "h": 1.0,
+          "w": 1.0,
+          "x": 3.0,
+          "y": 0.0
+        },
+        "inherited": false,
+        "key": "k3",
+        "legend": {
+          "primary": "D"
+        },
+        "source_layer": "layer-0"
+      },
+      {
+        "effective": {
+          "kind": "key",
+          "label": "E"
+        },
+        "geometry": {
+          "h": 1.0,
+          "w": 1.0,
+          "x": 0.0,
+          "y": 1.0
+        },
+        "inherited": false,
+        "key": "k4",
+        "legend": {
+          "primary": "E"
+        },
+        "source_layer": "layer-0"
+      },
+      {
+        "effective": {
+          "kind": "key",
+          "label": "F"
+        },
+        "geometry": {
+          "h": 1.0,
+          "w": 1.0,
+          "x": 1.0,
+          "y": 1.0
+        },
+        "inherited": false,
+        "key": "k5",
+        "legend": {
+          "primary": "F"
+        },
+        "source_layer": "layer-0"
+      },
+      {
+        "effective": {
+          "kind": "key",
+          "label": "G"
+        },
+        "geometry": {
+          "h": 1.0,
+          "w": 1.0,
+          "x": 2.0,
+          "y": 1.0
+        },
+        "inherited": false,
+        "key": "k6",
+        "legend": {
+          "primary": "G"
+        },
+        "source_layer": "layer-0"
+      },
+      {
+        "effective": {
+          "kind": "key",
+          "label": "H"
+        },
+        "geometry": {
+          "h": 1.0,
+          "w": 1.0,
+          "x": 3.0,
+          "y": 1.0
+        },
+        "inherited": false,
+        "key": "k7",
+        "legend": {
+          "primary": "H"
+        },
+        "source_layer": "layer-0"
+      },
+      {
+        "effective": {
+          "kind": "key",
+          "label": "I"
+        },
+        "geometry": {
+          "h": 1.0,
+          "w": 1.0,
+          "x": 0.0,
+          "y": 2.0
+        },
+        "inherited": false,
+        "key": "k8",
+        "legend": {
+          "primary": "I"
+        },
+        "source_layer": "layer-0"
+      },
+      {
+        "effective": {
+          "kind": "key",
+          "label": "J"
+        },
+        "geometry": {
+          "h": 1.0,
+          "w": 1.0,
+          "x": 1.0,
+          "y": 2.0
+        },
+        "inherited": false,
+        "key": "k9",
+        "legend": {
+          "primary": "J"
+        },
+        "source_layer": "layer-0"
+      },
+      {
+        "effective": {
+          "kind": "key",
+          "label": "K"
+        },
+        "geometry": {
+          "h": 1.0,
+          "w": 1.0,
+          "x": 2.0,
+          "y": 2.0
+        },
+        "inherited": false,
+        "key": "k10",
+        "legend": {
+          "primary": "K"
+        },
+        "source_layer": "layer-0"
+      },
+      {
+        "effective": {
+          "kind": "key",
+          "label": "L"
+        },
+        "geometry": {
+          "h": 1.0,
+          "w": 1.0,
+          "x": 3.0,
+          "y": 2.0
+        },
+        "inherited": false,
+        "key": "k11",
+        "legend": {
+          "primary": "L"
+        },
+        "source_layer": "layer-0"
+      },
+      {
+        "effective": {
+          "kind": "layer",
+          "layer": "layer-1",
+          "switch": "momentary"
+        },
+        "geometry": {
+          "h": 1.0,
+          "w": 1.0,
+          "x": 0.0,
+          "y": 3.0
+        },
+        "inherited": false,
+        "key": "k12",
+        "legend": {
+          "action": "mo",
+          "layer": "layer-1",
+          "primary": "Llayer-1"
+        },
+        "source_layer": "layer-0"
+      },
+      {
+        "effective": {
+          "kind": "layer",
+          "layer": "layer-2",
+          "switch": "momentary"
+        },
+        "geometry": {
+          "h": 1.0,
+          "w": 1.0,
+          "x": 1.0,
+          "y": 3.0
+        },
+        "inherited": false,
+        "key": "k13",
+        "legend": {
+          "action": "mo",
+          "layer": "layer-2",
+          "primary": "Llayer-2"
+        },
+        "source_layer": "layer-0"
+      },
+      {
+        "effective": {
+          "kind": "layer",
+          "layer": "layer-2",
+          "switch": "toggle"
+        },
+        "geometry": {
+          "h": 1.0,
+          "w": 1.0,
+          "x": 2.0,
+          "y": 3.0
+        },
+        "inherited": false,
+        "key": "k14",
+        "legend": {
+          "action": "tg",
+          "layer": "layer-2",
+          "primary": "Llayer-2"
+        },
+        "source_layer": "layer-0"
+      },
+      {
+        "effective": {
+          "kind": "key",
+          "label": "Space"
+        },
+        "geometry": {
+          "h": 1.0,
+          "w": 1.0,
+          "x": 3.0,
+          "y": 3.0
+        },
+        "inherited": false,
+        "key": "k15",
+        "legend": {
+          "primary": "Space"
+        },
+        "source_layer": "layer-0"
+      }
+    ],
+    "layer_stack": {
+      "active": [
+        {
+          "activation": "default",
+          "layer": "layer-0"
+        }
+      ]
+    },
+    "layers": [
+      {
+        "id": "layer-0",
+        "index": 0,
+        "name": "Base"
+      },
+      {
+        "id": "layer-1",
+        "index": 1,
+        "name": "Numbers"
+      },
+      {
+        "id": "layer-2",
+        "index": 2,
+        "name": "Arrows"
+      }
+    ],
+    "schema": 1,
+    "style": {
+      "opacity": 0.92,
+      "show_inherited_indicator": true,
+      "variant": "detailed"
+    }
+  }
+}
