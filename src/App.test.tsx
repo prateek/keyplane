@@ -34,6 +34,14 @@ describe("Keyplane app", () => {
     expect(screen.getByText(/zmk keymap/i)).toBeInTheDocument();
   });
 
+  it("exposes KeyPeek Live VID and PID connection controls", async () => {
+    render(<App />);
+
+    expect(await screen.findByLabelText("KeyPeek VID")).toBeInTheDocument();
+    expect(screen.getByLabelText("KeyPeek PID")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /connect/i })).toBeInTheDocument();
+  });
+
   it("shows overlay drag and resize affordances in Positioning Mode", async () => {
     const user = userEvent.setup();
     render(<App />);

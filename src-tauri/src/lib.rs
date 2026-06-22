@@ -6,6 +6,7 @@ pub mod importers;
 pub mod kanata_backend;
 pub mod keypeek_backend;
 pub mod keypeek_contract;
+pub mod keypeek_live;
 pub mod profile_codec;
 pub mod sentinel_backend;
 
@@ -15,6 +16,7 @@ use crate::domain::{
     apply_runtime_event, HostInputEvent, ImportCandidate, KeyboardSnapshot, OverlayWindowConfig,
     Profile, RuntimeEvent, SourceConflict, VisibilityPolicy,
 };
+use crate::keypeek_live::{KeyPeekLiveRuntime, KeyPeekLiveSession, QmkViaRawHidTransport};
 use serde::Deserialize;
 use tauri::{LogicalPosition, LogicalSize, Manager, State, WebviewUrl, WebviewWindowBuilder};
 use tauri_runtime::ResizeDirection;
@@ -30,6 +32,12 @@ enum OverlayResizeDirection {
     SouthEast,
     SouthWest,
     West,
+}
+
+#[derive(Debug, Deserialize)]
+struct KeyPeekConnectionRequest {
+    vid: String,
+    pid: String,
 }
 
 impl From<OverlayResizeDirection> for ResizeDirection {
@@ -69,6 +77,93 @@ fn ingest_sentinel_host_input_event(
 ) -> Result<Option<RuntimeEvent>, String> {
     active_profile
         .ingest_sentinel_host_input_event(event)
+        .map_err(|err| err.to_string())
+}
+
+#[tauri::command]
+fn start_keypeek_live_backend(
+    app: tauri::AppHandle,
+    active_profile: State<'_, ActiveProfileStore>,
+    live_runtime: State<'_, KeyPeekLiveRuntime>,
+    request: KeyPeekConnectionRequest,
+) -> Result<KeyboardSnapshot, String> {
+    let vid = match keypeek_live::parse_usb_id(&request.vid) {
+        Ok(vid) => vid,
+        Err(err) => {
+            return active_profile
+                .set_runtime_backend_status(keypeek_backend::keypeek_backend_status(
+                    crate::domain::HealthState::ParseError,
+                    format!("Invalid KeyPeek VID: {err}"),
+                ))
+                .map_err(|err| err.to_string());
+        }
+    };
+    let pid = match keypeek_live::parse_usb_id(&request.pid) {
+        Ok(pid) => pid,
+        Err(err) => {
+            return active_profile
+                .set_runtime_backend_status(keypeek_backend::keypeek_backend_status(
+                    crate::domain::HealthState::ParseError,
+                    format!("Invalid KeyPeek PID: {err}"),
+                ))
+                .map_err(|err| err.to_string());
+        }
+    };
+    let profile = active_profile
+        .profile_snapshot()
+        .map_err(|err| err.to_string())?;
+    let matrix_key_ids = keypeek_live::matrix_key_ids_from_layout(&profile.physical_layout);
+    let layer_count = profile.keymap.layers.len();
+    let transport = match QmkViaRawHidTransport::open(vid, pid) {
+        Ok(transport) => transport,
+        Err(err) => {
+            let status = keypeek_backend::keypeek_backend_status(
+                crate::domain::HealthState::Disconnected,
+                format!("Could not open KeyPeek HID {:04x}:{:04x}: {err}", vid, pid),
+            );
+            return active_profile
+                .set_runtime_backend_status(status)
+                .map_err(|err| err.to_string());
+        }
+    };
+    let mut session = KeyPeekLiveSession::new(transport, layer_count, matrix_key_ids);
+    if let Err(err) = session.start_subscription() {
+        let status = keypeek_backend::keypeek_backend_status(
+            crate::domain::HealthState::ProtocolError,
+            format!(
+                "Could not start KeyPeek live subscription {:04x}:{:04x}: {err}",
+                vid, pid
+            ),
+        );
+        return active_profile
+            .set_runtime_backend_status(status)
+            .map_err(|err| err.to_string());
+    }
+
+    let snapshot = active_profile
+        .set_runtime_backend_status(keypeek_backend::keypeek_backend_status(
+            crate::domain::HealthState::Ok,
+            format!(
+                "Connected to KeyPeek-compatible HID {:04x}:{:04x}",
+                vid, pid
+            ),
+        ))
+        .map_err(|err| err.to_string())?;
+    live_runtime.start(app, session)?;
+    Ok(snapshot)
+}
+
+#[tauri::command]
+fn stop_keypeek_live_backend(
+    active_profile: State<'_, ActiveProfileStore>,
+    live_runtime: State<'_, KeyPeekLiveRuntime>,
+) -> Result<KeyboardSnapshot, String> {
+    live_runtime.stop();
+    active_profile
+        .set_runtime_backend_status(keypeek_backend::keypeek_backend_status(
+            crate::domain::HealthState::Disconnected,
+            "KeyPeek live backend stopped",
+        ))
         .map_err(|err| err.to_string())
 }
 
@@ -208,6 +303,7 @@ fn start_overlay_resize(
 pub fn run() {
     tauri::Builder::default()
         .manage(ActiveProfileStore::new(fake_backend::fake_profile()))
+        .manage(KeyPeekLiveRuntime::new())
         .plugin(tauri_plugin_opener::init())
         .setup(|app| {
             create_overlay_window(app.handle())?;
@@ -217,6 +313,8 @@ pub fn run() {
             initial_snapshot,
             fake_runtime_events,
             ingest_sentinel_host_input_event,
+            start_keypeek_live_backend,
+            stop_keypeek_live_backend,
             apply_event,
             save_profile_edn,
             load_profile_edn,

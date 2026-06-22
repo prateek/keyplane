@@ -1,7 +1,7 @@
 use crate::domain::{
-    compose_snapshot, promote_conflict_to_override, ActivationKind, CapabilityFlag, HealthState,
-    HostInputEvent, ImportCandidate, KeyboardSnapshot, LayerActivation, Profile, RuntimeEvent,
-    RuntimeState, SourceConflict, StateConfidence, StateConfidenceLevel,
+    compose_snapshot, promote_conflict_to_override, ActivationKind, BackendStatus, CapabilityFlag,
+    HealthState, HostInputEvent, ImportCandidate, KeyboardSnapshot, LayerActivation, Profile,
+    RuntimeEvent, RuntimeState, SourceConflict, StateConfidence, StateConfidenceLevel,
 };
 use crate::profile_codec;
 use crate::sentinel_backend;
@@ -95,6 +95,28 @@ impl ActiveProfileStore {
     pub fn save_profile_edn(&self) -> Result<String, ActiveProfileError> {
         let profile = self.profile()?.clone();
         Ok(profile_codec::save_profile(&profile))
+    }
+
+    pub fn set_runtime_backend_status(
+        &self,
+        status: BackendStatus,
+    ) -> Result<KeyboardSnapshot, ActiveProfileError> {
+        let profile = {
+            let mut profile = self.profile()?;
+            if let Some(existing) = profile
+                .runtime_backends
+                .iter_mut()
+                .find(|backend| backend.id == status.id)
+            {
+                *existing = status;
+            } else {
+                profile.runtime_backends.push(status);
+            }
+            profile.clone()
+        };
+        let source_conflicts = self.source_conflicts()?.clone();
+
+        Ok(snapshot_from_profile(&profile, source_conflicts))
     }
 
     pub fn promote_source_candidate(
@@ -363,6 +385,43 @@ mod tests {
             }
             _ => panic!("expected layer stack event"),
         }
+    }
+
+    #[test]
+    fn runtime_backend_status_updates_the_active_profile_snapshot() {
+        let store = ActiveProfileStore::new(crate::fake_backend::fake_profile());
+        let status = crate::keypeek_backend::keypeek_backend_status(
+            HealthState::Ok,
+            "Connected to KeyPeek-compatible HID feed:cafe",
+        );
+
+        let snapshot = store
+            .set_runtime_backend_status(status)
+            .expect("backend status updates");
+
+        let health = snapshot
+            .runtime_state
+            .backend_health
+            .iter()
+            .find(|candidate| candidate.backend_id == "keypeek-live")
+            .expect("keypeek health exists");
+        assert_eq!(health.state, HealthState::Ok);
+        assert_eq!(
+            snapshot.runtime_state.layer_stack[0].confidence.level,
+            StateConfidenceLevel::High
+        );
+        assert_eq!(
+            store
+                .profile_snapshot()
+                .unwrap()
+                .runtime_backends
+                .iter()
+                .find(|backend| backend.id == "keypeek-live")
+                .unwrap()
+                .health
+                .state,
+            HealthState::Ok
+        );
     }
 
     #[test]

@@ -1,4 +1,5 @@
 import { invoke } from "@tauri-apps/api/core";
+import { listen, type UnlistenFn } from "@tauri-apps/api/event";
 import type {
   HostInputEvent,
   ImportCandidate,
@@ -11,6 +12,8 @@ import type {
 import { fakeSnapshot } from "./fixtures";
 import { promoteSourceCandidate, resolveEffectiveKeys } from "./state";
 
+export const runtimeEventName = "runtime-event";
+
 export type OverlayResizeDirection =
   | "east"
   | "north"
@@ -20,6 +23,11 @@ export type OverlayResizeDirection =
   | "south-east"
   | "south-west"
   | "west";
+
+export interface KeyPeekConnectionRequest {
+  vid: string;
+  pid: string;
+}
 
 export async function loadInitialSnapshot(): Promise<KeyboardSnapshot> {
   try {
@@ -42,6 +50,34 @@ export async function ingestSentinelHostInputEvent(
 ): Promise<RuntimeEvent | null> {
   try {
     return await invoke<RuntimeEvent | null>("ingest_sentinel_host_input_event", { event });
+  } catch {
+    return null;
+  }
+}
+
+export async function startKeyPeekLiveBackend(
+  request: KeyPeekConnectionRequest,
+): Promise<KeyboardSnapshot | null> {
+  try {
+    return await invoke<KeyboardSnapshot>("start_keypeek_live_backend", { request });
+  } catch {
+    return null;
+  }
+}
+
+export async function stopKeyPeekLiveBackend(): Promise<KeyboardSnapshot | null> {
+  try {
+    return await invoke<KeyboardSnapshot>("stop_keypeek_live_backend");
+  } catch {
+    return null;
+  }
+}
+
+export async function listenToRuntimeEvents(
+  onEvent: (event: RuntimeEvent) => void,
+): Promise<UnlistenFn | null> {
+  try {
+    return await listen<RuntimeEvent>(runtimeEventName, (event) => onEvent(event.payload));
   } catch {
     return null;
   }

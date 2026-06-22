@@ -34,11 +34,13 @@ import {
   importZmkKeymapFile,
   loadFakeRuntimeEvents,
   loadInitialSnapshot,
+  listenToRuntimeEvents,
   loadActiveProfileEdn,
   promoteActiveSourceCandidate,
   saveActiveProfileEdn,
   startOverlayDrag,
   startOverlayResize,
+  startKeyPeekLiveBackend,
   setOverlayPositioningMode,
 } from "./tauriClient";
 
@@ -53,10 +55,32 @@ function App() {
   const [importCandidate, setImportCandidate] = useState<ImportCandidate | null>(null);
   const [importError, setImportError] = useState<string | null>(null);
   const [profileStatus, setProfileStatus] = useState<string | null>(null);
+  const [keyPeekVid, setKeyPeekVid] = useState("");
+  const [keyPeekPid, setKeyPeekPid] = useState("");
 
   useEffect(() => {
     void loadInitialSnapshot().then(setSnapshot);
     void loadFakeRuntimeEvents().then(setEvents);
+  }, []);
+
+  useEffect(() => {
+    let mounted = true;
+    let unlisten: (() => void) | null = null;
+
+    void listenToRuntimeEvents((event) => {
+      setSnapshot((current) => (current ? applyRuntimeEvent(current, event) : current));
+    }).then((nextUnlisten) => {
+      if (!mounted) {
+        nextUnlisten?.();
+        return;
+      }
+      unlisten = nextUnlisten;
+    });
+
+    return () => {
+      mounted = false;
+      unlisten?.();
+    };
   }, []);
 
   const activeLayer = snapshot?.runtime_state.layer_stack[0];
@@ -100,6 +124,20 @@ function App() {
 
   function resizeOverlay() {
     void startOverlayResize("south-east");
+  }
+
+  async function connectKeyPeekLive() {
+    setProfileStatus(null);
+    const nextSnapshot = await startKeyPeekLiveBackend({ vid: keyPeekVid, pid: keyPeekPid });
+    if (!nextSnapshot) {
+      setProfileStatus("KeyPeek live connection unavailable");
+      return;
+    }
+    setSnapshot(nextSnapshot);
+    const health = nextSnapshot.runtime_state.backend_health.find(
+      (candidate) => candidate.backend_id === "keypeek-live",
+    );
+    setProfileStatus(health?.message ?? "KeyPeek live backend updated");
   }
 
   async function handleImport(file: File | null) {
@@ -253,6 +291,30 @@ function App() {
             {profileStatus ? <p className="toolbar-status">{profileStatus}</p> : null}
           </div>
           <div className="toolbar-actions">
+            <form
+              className="keypeek-connect"
+              onSubmit={(event) => {
+                event.preventDefault();
+                void connectKeyPeekLive();
+              }}
+            >
+              <input
+                aria-label="KeyPeek VID"
+                placeholder="VID"
+                value={keyPeekVid}
+                onChange={(event) => setKeyPeekVid(event.currentTarget.value)}
+              />
+              <input
+                aria-label="KeyPeek PID"
+                placeholder="PID"
+                value={keyPeekPid}
+                onChange={(event) => setKeyPeekPid(event.currentTarget.value)}
+              />
+              <button type="submit">
+                <RadioTower size={17} />
+                Connect
+              </button>
+            </form>
             <button onClick={advanceFakeEvent}>
               <RadioTower size={17} />
               Fake event
