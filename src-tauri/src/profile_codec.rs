@@ -1058,6 +1058,7 @@ fn capability_to_value(value: &CapabilityFlag) -> Value {
             CapabilityFlag::TransparentOverlayWindow => "transparent-overlay-window",
             CapabilityFlag::ClickThroughOverlayWindow => "click-through-overlay-window",
             CapabilityFlag::PositionOverlayWindow => "position-overlay-window",
+            CapabilityFlag::AllWorkspacesOverlayWindow => "all-workspaces-overlay-window",
         },
     )
 }
@@ -1075,6 +1076,7 @@ fn parse_capability(value: &Value) -> Result<CapabilityFlag, ProfileCodecError> 
         "transparent-overlay-window" => Ok(CapabilityFlag::TransparentOverlayWindow),
         "click-through-overlay-window" => Ok(CapabilityFlag::ClickThroughOverlayWindow),
         "position-overlay-window" => Ok(CapabilityFlag::PositionOverlayWindow),
+        "all-workspaces-overlay-window" => Ok(CapabilityFlag::AllWorkspacesOverlayWindow),
         _ => Err(ProfileCodecError::Invalid(":backend/capabilities")),
     }
 }

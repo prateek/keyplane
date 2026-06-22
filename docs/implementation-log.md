@@ -68,6 +68,7 @@ Started the Tauri v2 implementation from the PRD.
 - Added first-class Visual Style color tokens to the Profile contract, keyviz style import, EDN codec, and overlay renderer so imported keyviz keycap colors affect the full-keyboard overlay.
 - Added macOS Accessibility and Input Monitoring permission checks and request prompts, surfaced through persistent Sentinel Keys Backend Health and Settings controls.
 - Added typed Overlay Window Backend Health for window creation, transparency/click-through configuration, focusability, drag, and resize capability failures; Positioning Mode now makes the Overlay Window focusable only while placement controls are active.
+- Added all-workspaces Overlay Window capability reporting and application through the same typed Backend Health path used for click-through and positioning behavior.
 - Added stable keyboard/workflow IDs to the public Profile and Keyboard Snapshot contracts, persisted as `:keyboard/id` with backward-compatible loading for older EDN Profiles.
 - Added stable Visual Style reference IDs to the public Profile and Keyboard Snapshot contracts, persisted as `:style/id` with backward-compatible loading for older EDN Profiles.
 - Added field-level Visual Style Source Conflicts for keyviz imports and applied selected/User Override values for style ID, variant, density, and color-token fields.

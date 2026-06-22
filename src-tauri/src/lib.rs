@@ -866,6 +866,7 @@ fn create_overlay_window(app: &tauri::AppHandle) -> tauri::Result<()> {
     .transparent(true)
     .decorations(false)
     .always_on_top(true)
+    .visible_on_all_workspaces(true)
     .skip_taskbar(true)
     .focused(false)
     .focusable(false)
@@ -899,6 +900,9 @@ fn apply_overlay_window_config_to_app(
     window
         .set_focusable(plan.focusable)
         .map_err(|err| err.to_string())?;
+    window
+        .set_visible_on_all_workspaces(plan.visible_on_all_workspaces)
+        .map_err(|err| err.to_string())?;
 
     if plan.visible {
         window.show().map_err(|err| err.to_string())?;
@@ -919,6 +923,7 @@ struct OverlayWindowPlan {
     ignore_cursor_events: bool,
     resizable: bool,
     focusable: bool,
+    visible_on_all_workspaces: bool,
 }
 
 fn overlay_window_plan(config: &OverlayWindowConfig) -> OverlayWindowPlan {
@@ -932,6 +937,7 @@ fn overlay_window_plan(config: &OverlayWindowConfig) -> OverlayWindowPlan {
         ignore_cursor_events: config.click_through && !config.positioning_mode,
         resizable: config.positioning_mode,
         focusable: config.positioning_mode,
+        visible_on_all_workspaces: true,
     }
 }
 
@@ -1044,6 +1050,7 @@ mod tests {
         assert!(plan.ignore_cursor_events);
         assert!(!plan.resizable);
         assert!(!plan.focusable);
+        assert!(plan.visible_on_all_workspaces);
     }
 
     #[test]
@@ -1112,6 +1119,30 @@ mod tests {
         assert!(health
             .message
             .contains("cursor event ignoring is unsupported"));
+    }
+
+    #[test]
+    fn overlay_window_result_surfaces_all_workspaces_unsupported_health() {
+        let active_profile = ActiveProfileStore::new(crate::fake_backend::fake_profile());
+
+        let snapshot = overlay_window_snapshot_from_result(
+            &active_profile,
+            Err("all-workspaces behavior is unsupported".to_string()),
+            "Overlay Window is configured",
+            "Could not apply Overlay Window configuration",
+        )
+        .expect("snapshot should be returned with health");
+
+        let health = snapshot
+            .runtime_state
+            .backend_health
+            .iter()
+            .find(|health| health.backend_id == overlay_backend::OVERLAY_WINDOW_BACKEND_ID)
+            .expect("overlay health exists");
+        assert_eq!(health.state, HealthState::Unsupported);
+        assert!(health
+            .message
+            .contains("all-workspaces behavior is unsupported"));
     }
 
     #[test]

@@ -188,6 +188,7 @@ pub enum CapabilityFlag {
     TransparentOverlayWindow,
     ClickThroughOverlayWindow,
     PositionOverlayWindow,
+    AllWorkspacesOverlayWindow,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]

@@ -143,7 +143,8 @@ export type CapabilityFlag =
   | "render-overlay-window"
   | "transparent-overlay-window"
   | "click-through-overlay-window"
-  | "position-overlay-window";
+  | "position-overlay-window"
+  | "all-workspaces-overlay-window";
 
 export type HealthState =
   | "ok"

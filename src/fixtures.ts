@@ -128,6 +128,7 @@ const overlayWindowBackend: BackendStatus = {
     "transparent-overlay-window",
     "click-through-overlay-window",
     "position-overlay-window",
+    "all-workspaces-overlay-window",
   ],
   health: {
     backend_id: "overlay-window",
