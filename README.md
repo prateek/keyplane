@@ -14,7 +14,7 @@ The current implementation includes:
 - Vial device HID import as a Best-Effort Preview Import Candidate, using KeyPeek-derived Vial definition and raw-matrix reads
 - ZMK `.keymap` import as a Best-Effort Preview Import Candidate with fallback geometry
 - keyviz style JSON import as a style-only Import Candidate with keycap color tokens and field-level Visual Style Source Conflicts
-- OverKeys companion JSON import as a Kanata-ready Best-Effort Preview Import Candidate with row-array fallback geometry
+- OverKeys companion JSON import as a Kanata-ready Best-Effort Preview Import Candidate with row-array fallback geometry and display aliases
 - a vendored KeyPeek protocol/domain source slice for live firmware packet attribution and drift checks
 - a KeyPeek Live Raw HID path using `qmk-via-api`, with VIA Raw HID discovery, VID/PID connection controls, and Tauri Runtime Event streaming
 - a Kanata TCP runtime path with Settings host/port controls, newline JSON event parsing, and Layer Stack Runtime Event streaming

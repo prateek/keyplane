@@ -1,13 +1,14 @@
 use crate::domain::{
     derive_action, BackendHealth, BackendStatus, CapabilityFlag, DisplayTargeting, HealthState,
-    ImportCandidate, ImportSummary, KeyGeometry, Layer, LogicalKeymap, MatrixPosition,
-    OverlayWindowConfig, PhysicalKey, PhysicalLayout, Profile, Source, SourceAuthority,
-    SourceConflict, SourcePrecedenceRule, SourceRef, StyleDensity, VisibilityPolicy, VisualStyle,
-    VisualStyleColors,
+    ImportCandidate, ImportSummary, KeyGeometry, Layer, LegendSlotKind, LogicalKeymap,
+    MatrixPosition, OverlayWindowConfig, PhysicalKey, PhysicalLayout, Profile, Source,
+    SourceAuthority, SourceConflict, SourcePrecedenceRule, SourceRef, StyleDensity,
+    VisibilityPolicy, VisualStyle, VisualStyleColors,
 };
 use crate::kanata_backend;
 use qmk_via_api::keycodes::Keycode;
 use serde_json::Value as JsonValue;
+use std::collections::BTreeMap;
 use thiserror::Error;
 
 #[derive(Debug, Error, PartialEq)]
@@ -355,6 +356,7 @@ pub fn import_overkeys_companion_json(contents: &str) -> Result<ImportCandidate,
         return Err(ImportError::Missing("userLayouts.keys"));
     }
 
+    let aliases = overkeys_aliases(&json);
     let source_suffix = sanitize_id_or(&layout.name, "layout");
     let source = Source {
         id: format!("overkeys-companion-{}", source_suffix),
@@ -376,6 +378,7 @@ pub fn import_overkeys_companion_json(contents: &str) -> Result<ImportCandidate,
         &source.id,
         "overkeys",
     );
+    apply_overkeys_aliases(&mut layers, &aliases);
 
     if let Some(layer) = layers.first_mut() {
         layer.name = layout.name.clone();
@@ -1013,6 +1016,41 @@ fn selected_overkeys_layout(json: &JsonValue) -> Option<OverkeysLayout<'_>> {
     })
 }
 
+fn overkeys_aliases(json: &JsonValue) -> BTreeMap<String, String> {
+    json.get("aliases")
+        .and_then(JsonValue::as_object)
+        .map(|aliases| {
+            aliases
+                .iter()
+                .filter_map(|(raw, label)| {
+                    json_scalar_to_string(label).map(|label| (raw.clone(), label))
+                })
+                .collect()
+        })
+        .unwrap_or_default()
+}
+
+fn apply_overkeys_aliases(layers: &mut [Layer], aliases: &BTreeMap<String, String>) {
+    if aliases.is_empty() {
+        return;
+    }
+
+    for action in layers.iter_mut().flat_map(|layer| layer.actions.iter_mut()) {
+        let Some(label) = aliases.get(&action.raw.value) else {
+            continue;
+        };
+        action.semantic.label = label.clone();
+        if let Some(primary) = action
+            .legend
+            .slots
+            .iter_mut()
+            .find(|slot| slot.slot == LegendSlotKind::Primary)
+        {
+            primary.text = label.clone();
+        }
+    }
+}
+
 fn row_arrays_to_layer_cells(rows: &[JsonValue]) -> Vec<ImportedLayerCell> {
     rows.iter()
         .enumerate()
@@ -1592,7 +1630,7 @@ mod tests {
         {
           "name": "Colemak Example",
           "keys": [
-            ["Q", "W", "F"],
+            ["spc", "W", "F"],
             ["A", "R", "S"]
           ]
         }
@@ -1926,7 +1964,18 @@ mod tests {
             candidate.preview_profile.keymap.layers[0].actions[0]
                 .raw
                 .value,
-            "Q"
+            "spc"
+        );
+        assert!(candidate.preview_profile.keymap.layers[0].actions[0]
+            .legend
+            .slots
+            .iter()
+            .any(|slot| slot.slot == LegendSlotKind::Primary && slot.text == "Space"));
+        assert_eq!(
+            candidate.preview_profile.keymap.layers[0].actions[0]
+                .semantic
+                .label,
+            "Space"
         );
         assert!(candidate
             .preview_profile

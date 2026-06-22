@@ -26,6 +26,7 @@ Started the Tauri v2 implementation from the PRD.
 - Hardened NocFree/Vial `.vil` import for backup files whose `layout` is a layer matrix, with generated fallback geometry, numeric UID handling, and raw top-level section preservation.
 - Added OverKeys companion JSON import as an import-only Best-Effort Preview path with row-array fallback geometry, raw labels, aliases, triggers, styles, and Kanata settings preserved as Source Provenance.
 - Paired OverKeys companion Import Candidates with a disconnected Kanata TCP runtime backend and runtime Source Precedence so Kanata layer events can drive the imported layout/keymap once connected.
+- Applied OverKeys alias mappings to imported Display Legends while preserving the original row-array Raw Actions for Source Provenance and debugging.
 - Added deterministic Backend Health Runtime Events for permission-missing and recovery states so permission health is visible through the same snapshot/event path as live backends.
 - Added a disconnected KeyPeek Live backend to the initial profile so firmware-backend capabilities and connection health are visible before hardware is connected.
 - Added ZMK `.keymap` import as a Best-Effort Preview path that parses layer binding rows, preserves raw source text, and derives common ZMK layer-action semantics for visualization.
