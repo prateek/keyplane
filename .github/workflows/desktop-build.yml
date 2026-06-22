@@ -8,6 +8,16 @@ on:
   workflow_dispatch:
 
 jobs:
+  release-workflow-static-validation:
+    name: Release workflow static validation
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v5
+
+      - name: Validate signed release workflow
+        run: ruby scripts/validate-release-workflow.rb
+
   macos-debug-bundle:
     name: macOS unsigned debug bundle
     runs-on: macos-latest

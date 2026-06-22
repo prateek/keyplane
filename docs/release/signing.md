@@ -42,9 +42,12 @@ The workflow cannot be fully proven without Apple credentials, but its static
 shape should stay validated with:
 
 ```sh
+npm run check:workflows
 actionlint .github/workflows/signed-release.yml .github/workflows/desktop-build.yml
-ruby -e 'require "yaml"; %w[.github/workflows/signed-release.yml .github/workflows/desktop-build.yml].each { |path| YAML.load_file(path) }'
 ```
+
+The `Desktop Build` PR workflow runs `npm run check:workflows` so the signed
+release scaffold stays checked before real Apple credentials are available.
 
 The unsigned/debug build path remains covered by the `Desktop Build` workflow.
 Windows and Linux signed installers are intentionally not part of this scaffold;

@@ -77,6 +77,7 @@ Started the Tauri v2 implementation from the PRD.
 - Updated GitHub-managed workflow actions to Node 24-compatible majors for checkout, Node setup, and artifact upload.
 - Added env-gated KeyPeek Live hardware canaries for Raw HID subscription start/stop and observed layer-change Runtime Events, plus a hardware validation checklist for manual layer-change acceptance.
 - Added a signed macOS release workflow scaffold that imports Apple signing certificates from GitHub Actions secrets, runs Tauri signing/notarization, uploads signed `.app` and `.dmg` artifacts, and documents the unverified Apple-credential boundary.
+- Added a repository-owned signed-release workflow validator and wired it into the Desktop Build PR workflow so release scaffold drift is checked before Apple credentials are available.
 
 Verification:
 
@@ -86,6 +87,7 @@ Verification:
 - `npm ci`
 - `npm test` (35 frontend tests)
 - `npm run build`
+- `npm run check:workflows`
 - `actionlint .github/workflows/signed-release.yml .github/workflows/desktop-build.yml`
 - `ruby -e 'require "yaml"; %w[.github/workflows/signed-release.yml .github/workflows/desktop-build.yml].each { |path| YAML.load_file(path) }'`
 - `npm run tauri build -- --debug`

@@ -7,6 +7,7 @@
     "dev": "vite",
     "build": "tsc && vite build",
     "test": "vitest --run",
+    "check:workflows": "ruby scripts/validate-release-workflow.rb",
     "preview": "vite preview",
     "tauri": "tauri"
   },
