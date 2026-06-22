@@ -1,10 +1,10 @@
 use crate::domain::{
-    ActivationKind, BackendHealth, BackendStatus, CapabilityFlag, DisplayLegend, DisplayTargeting,
-    HealthState, KeyAction, KeyGeometry, Layer, LegendSlot, LegendSlotKind, LogicalKeymap,
-    MatrixPosition, OverlayWindowConfig, PhysicalKey, PhysicalLayout, Profile, RawAction,
-    SemanticAction, SemanticActionKind, SentinelKeyBinding, Source, SourceAuthority,
-    SourcePrecedenceRule, SourceRef, StateConfidence, StateConfidenceLevel, StyleDensity,
-    UserOverride, VisibilityPolicy, VisualStyle,
+    global_display_fallback, ActivationKind, BackendHealth, BackendStatus, CapabilityFlag,
+    DisplayLegend, DisplayTargeting, HealthState, KeyAction, KeyGeometry, Layer, LegendSlot,
+    LegendSlotKind, LogicalKeymap, MatrixPosition, OverlayWindowConfig, PhysicalKey,
+    PhysicalLayout, Profile, RawAction, SemanticAction, SemanticActionKind, SentinelKeyBinding,
+    Source, SourceAuthority, SourcePrecedenceRule, SourceRef, StateConfidence,
+    StateConfidenceLevel, StyleDensity, UserOverride, VisibilityPolicy, VisualStyle,
 };
 use edn_format::{emit_str, parse_str, Keyword, Value};
 use std::collections::BTreeMap;
@@ -607,7 +607,10 @@ fn parse_overlay_window(value: &Value) -> Result<OverlayWindowConfig, ProfileCod
             get(map, "overlay", "positioning-mode?")?,
             ":overlay/positioning-mode?",
         )?,
-        display_targeting: parse_display_targeting(get(map, "overlay", "display-targeting")?)?,
+        display_targeting: match get_optional(map, "overlay", "display-targeting") {
+            Some(value) => parse_display_targeting(value)?,
+            None => global_display_fallback(),
+        },
     })
 }
 
@@ -1067,6 +1070,29 @@ mod tests {
             load_profile(&saved_without_sentinel_keys).expect("legacy profile should load");
 
         assert!(loaded.sentinel_keys.is_empty());
+    }
+
+    #[test]
+    fn profile_codec_uses_global_display_fallback_when_profile_targeting_is_missing() {
+        let profile = fake_profile();
+        let Value::Map(mut map) = profile_to_value(&profile) else {
+            panic!("profile should serialize as map");
+        };
+        let overlay = map
+            .get_mut(&kw("overlay", "window"))
+            .expect("overlay section exists");
+        let Value::Map(overlay_map) = overlay else {
+            panic!("overlay section should be a map");
+        };
+        overlay_map.remove(&kw("overlay", "display-targeting"));
+        let saved_without_display_targeting = emit_str(&Value::Map(map));
+
+        let loaded = load_profile(&saved_without_display_targeting).expect("profile should load");
+
+        assert_eq!(
+            loaded.overlay_window.display_targeting,
+            global_display_fallback()
+        );
     }
 
     #[test]

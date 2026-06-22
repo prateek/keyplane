@@ -265,6 +265,17 @@ pub struct DisplayTargeting {
     pub opacity: f32,
 }
 
+pub fn global_display_fallback() -> DisplayTargeting {
+    DisplayTargeting {
+        display_id: None,
+        x: 72.0,
+        y: 72.0,
+        width: 940.0,
+        height: 320.0,
+        opacity: 0.92,
+    }
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct OverlayWindowConfig {
     pub visibility: VisibilityPolicy,

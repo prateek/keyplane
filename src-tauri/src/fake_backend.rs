@@ -1,6 +1,6 @@
 use crate::domain::{
-    apply_runtime_event, compose_snapshot, derive_action, ActivationKind, BackendHealth,
-    BackendStatus, CapabilityFlag, DisplayTargeting, HealthState, ImportCandidate, ImportSummary,
+    apply_runtime_event, compose_snapshot, derive_action, global_display_fallback, ActivationKind,
+    BackendHealth, BackendStatus, CapabilityFlag, HealthState, ImportCandidate, ImportSummary,
     KeyGeometry, KeyboardSnapshot, Layer, LayerActivation, LogicalKeymap, OverlayWindowConfig,
     PhysicalKey, PhysicalLayout, Profile, RuntimeEvent, RuntimeState, Source, SourceAuthority,
     SourceConflict, SourcePrecedenceRule, SourceRef, StateConfidence, StateConfidenceLevel,
@@ -162,14 +162,7 @@ pub fn fake_profile() -> Profile {
             visibility: VisibilityPolicy::Pinned,
             click_through: true,
             positioning_mode: false,
-            display_targeting: DisplayTargeting {
-                display_id: None,
-                x: 72.0,
-                y: 72.0,
-                width: 940.0,
-                height: 320.0,
-                opacity: 0.92,
-            },
+            display_targeting: global_display_fallback(),
         },
         source_precedence: vec![
             SourcePrecedenceRule {
