@@ -58,6 +58,7 @@ Started the Tauri v2 implementation from the PRD.
 - Added an Active Profile diff summary to Import Review so Import Candidates show changed keys, layers, sources, provenance records, backends, style, and fallback-layout state before commit.
 - Added selected-winner and raw Source Provenance rows to Import Review Source Conflicts before Import Candidate commit.
 - Added Import Review promotion controls that turn selected Source Conflict candidates into pending Profile User Overrides before Import Candidate commit.
+- Routed frontend Runtime Event application through the Rust `apply_event` command when Tauri is available so Effective Actions continue to be resolved by Rust during live event updates.
 - Added density-aware structured Display Legend rendering so compact Visual Styles collapse to primary labels, standard styles show one secondary slot, and rich styles preserve all secondary Legend Slots.
 - Added derived `tap-role` and `hold-role` Display Legend Slots for QMK and ZMK layer-tap actions while preserving compact primary labels.
 - Added QMK mod-tap alias parsing and `tap-role`/`hold-role` Legend Slots with persisted optional hold labels for richer tap-hold visualization.

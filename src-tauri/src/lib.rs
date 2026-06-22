@@ -1035,6 +1035,26 @@ mod tests {
     }
 
     #[test]
+    fn apply_event_command_uses_rust_effective_action_resolution() {
+        let snapshot = crate::fake_backend::initial_snapshot();
+        let event = crate::fake_backend::demo_runtime_events()
+            .into_iter()
+            .find(|event| matches!(event, RuntimeEvent::LayerStackChanged { .. }))
+            .expect("demo includes a layer-stack Runtime Event");
+
+        let snapshot = apply_event(snapshot, event);
+        let effective_key = snapshot
+            .effective_keys
+            .iter()
+            .find(|key| key.key_id == "k-q")
+            .expect("k-q effective key exists");
+
+        assert_eq!(snapshot.runtime_state.layer_stack[0].layer_id, "layer-1");
+        assert_eq!(effective_key.source_layer_id, "layer-0");
+        assert!(effective_key.inherited);
+    }
+
+    #[test]
     fn overlay_window_plan_uses_profile_display_targeting() {
         let mut config = crate::fake_backend::fake_profile().overlay_window;
         config.display_targeting.x = 140.0;

@@ -1,7 +1,8 @@
 import { describe, expect, it } from "vitest";
 import type { ImportCandidate, Profile } from "./domain";
-import { fakeSnapshot } from "./fixtures";
+import { fakeSnapshot, navLayerEvent } from "./fixtures";
 import {
+  applyRuntimeEventSnapshot,
   commitImportCandidate,
   discoverKeyPeekDevices,
   loadLaunchAtLogin,
@@ -64,6 +65,15 @@ describe("Tauri client fallbacks", () => {
     expect(snapshot.effective_keys.length).toBe(previewProfile.physical_layout.keys.length);
     expect(snapshot.sources).toEqual(fakeSnapshot.sources);
     expect(snapshot.source_provenance).toEqual(previewProfile.source_provenance);
+  });
+
+  it("falls back to local Runtime Event application when Tauri is unavailable", async () => {
+    const snapshot = await applyRuntimeEventSnapshot(fakeSnapshot, navLayerEvent);
+    const effectiveKey = snapshot.effective_keys.find((key) => key.key_id === "k-q");
+
+    expect(snapshot.runtime_state.layer_stack[0].layer_id).toBe("layer-1");
+    expect(effectiveKey?.source_layer_id).toBe("layer-0");
+    expect(effectiveKey?.inherited).toBe(true);
   });
 
   it("marks preview-only committed profiles as medium-confidence fallback state", async () => {

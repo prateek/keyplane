@@ -253,7 +253,12 @@ describe("Keyplane app", () => {
     expect(screen.getByText("hidden")).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole("button", { name: /overlay/i }));
-    fireEvent.click(screen.getByRole("button", { name: /fake event/i }));
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: /fake event/i }));
+      await Promise.resolve();
+      await Promise.resolve();
+      await Promise.resolve();
+    });
     expect(screen.getByText("visible")).toBeInTheDocument();
 
     await act(async () => {

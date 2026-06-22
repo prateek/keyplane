@@ -34,8 +34,9 @@ import type {
   VisibilityPolicy,
 } from "./domain";
 import { navLayerEvent } from "./fixtures";
-import { applyRuntimeEvent, promoteImportCandidateSource } from "./state";
+import { promoteImportCandidateSource } from "./state";
 import {
+  applyRuntimeEventSnapshot,
   commitImportCandidate,
   discoverKeyPeekDevices,
   importKeyPeekQmkInfoFile,
@@ -115,6 +116,7 @@ function App() {
   const [kanataHost, setKanataHost] = useState("127.0.0.1");
   const [kanataPort, setKanataPort] = useState("7070");
   const [launchAtLogin, setLaunchAtLoginState] = useState<boolean | null>(null);
+  const runtimeEventQueueRef = useRef(Promise.resolve());
 
   useEffect(() => {
     void loadInitialSnapshot().then((initialSnapshot) => {
@@ -190,10 +192,16 @@ function App() {
     scheduleFadeHide();
   }, [scheduleFadeHide, syncOverlayWindowVisible]);
 
-  const handleRuntimeEvent = useCallback(
+  const applyRuntimeEventToSnapshot = useCallback(
     (event: RuntimeEvent) => {
-      setSnapshot((current) => (current ? applyRuntimeEvent(current, event) : current));
-      noteRuntimeActivity();
+      runtimeEventQueueRef.current = runtimeEventQueueRef.current.then(async () => {
+        const current = snapshotRef.current;
+        if (!current) return;
+
+        const next = await applyRuntimeEventSnapshot(current, event);
+        setSnapshot(next);
+        noteRuntimeActivity();
+      });
     },
     [noteRuntimeActivity],
   );
@@ -202,7 +210,7 @@ function App() {
     let mounted = true;
     let unlisten: (() => void) | null = null;
 
-    void listenToRuntimeEvents(handleRuntimeEvent).then((nextUnlisten) => {
+    void listenToRuntimeEvents(applyRuntimeEventToSnapshot).then((nextUnlisten) => {
       if (!mounted) {
         nextUnlisten?.();
         return;
@@ -214,7 +222,7 @@ function App() {
       mounted = false;
       unlisten?.();
     };
-  }, [handleRuntimeEvent]);
+  }, [applyRuntimeEventToSnapshot]);
 
   useEffect(() => {
     if (
@@ -321,8 +329,7 @@ function App() {
   function advanceFakeEvent() {
     if (!snapshotRef.current) return;
     const event = events[eventIndex] ?? navLayerEvent;
-    setSnapshot((current) => (current ? applyRuntimeEvent(current, event) : current));
-    noteRuntimeActivity();
+    applyRuntimeEventToSnapshot(event);
     setEventIndex((index) => (index + 1) % Math.max(events.length, 1));
   }
 

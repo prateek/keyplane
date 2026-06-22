@@ -14,7 +14,7 @@ import type {
   VisibilityPolicy,
 } from "./domain";
 import { fakeSnapshot } from "./fixtures";
-import { promoteSourceCandidate, resolveEffectiveKeys } from "./state";
+import { applyRuntimeEvent, promoteSourceCandidate, resolveEffectiveKeys } from "./state";
 
 export const runtimeEventName = "runtime-event";
 
@@ -178,6 +178,17 @@ export async function listenToRuntimeEvents(
     return await listen<RuntimeEvent>(runtimeEventName, (event) => onEvent(event.payload));
   } catch {
     return null;
+  }
+}
+
+export async function applyRuntimeEventSnapshot(
+  snapshot: KeyboardSnapshot,
+  event: RuntimeEvent,
+): Promise<KeyboardSnapshot> {
+  try {
+    return await invoke<KeyboardSnapshot>("apply_event", { snapshot, event });
+  } catch {
+    return applyRuntimeEvent(snapshot, event);
   }
 }
 
