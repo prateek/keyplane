@@ -21,6 +21,7 @@ The current implementation includes:
 - a Rust-owned Active Profile store with Import Review commit support
 - visible Backend Health for fake, Overlay Window, KeyPeek Live, Kanata TCP, and Sentinel Keys runtime backends
 - App Window surfaces for the overlay, Import Review with Active Profile diffs, Source Inspector, Source Provenance, Backend Health, and Positioning Mode
+- active Layer Stack rendering that highlights non-inherited key actions supplied by the top active layer
 - Rust-owned Overlay Window drag and resize controls while Positioning Mode is active, with unsupported window behavior surfaced as typed Backend Health
 - Profile-owned Overlay Window placement, size, click-through, visibility policy, visible state, and renderer opacity application with a Global Display Fallback for profiles without saved targeting
 - Sentinel Key bindings in the public Profile contract, with lower-confidence Host Input Event ingestion through a Rust Protocol Backend

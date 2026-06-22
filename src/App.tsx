@@ -664,6 +664,7 @@ export function OverlaySurface({
   const health = snapshot.runtime_state.backend_health[0];
   const bounds = useMemo(() => layoutBounds(snapshot), [snapshot]);
   const overlayOpacity = clampOpacity(snapshot.overlay_window.display_targeting.opacity);
+  const topLayerId = snapshot.runtime_state.layer_stack[0]?.layer_id ?? null;
 
   return (
     <section
@@ -690,11 +691,17 @@ export function OverlaySurface({
         {snapshot.physical_layout.keys.map((physicalKey) => {
           const effective = snapshot.effective_keys.find((key) => key.key_id === physicalKey.id);
           if (!effective) return null;
+          const topActiveLayer =
+            topLayerId !== null &&
+            snapshot.runtime_state.layer_stack.length > 1 &&
+            effective.source_layer_id === topLayerId &&
+            !effective.inherited;
           return (
             <Keycap
               key={physicalKey.id}
               effective={effective}
               density={snapshot.visual_style.density}
+              topActiveLayer={topActiveLayer}
               pressed={snapshot.runtime_state.pressed_keys.includes(physicalKey.id)}
               style={{
                 left: `${((physicalKey.geometry.x - bounds.x) / bounds.width) * 100}%`,
@@ -737,11 +744,13 @@ export function OverlaySurface({
 function Keycap({
   effective,
   density,
+  topActiveLayer,
   pressed,
   style,
 }: {
   effective: EffectiveKey;
   density: StyleDensity;
+  topActiveLayer: boolean;
   pressed: boolean;
   style: CSSProperties;
 }) {
@@ -754,6 +763,8 @@ function Keycap({
   return (
     <button
       className={`keycap density-${density} ${pressed ? "pressed" : ""} ${
+        topActiveLayer ? "top-active-layer" : ""
+      } ${
         effective.inherited ? "inherited" : ""
       }`}
       style={style}

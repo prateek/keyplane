@@ -24,6 +24,9 @@ describe("Keyplane app", () => {
     await user.click(await screen.findByRole("button", { name: /fake event/i }));
 
     expect(screen.getAllByText("inherited").length).toBeGreaterThan(0);
+    expect(screen.getByRole("button", { name: /k-w up/i })).toHaveClass("top-active-layer");
+    expect(screen.getByRole("button", { name: /k-q q/i })).toHaveClass("inherited");
+    expect(screen.getByRole("button", { name: /k-q q/i })).not.toHaveClass("top-active-layer");
   });
 
   it("uses Visual Style density to collapse or preserve structured Legend Slots", () => {
