@@ -145,5 +145,10 @@ assert_run_contains(
   "ruby scripts/validate-tauri-capabilities.rb",
   "Desktop Build must validate Tauri capabilities on PRs"
 )
+assert_run_contains(
+  validation_step,
+  "ruby scripts/collect-mvp-acceptance-evidence.rb --dry-run",
+  "Desktop Build must validate MVP acceptance evidence report shape on PRs"
+)
 
 puts "release workflow validation passed"

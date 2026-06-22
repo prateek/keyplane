@@ -33,6 +33,7 @@ The current implementation includes:
 - a GitHub Actions desktop build workflow that verifies the app, validates the signed-release workflow shape, uploads unsigned macOS debug bundles, and uploads Linux/Windows debug binaries
 - a signed macOS release workflow scaffold for Apple certificate import, Tauri signing/notarization, signed `.app`/`.dmg` artifact upload, and sanitized signed-run evidence reports
 - env-gated KeyPeek Live hardware canaries, a sanitized validation report runner, and a validation checklist for compatible firmware devices
+- an MVP acceptance evidence collector that aggregates automated checks, private Vial import evidence, KeyPeek live hardware evidence, and signed-release evidence without treating dry runs as acceptance
 
 The remaining PRD scope includes observed real KeyPeek-supported layer-change validation and first signed release execution with real Apple credentials.
 
@@ -114,6 +115,17 @@ KEYPLANE_SIGNED_RELEASE_RUN_ID=123456789 npm run validate:signed-release
 
 Use `npm run validate:signed-release:dry` only to check report generation
 without querying GitHub.
+
+Collect the full MVP acceptance evidence report:
+
+```sh
+KEYPLANE_LOCAL_VIL_CANDIDATE=/path/to/private-or-sanitized.vil npm run validate:mvp
+```
+
+The report is written to `target/keyplane-validation/mvp-acceptance.md`.
+It is expected to fail until the real KeyPeek live hardware report and real
+signed-release report exist. Use `npm run validate:mvp:dry` only to check the
+report format.
 
 ## Documentation Map
 

@@ -19,6 +19,7 @@ jobs:
         run: |
           ruby scripts/validate-release-workflow.rb
           ruby scripts/validate-tauri-capabilities.rb
+          ruby scripts/collect-mvp-acceptance-evidence.rb --dry-run
 
   macos-debug-bundle:
     name: macOS unsigned debug bundle
