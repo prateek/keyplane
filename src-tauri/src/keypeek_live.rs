@@ -15,6 +15,8 @@ use thiserror::Error;
 pub const RUNTIME_EVENT_NAME: &str = "runtime-event";
 
 const RAW_HID_USAGE_PAGE: u16 = 0xff60;
+const HID_OPEN_TIMEOUT_MS: i32 = 1_000;
+const HID_READ_TIMEOUT_MS: i32 = 250;
 const MAX_CONSECUTIVE_READ_ERRORS: u8 = 5;
 
 #[derive(Debug, Error, Clone, PartialEq, Eq)]
@@ -36,9 +38,10 @@ pub struct QmkViaRawHidTransport {
 
 impl QmkViaRawHidTransport {
     pub fn open(vid: u16, pid: u16) -> Result<Self, KeyPeekLiveError> {
-        KeyboardApi::new(vid, pid, RAW_HID_USAGE_PAGE, None)
-            .map(|api| Self { api })
-            .map_err(|err| KeyPeekLiveError::Transport(format!("HID open failed: {err}")))
+        let mut api = KeyboardApi::new(vid, pid, RAW_HID_USAGE_PAGE, Some(HID_OPEN_TIMEOUT_MS))
+            .map_err(|err| KeyPeekLiveError::Transport(format!("HID open failed: {err}")))?;
+        api.set_timeout(HID_READ_TIMEOUT_MS);
+        Ok(Self { api })
     }
 }
 
@@ -245,6 +248,7 @@ mod tests {
     use crate::domain::{KeyGeometry, MatrixPosition, PhysicalKey, SourceRef};
     use crate::keypeek_backend::{LAYER_STATE_PACKET_MARKER, PRESSED_KEY_PACKET_MARKER};
     use std::collections::VecDeque;
+    use std::time::Instant;
 
     #[derive(Default)]
     struct FakeRawHidTransport {
@@ -402,6 +406,18 @@ mod tests {
     }
 
     #[test]
+    fn live_session_treats_zero_reports_as_idle_reads() {
+        let transport = FakeRawHidTransport {
+            reads: VecDeque::from([Ok(vec![0; 32])]),
+            ..FakeRawHidTransport::default()
+        };
+        let mut session =
+            KeyPeekLiveSession::new(transport, 3, matrix_key_ids_from_layout(&fake_layout()));
+
+        assert!(session.poll_next_event().expect("read succeeds").is_none());
+    }
+
+    #[test]
     #[ignore = "requires KEYPLANE_KEYPEEK_LIVE_VID and KEYPLANE_KEYPEEK_LIVE_PID to point at a KeyPeek-compatible Raw HID device"]
     fn local_keypeek_live_device_accepts_subscription_when_env_is_set() {
         let vid = parse_usb_id(
@@ -423,5 +439,61 @@ mod tests {
         session
             .stop_subscription()
             .expect("KeyPeek subscription stops");
+    }
+
+    #[test]
+    #[ignore = "requires KEYPLANE_KEYPEEK_LIVE_VID and KEYPLANE_KEYPEEK_LIVE_PID to point at a KeyPeek-compatible Raw HID device, then a manual layer change"]
+    fn local_keypeek_live_device_emits_layer_change_when_env_is_set() {
+        let vid = parse_usb_id(
+            &std::env::var("KEYPLANE_KEYPEEK_LIVE_VID").expect("KEYPLANE_KEYPEEK_LIVE_VID is set"),
+        )
+        .expect("VID is hex");
+        let pid = parse_usb_id(
+            &std::env::var("KEYPLANE_KEYPEEK_LIVE_PID").expect("KEYPLANE_KEYPEEK_LIVE_PID is set"),
+        )
+        .expect("PID is hex");
+        let wait_ms = std::env::var("KEYPLANE_KEYPEEK_LIVE_WAIT_MS")
+            .ok()
+            .and_then(|value| value.parse::<u64>().ok())
+            .unwrap_or(10_000);
+
+        let transport = QmkViaRawHidTransport::open(vid, pid).expect("KeyPeek Raw HID opens");
+        let mut session =
+            KeyPeekLiveSession::new(transport, 3, matrix_key_ids_from_layout(&fake_layout()));
+
+        session
+            .start_subscription()
+            .expect("KeyPeek subscription starts");
+
+        let deadline = Instant::now() + Duration::from_millis(wait_ms);
+        let mut observed_layer_event = None;
+        let mut read_error = None;
+        while Instant::now() < deadline {
+            match session.poll_next_event() {
+                Ok(Some(RuntimeEvent::LayerStackChanged { layer_stack })) => {
+                    observed_layer_event = Some(layer_stack);
+                    break;
+                }
+                Ok(Some(_)) | Ok(None) => {}
+                Err(err) => {
+                    read_error = Some(err);
+                    break;
+                }
+            }
+        }
+
+        session
+            .stop_subscription()
+            .expect("KeyPeek subscription stops");
+
+        if let Some(err) = read_error {
+            panic!("KeyPeek HID read failed while waiting for a layer-change event: {err}");
+        }
+        let layer_stack = observed_layer_event
+            .unwrap_or_else(|| panic!("no KeyPeek layer-change event observed within {wait_ms}ms"));
+        assert!(
+            !layer_stack.is_empty(),
+            "layer-change event includes active Layer Stack"
+        );
     }
 }
