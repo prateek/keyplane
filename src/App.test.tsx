@@ -162,13 +162,20 @@ describe("Keyplane app", () => {
     expect(screen.getAllByText("KeyPeek Live").length).toBeGreaterThanOrEqual(2);
     expect(screen.getAllByText("Kanata TCP").length).toBeGreaterThanOrEqual(2);
     expect(screen.getAllByText("disconnected").length).toBeGreaterThanOrEqual(2);
+    expect(screen.getByText("No KeyPeek-compatible device is connected")).toBeInTheDocument();
+    expect(screen.getByText("Kanata TCP runtime is not connected")).toBeInTheDocument();
+    expect(
+      screen.getByText("Input monitoring permission is required before Sentinel Keys can infer layers"),
+    ).toBeInTheDocument();
     expect(screen.getByText(":visual/style :style/variant-id")).toBeInTheDocument();
-    expect(screen.getByText("keyviz-import")).toBeInTheDocument();
+    expect(screen.getAllByText("keyviz-import").length).toBeGreaterThanOrEqual(2);
     expect(screen.getByText("keyviz-minimal")).toBeInTheDocument();
+    expect(screen.getAllByText('{"style":"minimal"}').length).toBeGreaterThanOrEqual(1);
     expect(screen.getByText("Sources")).toBeInTheDocument();
     expect(screen.getByText("Source Provenance")).toBeInTheDocument();
     expect(screen.getByText(":keyboard/physical-layout k-q")).toBeInTheDocument();
     expect(screen.getByText("matrix:0,1")).toBeInTheDocument();
+    expect(screen.getAllByText("variant=keyplane-default").length).toBeGreaterThanOrEqual(1);
   });
 
   it("promotes a Source Conflict candidate to a User Override", async () => {

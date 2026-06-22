@@ -540,6 +540,12 @@ button:hover {
   font-size: 0.84rem;
 }
 
+.candidate-row .provenance-raw {
+  margin: 6px 0 0;
+  color: #5e716b;
+  font-size: 0.78rem;
+}
+
 .promote-button {
   display: inline-flex;
   min-height: 32px;

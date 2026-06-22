@@ -186,6 +186,19 @@ const runtimeState: RuntimeState = {
   ],
 };
 
+const visualStyleProvenance: SourceRef[] = [
+  {
+    source_id: sourceId,
+    field_path: ":visual/style",
+    raw: "variant=keyplane-default",
+  },
+  {
+    source_id: "keyviz-import",
+    field_path: ":visual/style",
+    raw: '{"style":"minimal"}',
+  },
+];
+
 export const fakeSnapshot: KeyboardSnapshot = {
   profile_id: "profile-keyplane-demo",
   profile_name: "Keyplane Demo",
@@ -217,7 +230,7 @@ export const fakeSnapshot: KeyboardSnapshot = {
       ],
     },
   ],
-  source_provenance: keys.map((key) => key.provenance),
+  source_provenance: [...keys.map((key) => key.provenance), ...visualStyleProvenance],
   source_precedence: [
     {
       field_scope: ":visual/style",

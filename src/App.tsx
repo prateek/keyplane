@@ -813,6 +813,7 @@ function SourceInspector({
               <article className="list-row" key={backend.id}>
                 <strong>{backend.name}</strong>
                 <span className="badge">{backend.health.state}</span>
+                <p>{backend.health.message}</p>
                 <p>{backend.capabilities.join(", ")}</p>
               </article>
             ))}
@@ -838,28 +839,45 @@ function SourceInspector({
                 <strong>{conflict.field_path}</strong>
                 <span className="badge">{conflict.selected_source_id}</span>
                 <div className="conflict-candidates">
-                  {conflict.candidates.map((candidate) => (
-                    <div
-                      className={`candidate-row ${candidate.selected ? "selected" : ""}`}
-                      key={candidate.source_id}
-                    >
-                      <div>
-                        <strong>{candidate.source_id}</strong>
-                        <span>{candidate.value}</span>
+                  {conflict.candidates.map((candidate) => {
+                    const provenance = provenanceForConflictCandidate(
+                      snapshot,
+                      conflict.field_path,
+                      candidate.source_id,
+                    );
+                    return (
+                      <div
+                        className={`candidate-row ${candidate.selected ? "selected" : ""}`}
+                        key={candidate.source_id}
+                      >
+                        <div>
+                          <strong>{candidate.source_id}</strong>
+                          <span>{candidate.value}</span>
+                          {provenance.map((sourceRef) =>
+                            sourceRef.raw ? (
+                              <p
+                                className="provenance-raw"
+                                key={`${sourceRef.source_id}-${sourceRef.field_path}-${sourceRef.raw}`}
+                              >
+                                {sourceRef.raw}
+                              </p>
+                            ) : null,
+                          )}
+                        </div>
+                        {candidate.selected ? (
+                          <span className="badge">Selected</span>
+                        ) : (
+                          <button
+                            className="promote-button"
+                            onClick={() => onPromote(conflict, candidate.source_id)}
+                          >
+                            <Check size={15} />
+                            Promote
+                          </button>
+                        )}
                       </div>
-                      {candidate.selected ? (
-                        <span className="badge">Selected</span>
-                      ) : (
-                        <button
-                          className="promote-button"
-                          onClick={() => onPromote(conflict, candidate.source_id)}
-                        >
-                          <Check size={15} />
-                          Promote
-                        </button>
-                      )}
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               </article>
             ))}
@@ -891,6 +909,20 @@ function SourceInspector({
         </div>
       </div>
     </section>
+  );
+}
+
+function provenanceForConflictCandidate(
+  snapshot: KeyboardSnapshot,
+  conflictFieldPath: string,
+  sourceId: string,
+) {
+  return snapshot.source_provenance.filter(
+    (sourceRef) =>
+      sourceRef.source_id === sourceId &&
+      (sourceRef.field_path === conflictFieldPath ||
+        conflictFieldPath.startsWith(`${sourceRef.field_path} `) ||
+        sourceRef.field_path.startsWith(`${conflictFieldPath} `)),
   );
 }
 
