@@ -20,5 +20,6 @@ pub fn overlay_window_backend_status(
             state: health,
             message: message.into(),
         },
+        config: None,
     }
 }

@@ -1,10 +1,11 @@
 use crate::domain::{
-    apply_runtime_event, compose_snapshot, derive_action, global_display_fallback, ActivationKind,
-    BackendHealth, BackendStatus, CapabilityFlag, HealthState, ImportCandidate, ImportSummary,
-    KeyGeometry, KeyboardSnapshot, Layer, LayerActivation, LogicalKeymap, OverlayWindowConfig,
-    PhysicalKey, PhysicalLayout, Profile, RuntimeEvent, RuntimeState, Source, SourceAuthority,
-    SourceConflict, SourcePrecedenceRule, SourceRef, StateConfidence, StateConfidenceLevel,
-    StyleDensity, UserOverride, VisibilityPolicy, VisualStyle, VisualStyleColors,
+    apply_runtime_event, compose_snapshot, default_kanata_tcp_config, derive_action,
+    global_display_fallback, ActivationKind, BackendHealth, BackendStatus, CapabilityFlag,
+    HealthState, ImportCandidate, ImportSummary, KeyGeometry, KeyboardSnapshot, Layer,
+    LayerActivation, LogicalKeymap, OverlayWindowConfig, PhysicalKey, PhysicalLayout, Profile,
+    RuntimeEvent, RuntimeState, Source, SourceAuthority, SourceConflict, SourcePrecedenceRule,
+    SourceRef, StateConfidence, StateConfidenceLevel, StyleDensity, UserOverride, VisibilityPolicy,
+    VisualStyle, VisualStyleColors,
 };
 use crate::kanata_backend;
 use crate::keypeek_backend;
@@ -110,6 +111,11 @@ pub fn fake_profile() -> Profile {
     ];
 
     let health = ok_backend_health();
+    let mut kanata_backend = kanata_backend::kanata_backend_status(
+        HealthState::Disconnected,
+        "Kanata TCP runtime is not connected",
+    );
+    kanata_backend.config = Some(default_kanata_tcp_config());
 
     Profile {
         schema_version: 1,
@@ -133,6 +139,7 @@ pub fn fake_profile() -> Profile {
                     CapabilityFlag::StreamPressedKeys,
                 ],
                 health,
+                config: None,
             },
             overlay_backend::overlay_window_backend_status(
                 HealthState::Ok,
@@ -142,10 +149,7 @@ pub fn fake_profile() -> Profile {
                 HealthState::Disconnected,
                 "No KeyPeek-compatible device is connected",
             ),
-            kanata_backend::kanata_backend_status(
-                HealthState::Disconnected,
-                "Kanata TCP runtime is not connected",
-            ),
+            kanata_backend,
             sentinel_backend::sentinel_backend_status(
                 HealthState::PermissionMissing,
                 "Input monitoring permission is required before Sentinel Keys can infer layers",

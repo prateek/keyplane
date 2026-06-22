@@ -19,9 +19,9 @@ pub mod vial_device;
 use crate::active_profile::ActiveProfileStore;
 use crate::backend::{FakeProtocolBackend, ProtocolBackend};
 use crate::domain::{
-    apply_runtime_event, HealthState, HostInputEvent, ImportCandidate, KeyPeekDeviceDiscovery,
-    KeyboardSnapshot, OverlayWindowConfig, Profile, RuntimeEvent, SourceConflict, StyleDensity,
-    VisibilityPolicy,
+    apply_runtime_event, BackendConfig, BackendStatus, HealthState, HostInputEvent,
+    ImportCandidate, KeyPeekDeviceDiscovery, KeyboardSnapshot, OverlayWindowConfig, Profile,
+    RuntimeEvent, SourceConflict, StyleDensity, VisibilityPolicy,
 };
 use crate::kanata_tcp::{KanataLayerMap, KanataTcpRuntime, KanataTcpSession, TcpKanataTransport};
 use crate::keypeek_live::{KeyPeekLiveRuntime, KeyPeekLiveSession, QmkViaRawHidTransport};
@@ -388,6 +388,10 @@ fn start_kanata_tcp_backend(
             .map_err(|err| err.to_string());
     }
 
+    let kanata_config = BackendConfig::KanataTcp {
+        host: host.to_string(),
+        port: request.port,
+    };
     let profile = active_profile
         .profile_snapshot()
         .map_err(|err| err.to_string())?;
@@ -395,12 +399,13 @@ fn start_kanata_tcp_backend(
         Ok(transport) => transport,
         Err(err) => {
             return active_profile
-                .set_runtime_backend_status(kanata_backend::kanata_backend_status(
+                .set_runtime_backend_status(kanata_backend_status_with_config(
                     HealthState::Disconnected,
                     format!(
                         "Could not connect to Kanata TCP {host}:{}: {err}",
                         request.port
                     ),
+                    kanata_config,
                 ))
                 .map_err(|err| err.to_string());
         }
@@ -411,20 +416,22 @@ fn start_kanata_tcp_backend(
     );
     if let Err(err) = session.start() {
         return active_profile
-            .set_runtime_backend_status(kanata_backend::kanata_backend_status(
+            .set_runtime_backend_status(kanata_backend_status_with_config(
                 HealthState::ProtocolError,
                 format!(
                     "Could not start Kanata TCP session {host}:{}: {err}",
                     request.port
                 ),
+                kanata_config,
             ))
             .map_err(|err| err.to_string());
     }
 
     let snapshot = active_profile
-        .set_runtime_backend_status(kanata_backend::kanata_backend_status(
+        .set_runtime_backend_status(kanata_backend_status_with_config(
             HealthState::Ok,
             format!("Connected to Kanata TCP {host}:{}", request.port),
+            kanata_config,
         ))
         .map_err(|err| err.to_string())?;
     kanata_runtime.start(app, session)?;
@@ -443,6 +450,16 @@ fn stop_kanata_tcp_backend(
             "Kanata TCP backend stopped",
         ))
         .map_err(|err| err.to_string())
+}
+
+fn kanata_backend_status_with_config(
+    health: HealthState,
+    message: impl Into<String>,
+    config: BackendConfig,
+) -> BackendStatus {
+    let mut status = kanata_backend::kanata_backend_status(health, message);
+    status.config = Some(config);
+    status
 }
 
 #[tauri::command]
@@ -983,6 +1000,26 @@ mod tests {
         assert_eq!(
             keypeek_discovery_error_state(&qmk_via_api::Error::Hid("boom".to_string())),
             HealthState::ProtocolError
+        );
+    }
+
+    #[test]
+    fn kanata_backend_status_with_config_carries_connection_settings() {
+        let status = kanata_backend_status_with_config(
+            HealthState::Disconnected,
+            "Could not connect",
+            BackendConfig::KanataTcp {
+                host: "10.0.0.20".to_string(),
+                port: 4039,
+            },
+        );
+
+        assert_eq!(
+            status.config,
+            Some(BackendConfig::KanataTcp {
+                host: "10.0.0.20".to_string(),
+                port: 4039,
+            })
         );
     }
 

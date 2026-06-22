@@ -1,17 +1,18 @@
 use crate::domain::{
-    global_display_fallback, ActivationKind, BackendHealth, BackendStatus, CapabilityFlag,
-    DisplayLegend, DisplayTargeting, HealthState, KeyAction, KeyGeometry, Layer, LegendSlot,
-    LegendSlotKind, LogicalKeymap, MatrixPosition, OverlayWindowConfig, PhysicalKey,
-    PhysicalLayout, Profile, RawAction, SemanticAction, SemanticActionKind, SentinelKeyBinding,
-    Source, SourceAuthority, SourcePrecedenceRule, SourceRef, StateConfidence,
-    StateConfidenceLevel, StyleDensity, UserOverride, VisibilityPolicy, VisualStyle,
-    VisualStyleColors,
+    default_kanata_tcp_config, global_display_fallback, ActivationKind, BackendConfig,
+    BackendHealth, BackendStatus, CapabilityFlag, DisplayLegend, DisplayTargeting, HealthState,
+    KeyAction, KeyGeometry, Layer, LegendSlot, LegendSlotKind, LogicalKeymap, MatrixPosition,
+    OverlayWindowConfig, PhysicalKey, PhysicalLayout, Profile, RawAction, SemanticAction,
+    SemanticActionKind, SentinelKeyBinding, Source, SourceAuthority, SourcePrecedenceRule,
+    SourceRef, StateConfidence, StateConfidenceLevel, StyleDensity, UserOverride, VisibilityPolicy,
+    VisualStyle, VisualStyleColors,
 };
 use edn_format::{emit_str, parse_str, Keyword, Value};
 use std::collections::BTreeMap;
 use thiserror::Error;
 
 const CURRENT_PROFILE_SCHEMA_VERSION: u32 = 1;
+const KANATA_TCP_BACKEND_ID: &str = "kanata-tcp";
 
 #[derive(Debug, Error, PartialEq)]
 pub enum ProfileCodecError {
@@ -287,12 +288,33 @@ fn backend_to_value(backend: &BackendStatus) -> Value {
             vector(backend.capabilities.iter().map(capability_to_value)),
         ),
         (
+            kw("backend", "config"),
+            backend
+                .config
+                .as_ref()
+                .map(backend_config_to_value)
+                .unwrap_or(Value::Nil),
+        ),
+        (
             kw("backend", "health"),
             backend_health_to_value(&backend.health),
         ),
         (kw("backend", "id"), Value::from(backend.id.clone())),
         (kw("backend", "name"), Value::from(backend.name.clone())),
     ])
+}
+
+fn backend_config_to_value(config: &BackendConfig) -> Value {
+    match config {
+        BackendConfig::KanataTcp { host, port } => map([
+            (
+                kw("backend-config", "kind"),
+                enum_kw("backend-config", "kanata-tcp"),
+            ),
+            (kw("kanata", "host"), Value::from(host.clone())),
+            (kw("kanata", "port"), Value::from(*port as u32)),
+        ]),
+    }
 }
 
 fn backend_health_to_value(health: &BackendHealth) -> Value {
@@ -605,8 +627,10 @@ fn parse_backends(value: &Value) -> Result<Vec<BackendStatus>, ProfileCodecError
         .iter()
         .map(|item| {
             let map = as_map(item, ":runtime/backends entry")?;
+            let id = as_string(get(map, "backend", "id")?, ":backend/id")?;
             Ok(BackendStatus {
-                id: as_string(get(map, "backend", "id")?, ":backend/id")?,
+                config: parse_backend_config_for(&id, map)?,
+                id,
                 name: as_string(get(map, "backend", "name")?, ":backend/name")?,
                 capabilities: as_vector(
                     get(map, "backend", "capabilities")?,
@@ -619,6 +643,37 @@ fn parse_backends(value: &Value) -> Result<Vec<BackendStatus>, ProfileCodecError
             })
         })
         .collect()
+}
+
+fn parse_backend_config_for(
+    backend_id: &str,
+    map: &BTreeMap<Value, Value>,
+) -> Result<Option<BackendConfig>, ProfileCodecError> {
+    match get_optional(map, "backend", "config") {
+        Some(Value::Nil) | None if backend_id == KANATA_TCP_BACKEND_ID => {
+            Ok(Some(default_kanata_tcp_config()))
+        }
+        Some(Value::Nil) | None => Ok(None),
+        Some(value) => parse_backend_config(value).map(Some),
+    }
+}
+
+fn parse_backend_config(value: &Value) -> Result<BackendConfig, ProfileCodecError> {
+    let map = as_map(value, ":backend/config")?;
+    match enum_name(get(map, "backend-config", "kind")?, "backend-config")?.as_str() {
+        "kanata-tcp" => {
+            let port = as_u32(get(map, "kanata", "port")?, ":kanata/port")?;
+            if port == 0 || port > u16::MAX as u32 {
+                return Err(ProfileCodecError::Invalid(":kanata/port"));
+            }
+
+            Ok(BackendConfig::KanataTcp {
+                host: as_string(get(map, "kanata", "host")?, ":kanata/host")?,
+                port: port as u16,
+            })
+        }
+        _ => Err(ProfileCodecError::Invalid(":backend-config/kind")),
+    }
 }
 
 fn parse_backend_health(value: &Value) -> Result<BackendHealth, ProfileCodecError> {
@@ -1157,6 +1212,14 @@ mod tests {
         assert_eq!(loaded.keyboard_id, profile.keyboard_id);
         assert_eq!(loaded.visual_style.id, profile.visual_style.id);
         assert_eq!(
+            loaded
+                .runtime_backends
+                .iter()
+                .find(|backend| backend.id == KANATA_TCP_BACKEND_ID)
+                .and_then(|backend| backend.config.clone()),
+            Some(default_kanata_tcp_config())
+        );
+        assert_eq!(
             loaded.physical_layout.keys.len(),
             profile.physical_layout.keys.len()
         );
@@ -1166,6 +1229,9 @@ mod tests {
         assert!(saved.contains(":schema/version"));
         assert!(saved.contains(":keyboard/id \"keyboard-keyplane-demo\""));
         assert!(saved.contains(":keyboard/physical-layout"));
+        assert!(saved.contains(":backend/config"));
+        assert!(saved.contains(":kanata/host \"127.0.0.1\""));
+        assert!(saved.contains(":kanata/port 7070"));
         assert!(saved.contains(":runtime/sentinel-keys"));
         assert!(saved.contains(":style/id \"style-keyplane-default\""));
         assert!(saved.contains(":source/provenance"));
@@ -1229,6 +1295,39 @@ mod tests {
             load_profile(&saved_without_sentinel_keys).expect("legacy profile should load");
 
         assert!(loaded.sentinel_keys.is_empty());
+    }
+
+    #[test]
+    fn profile_codec_defaults_missing_kanata_backend_config() {
+        let profile = fake_profile();
+        let Value::Map(mut map) = profile_to_value(&profile) else {
+            panic!("profile should serialize as map");
+        };
+        let runtime_backends = map
+            .get_mut(&kw("runtime", "backends"))
+            .expect("runtime backends section exists");
+        let Value::Vector(backends) = runtime_backends else {
+            panic!("runtime backends should be a vector");
+        };
+        for backend in backends {
+            let Value::Map(backend_map) = backend else {
+                panic!("backend should be a map");
+            };
+            backend_map.remove(&kw("backend", "config"));
+        }
+        let saved_without_backend_configs = emit_str(&Value::Map(map));
+
+        let loaded =
+            load_profile(&saved_without_backend_configs).expect("legacy profile should load");
+
+        assert_eq!(
+            loaded
+                .runtime_backends
+                .iter()
+                .find(|backend| backend.id == KANATA_TCP_BACKEND_ID)
+                .and_then(|backend| backend.config.clone()),
+            Some(default_kanata_tcp_config())
+        );
     }
 
     #[test]

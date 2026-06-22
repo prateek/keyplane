@@ -160,11 +160,14 @@ export interface BackendHealth {
   message: string;
 }
 
+export type BackendConfig = { kind: "kanata-tcp"; host: string; port: number };
+
 export interface BackendStatus {
   id: string;
   name: string;
   capabilities: CapabilityFlag[];
   health: BackendHealth;
+  config: BackendConfig | null;
 }
 
 export interface KeyPeekDiscoveredDevice {

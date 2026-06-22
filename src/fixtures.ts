@@ -81,6 +81,7 @@ const backend: BackendStatus = {
     state: "ok",
     message: "Streaming deterministic layer stack events",
   },
+  config: null,
 };
 
 const keyPeekBackend: BackendStatus = {
@@ -92,6 +93,7 @@ const keyPeekBackend: BackendStatus = {
     state: "disconnected",
     message: "No KeyPeek-compatible device is connected",
   },
+  config: null,
 };
 
 const kanataBackend: BackendStatus = {
@@ -103,6 +105,7 @@ const kanataBackend: BackendStatus = {
     state: "disconnected",
     message: "Kanata TCP runtime is not connected",
   },
+  config: { kind: "kanata-tcp", host: "127.0.0.1", port: 7070 },
 };
 
 const sentinelBackend: BackendStatus = {
@@ -114,6 +117,7 @@ const sentinelBackend: BackendStatus = {
     state: "permission-missing",
     message: "Input monitoring permission is required before Sentinel Keys can infer layers",
   },
+  config: null,
 };
 
 const overlayWindowBackend: BackendStatus = {
@@ -130,6 +134,7 @@ const overlayWindowBackend: BackendStatus = {
     state: "ok",
     message: "Overlay Window is ready",
   },
+  config: null,
 };
 
 const sources: Source[] = [

@@ -1,7 +1,12 @@
 import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
-import App, { FADE_VISIBILITY_INACTIVITY_MS, ImportReview, OverlaySurface } from "./App";
+import App, {
+  FADE_VISIBILITY_INACTIVITY_MS,
+  ImportReview,
+  OverlaySurface,
+  kanataTcpSettingsFromSnapshot,
+} from "./App";
 import type { ImportCandidate } from "./domain";
 import { fakeSnapshot } from "./fixtures";
 
@@ -169,6 +174,18 @@ describe("Keyplane app", () => {
     expect(screen.getByRole("button", { name: /check/i })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /request/i })).toBeInTheDocument();
     expect(screen.getAllByText(/unavailable|enabled|disabled/i).length).toBeGreaterThanOrEqual(2);
+  });
+
+  it("reads Kanata TCP settings from the active Keyboard Snapshot", () => {
+    const snapshot = structuredClone(fakeSnapshot);
+    const kanataBackend = snapshot.backends.find((backend) => backend.id === "kanata-tcp");
+    if (!kanataBackend) throw new Error("fixture should include Kanata TCP");
+    kanataBackend.config = { kind: "kanata-tcp", host: "10.0.0.20", port: 4039 };
+
+    expect(kanataTcpSettingsFromSnapshot(snapshot)).toEqual({
+      host: "10.0.0.20",
+      port: "4039",
+    });
   });
 
   it("updates Visual Style density from Settings", async () => {

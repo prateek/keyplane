@@ -152,7 +152,7 @@ impl ActiveProfileStore {
 
     pub fn set_runtime_backend_status(
         &self,
-        status: BackendStatus,
+        mut status: BackendStatus,
     ) -> Result<KeyboardSnapshot, ActiveProfileError> {
         let profile = {
             let mut profile = self.profile()?;
@@ -161,6 +161,9 @@ impl ActiveProfileStore {
                 .iter_mut()
                 .find(|backend| backend.id == status.id)
             {
+                if status.config.is_none() {
+                    status.config = existing.config.clone();
+                }
                 *existing = status;
             } else {
                 profile.runtime_backends.push(status);
@@ -313,7 +316,7 @@ fn state_confidence_for_profile(profile: &Profile) -> StateConfidence {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::domain::{SourceCandidate, SourceConflict};
+    use crate::domain::{BackendConfig, SourceCandidate, SourceConflict};
 
     fn visual_style_conflict(selected_source_id: &str) -> SourceConflict {
         SourceConflict {
@@ -539,6 +542,31 @@ mod tests {
                 .health
                 .state,
             HealthState::Ok
+        );
+    }
+
+    #[test]
+    fn runtime_backend_status_preserves_profile_owned_backend_config() {
+        let store = ActiveProfileStore::new(crate::fake_backend::fake_profile());
+        let status = crate::kanata_backend::kanata_backend_status(
+            HealthState::Ok,
+            "Connected to Kanata TCP",
+        );
+
+        let snapshot = store
+            .set_runtime_backend_status(status)
+            .expect("backend status updates");
+
+        assert_eq!(
+            snapshot
+                .backends
+                .iter()
+                .find(|backend| backend.id == crate::kanata_backend::KANATA_BACKEND_ID)
+                .and_then(|backend| backend.config.clone()),
+            Some(BackendConfig::KanataTcp {
+                host: "127.0.0.1".to_string(),
+                port: 7070,
+            })
         );
     }
 

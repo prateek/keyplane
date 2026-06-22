@@ -1,9 +1,9 @@
 use crate::domain::{
-    derive_action, BackendHealth, BackendStatus, CapabilityFlag, DisplayTargeting, HealthState,
-    ImportCandidate, ImportSummary, KeyGeometry, Layer, LegendSlotKind, LogicalKeymap,
-    MatrixPosition, OverlayWindowConfig, PhysicalKey, PhysicalLayout, Profile, Source,
-    SourceAuthority, SourceConflict, SourcePrecedenceRule, SourceRef, StyleDensity,
-    VisibilityPolicy, VisualStyle, VisualStyleColors,
+    default_kanata_tcp_config, derive_action, BackendConfig, BackendHealth, BackendStatus,
+    CapabilityFlag, DisplayTargeting, HealthState, ImportCandidate, ImportSummary, KeyGeometry,
+    Layer, LegendSlotKind, LogicalKeymap, MatrixPosition, OverlayWindowConfig, PhysicalKey,
+    PhysicalLayout, Profile, Source, SourceAuthority, SourceConflict, SourcePrecedenceRule,
+    SourceRef, StyleDensity, VisibilityPolicy, VisualStyle, VisualStyleColors,
 };
 use crate::kanata_backend;
 use qmk_via_api::keycodes::Keycode;
@@ -92,6 +92,7 @@ pub fn import_vial_json(contents: &str) -> Result<ImportCandidate, ImportError> 
                 CapabilityFlag::PreviewOnly,
             ],
             health: backend_health,
+            config: None,
         }],
         sentinel_keys: Vec::new(),
         visual_style: VisualStyle {
@@ -230,6 +231,7 @@ pub fn import_vial_device_snapshot(
                 CapabilityFlag::PreviewOnly,
             ],
             health: backend_health,
+            config: None,
         }],
         sentinel_keys: Vec::new(),
         visual_style: VisualStyle {
@@ -357,6 +359,7 @@ pub fn import_overkeys_companion_json(contents: &str) -> Result<ImportCandidate,
     }
 
     let aliases = overkeys_aliases(&json);
+    let kanata_config = overkeys_kanata_config(&json);
     let source_suffix = sanitize_id_or(&layout.name, "layout");
     let source = Source {
         id: format!("overkeys-companion-{}", source_suffix),
@@ -400,6 +403,11 @@ pub fn import_overkeys_companion_json(contents: &str) -> Result<ImportCandidate,
         message: "Imported OverKeys companion profile provides renderable layout/keymap data as Best-Effort Preview"
             .to_string(),
     };
+    let mut kanata_backend = kanata_backend::kanata_backend_status(
+        HealthState::Disconnected,
+        "Kanata TCP runtime is not connected; imported OverKeys companion profile supplies layout/keymap data",
+    );
+    kanata_backend.config = Some(kanata_config);
     let profile = Profile {
         schema_version: 1,
         id: format!("profile-{}", source.id),
@@ -423,11 +431,9 @@ pub fn import_overkeys_companion_json(contents: &str) -> Result<ImportCandidate,
                     CapabilityFlag::PreviewOnly,
                 ],
                 health: backend_health,
+                config: None,
             },
-            kanata_backend::kanata_backend_status(
-                HealthState::Disconnected,
-                "Kanata TCP runtime is not connected; imported OverKeys companion profile supplies layout/keymap data",
-            ),
+            kanata_backend,
         ],
         sentinel_keys: Vec::new(),
         visual_style: VisualStyle {
@@ -552,6 +558,7 @@ pub fn import_zmk_keymap(contents: &str) -> Result<ImportCandidate, ImportError>
                 CapabilityFlag::PreviewOnly,
             ],
             health: backend_health,
+            config: None,
         }],
         sentinel_keys: Vec::new(),
         visual_style: VisualStyle {
@@ -1028,6 +1035,37 @@ fn overkeys_aliases(json: &JsonValue) -> BTreeMap<String, String> {
                 .collect()
         })
         .unwrap_or_default()
+}
+
+fn overkeys_kanata_config(json: &JsonValue) -> BackendConfig {
+    let BackendConfig::KanataTcp {
+        host: default_host,
+        port: default_port,
+    } = default_kanata_tcp_config();
+    BackendConfig::KanataTcp {
+        host: json
+            .get("kanataHost")
+            .and_then(JsonValue::as_str)
+            .map(str::trim)
+            .filter(|host| !host.is_empty())
+            .map(str::to_string)
+            .unwrap_or(default_host),
+        port: json
+            .get("kanataPort")
+            .and_then(json_tcp_port)
+            .unwrap_or(default_port),
+    }
+}
+
+fn json_tcp_port(value: &JsonValue) -> Option<u16> {
+    match value {
+        JsonValue::Number(number) => number
+            .as_u64()
+            .and_then(|port| u16::try_from(port).ok())
+            .filter(|port| *port > 0),
+        JsonValue::String(text) => text.trim().parse::<u16>().ok().filter(|port| *port > 0),
+        _ => None,
+    }
 }
 
 fn apply_overkeys_aliases(layers: &mut [Layer], aliases: &BTreeMap<String, String>) {
@@ -2058,6 +2096,20 @@ mod tests {
                         && source_ref.raw.is_some()
                 }));
         }
+
+        let kanata_config = candidate
+            .preview_profile
+            .runtime_backends
+            .iter()
+            .find(|backend| backend.id == kanata_backend::KANATA_BACKEND_ID)
+            .and_then(|backend| backend.config.clone());
+        assert_eq!(
+            kanata_config,
+            Some(BackendConfig::KanataTcp {
+                host: "127.0.0.1".to_string(),
+                port: 4039,
+            })
+        );
     }
 
     #[test]

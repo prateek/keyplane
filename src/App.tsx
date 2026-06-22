@@ -132,6 +132,14 @@ function App() {
     snapshotRef.current = snapshot;
   }, [snapshot]);
 
+  const kanataProfileConfig = snapshot ? kanataTcpSettingsFromSnapshot(snapshot) : null;
+
+  useEffect(() => {
+    if (!kanataProfileConfig) return;
+    setKanataHost(kanataProfileConfig.host);
+    setKanataPort(kanataProfileConfig.port);
+  }, [kanataProfileConfig?.host, kanataProfileConfig?.port, snapshot?.profile_id]);
+
   const clearFadeTimer = useCallback(() => {
     if (fadeTimerRef.current !== null) {
       window.clearTimeout(fadeTimerRef.current);
@@ -962,6 +970,16 @@ function visibleLegendSlots(effective: EffectiveKey, density: StyleDensity) {
   if (density === "compact") return [];
   if (density === "standard") return secondarySlots.slice(0, 1);
   return secondarySlots;
+}
+
+export function kanataTcpSettingsFromSnapshot(snapshot: KeyboardSnapshot) {
+  const config = snapshot.backends.find((backend) => backend.id === "kanata-tcp")?.config;
+  return config?.kind === "kanata-tcp"
+    ? {
+        host: config.host,
+        port: String(config.port),
+      }
+    : null;
 }
 
 function visualStyleCssVariables(

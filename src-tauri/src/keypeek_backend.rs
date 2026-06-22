@@ -22,6 +22,7 @@ pub fn keypeek_backend_status(health: HealthState, message: impl Into<String>) -
             state: health,
             message: message.into(),
         },
+        config: None,
     }
 }
 

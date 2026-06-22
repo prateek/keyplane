@@ -210,11 +210,25 @@ pub struct BackendHealth {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(tag = "kind", rename_all = "kebab-case")]
+pub enum BackendConfig {
+    KanataTcp { host: String, port: u16 },
+}
+
+pub fn default_kanata_tcp_config() -> BackendConfig {
+    BackendConfig::KanataTcp {
+        host: "127.0.0.1".to_string(),
+        port: 7070,
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct BackendStatus {
     pub id: String,
     pub name: String,
     pub capabilities: Vec<CapabilityFlag>,
     pub health: BackendHealth,
+    pub config: Option<BackendConfig>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
