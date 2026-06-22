@@ -73,6 +73,7 @@ Started the Tauri v2 implementation from the PRD.
 - Added stable keyboard/workflow IDs to the public Profile and Keyboard Snapshot contracts, persisted as `:keyboard/id` with backward-compatible loading for older EDN Profiles.
 - Added stable Visual Style reference IDs to the public Profile and Keyboard Snapshot contracts, persisted as `:style/id` with backward-compatible loading for older EDN Profiles.
 - Added field-level Visual Style Source Conflicts for keyviz imports and applied selected/User Override values for style ID, variant, density, and color-token fields.
+- Applied selected/User Override Logical Keymap Source Conflict values to rendered keymap actions and Effective Actions so imported keymap winners affect the overlay data instead of only conflict metadata.
 - Added a GitHub Actions desktop build workflow that runs the Rust/frontend verification gate and uploads unsigned macOS debug `.app` and `.dmg` artifacts.
 - Refreshed npm dependency metadata and made the Rolldown wasm runtime peer dependencies explicit so the desktop build workflow can use `npm ci` reliably.
 - Extended the desktop build workflow with Linux and Windows debug binary builds using Tauri's no-bundle path.

@@ -103,6 +103,35 @@ describe("frontend runtime state", () => {
     expect(next.visual_style.colors.keycap_background).toBe("#ffffff");
   });
 
+  it("applies promoted Logical Keymap conflicts to rendered Effective Actions", () => {
+    const conflict = {
+      field_path: ":keyboard/keymap :layer-0 k-q :action/raw",
+      selected_source_id: "fake-backend",
+      candidates: [
+        { source_id: "fake-backend", value: "KC_Q", selected: true },
+        { source_id: "vial-import", value: "KC_TAB", selected: false },
+      ],
+    };
+    const snapshot = structuredClone(fakeSnapshot);
+    snapshot.source_conflicts = [conflict];
+
+    const next = promoteSourceCandidate(snapshot, conflict, "vial-import");
+    const keyAction = next.keymap.layers[0].actions.find((action) => action.key_id === "k-q");
+    const effectiveKey = next.effective_keys.find((key) => key.key_id === "k-q");
+
+    expect(next.user_overrides).toContainEqual({
+      field_path: ":keyboard/keymap :layer-0 k-q :action/raw",
+      value: "KC_TAB",
+      reason: "Promoted from vial-import",
+    });
+    expect(next.source_conflicts[0].selected_source_id).toBe("user-overrides");
+    expect(keyAction?.raw.value).toBe("KC_TAB");
+    expect(keyAction?.semantic.label).toBe("Tab");
+    expect(keyAction?.provenance.source_id).toBe("user-overrides");
+    expect(effectiveKey?.raw.value).toBe("KC_TAB");
+    expect(effectiveKey?.semantic.label).toBe("Tab");
+  });
+
   it("promotes Import Review candidates to pending Profile User Overrides", () => {
     const conflict = {
       field_path: ":visual/style :style/colors :color/keycap-background",
@@ -167,6 +196,65 @@ describe("frontend runtime state", () => {
       selected: true,
     });
     expect(next.preview_profile.visual_style.colors.keycap_background).toBeNull();
+    expect(candidate.preview_profile.user_overrides).toEqual([]);
+  });
+
+  it("promotes Import Review keymap candidates to pending Profile User Overrides", () => {
+    const conflict = {
+      field_path: ":keyboard/keymap :layer-0 k-q",
+      selected_source_id: "fake-backend",
+      candidates: [
+        { source_id: "fake-backend", value: "KC_Q", selected: true },
+        { source_id: "vial-import", value: "KC_TAB", selected: false },
+      ],
+    };
+    const candidate: ImportCandidate = {
+      id: "candidate-vial-keymap",
+      source: {
+        id: "vial-import",
+        name: "Vial import",
+        kind: "vial-file-import",
+        authority: "best-effort-preview",
+      },
+      best_effort_preview: true,
+      preview_profile: {
+        schema_version: 1,
+        id: "profile-vial",
+        keyboard_id: "keyboard-vial",
+        name: "Vial profile",
+        sources: fakeSnapshot.sources,
+        physical_layout: fakeSnapshot.physical_layout,
+        keymap: fakeSnapshot.keymap,
+        runtime_backends: fakeSnapshot.backends,
+        sentinel_keys: fakeSnapshot.sentinel_keys,
+        visual_style: fakeSnapshot.visual_style,
+        overlay_window: fakeSnapshot.overlay_window,
+        source_precedence: fakeSnapshot.source_precedence,
+        user_overrides: [],
+        source_provenance: fakeSnapshot.source_provenance,
+      },
+      conflicts: [conflict],
+      summary: {
+        imported_keys: 1,
+        imported_layers: 1,
+        preserved_sections: [],
+      },
+    };
+
+    const next = promoteImportCandidateSource(candidate, conflict, "vial-import");
+    const keyAction = next.preview_profile.keymap.layers[0].actions.find(
+      (action) => action.key_id === "k-q",
+    );
+
+    expect(next.preview_profile.user_overrides).toContainEqual({
+      field_path: ":keyboard/keymap :layer-0 k-q",
+      value: "KC_TAB",
+      reason: "Promoted from vial-import",
+    });
+    expect(next.conflicts[0].selected_source_id).toBe("user-overrides");
+    expect(keyAction?.raw.value).toBe("KC_TAB");
+    expect(keyAction?.semantic.label).toBe("Tab");
+    expect(keyAction?.provenance.source_id).toBe("user-overrides");
     expect(candidate.preview_profile.user_overrides).toEqual([]);
   });
 });

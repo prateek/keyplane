@@ -424,12 +424,14 @@ pub fn compose_snapshot(
     runtime_state: RuntimeState,
     source_conflicts: Vec<SourceConflict>,
 ) -> KeyboardSnapshot {
-    let effective_keys = resolve_effective_keys(&profile.keymap, &runtime_state);
     let source_conflicts = resolve_source_conflicts(
         source_conflicts,
         &profile.source_precedence,
         &profile.user_overrides,
     );
+    let mut keymap = profile.keymap.clone();
+    apply_keymap_conflict_selection(&mut keymap, &source_conflicts);
+    let effective_keys = resolve_effective_keys(&keymap, &runtime_state);
     let mut visual_style = profile.visual_style.clone();
     apply_visual_conflict_selection(&mut visual_style, &source_conflicts);
 
@@ -439,7 +441,7 @@ pub fn compose_snapshot(
         profile_name: profile.name.clone(),
         sources: profile.sources.clone(),
         physical_layout: profile.physical_layout.clone(),
-        keymap: profile.keymap.clone(),
+        keymap,
         runtime_state,
         effective_keys,
         backends: profile.runtime_backends.clone(),
@@ -552,6 +554,61 @@ fn select_conflict_source(conflict: &mut SourceConflict, source_id: &str) {
     conflict.selected_source_id = source_id.to_string();
     for candidate in conflict.candidates.iter_mut() {
         candidate.selected = candidate.source_id == source_id;
+    }
+}
+
+fn apply_keymap_conflict_selection(
+    keymap: &mut LogicalKeymap,
+    source_conflicts: &[SourceConflict],
+) {
+    for conflict in source_conflicts {
+        let Some((layer_id, key_id)) = keymap_action_field_path(&conflict.field_path) else {
+            continue;
+        };
+        let Some(selected) = conflict
+            .candidates
+            .iter()
+            .find(|candidate| candidate.selected)
+        else {
+            continue;
+        };
+        let Some(action) = keymap
+            .layers
+            .iter_mut()
+            .find(|layer| layer.id == layer_id)
+            .and_then(|layer| {
+                layer
+                    .actions
+                    .iter_mut()
+                    .find(|action| action.key_id == key_id)
+            })
+        else {
+            continue;
+        };
+
+        let dialect = action.raw.dialect.clone();
+        *action = derive_action(
+            &dialect,
+            &selected.value,
+            SourceRef {
+                source_id: selected.source_id.clone(),
+                field_path: conflict.field_path.clone(),
+                raw: Some(selected.value.clone()),
+            },
+            &key_id,
+        );
+    }
+}
+
+fn keymap_action_field_path(field_path: &str) -> Option<(String, String)> {
+    let parts: Vec<&str> = field_path.split_whitespace().collect();
+    match parts.as_slice() {
+        [":keyboard/keymap", layer_id, key_id]
+        | [":keyboard/keymap", layer_id, key_id, ":action/raw"] => Some((
+            layer_id.trim_start_matches(':').to_string(),
+            (*key_id).to_string(),
+        )),
+        _ => None,
     }
 }
 
@@ -1274,6 +1331,25 @@ mod tests {
         }
     }
 
+    fn keymap_action_conflict(selected_source_id: &str) -> SourceConflict {
+        SourceConflict {
+            field_path: ":keyboard/keymap :layer-0 k-q".to_string(),
+            selected_source_id: selected_source_id.to_string(),
+            candidates: vec![
+                SourceCandidate {
+                    source_id: "fake-backend".to_string(),
+                    value: "KC_Q".to_string(),
+                    selected: selected_source_id == "fake-backend",
+                },
+                SourceCandidate {
+                    source_id: "vial-import".to_string(),
+                    value: "KC_TAB".to_string(),
+                    selected: selected_source_id == "vial-import",
+                },
+            ],
+        }
+    }
+
     fn precedence_rule(field_scope: &str, source_order: Vec<&str>) -> SourcePrecedenceRule {
         SourcePrecedenceRule {
             field_scope: field_scope.to_string(),
@@ -1482,6 +1558,76 @@ mod tests {
         assert_eq!(
             snapshot.visual_style.colors.keycap_background.as_deref(),
             Some("#ffffff")
+        );
+    }
+
+    #[test]
+    fn composed_snapshot_applies_selected_keymap_field_conflicts_before_effective_resolution() {
+        let mut profile = crate::fake_backend::fake_profile();
+        profile.source_precedence = vec![precedence_rule(
+            ":keyboard/keymap",
+            vec!["vial-import", "fake-backend"],
+        )];
+        let runtime_state = crate::fake_backend::initial_runtime_state(&profile);
+
+        let snapshot = compose_snapshot(
+            &profile,
+            runtime_state,
+            vec![keymap_action_conflict("fake-backend")],
+        );
+
+        let key_action = snapshot.keymap.layers[0]
+            .actions
+            .iter()
+            .find(|action| action.key_id == "k-q")
+            .expect("k-q action exists");
+        assert_eq!(key_action.raw.value, "KC_TAB");
+        assert_eq!(key_action.semantic.label, "Tab");
+        assert_eq!(key_action.provenance.source_id, "vial-import");
+
+        let effective_key = snapshot
+            .effective_keys
+            .iter()
+            .find(|key| key.key_id == "k-q")
+            .expect("k-q effective key exists");
+        assert_eq!(effective_key.raw.value, "KC_TAB");
+        assert_eq!(effective_key.semantic.label, "Tab");
+        assert_eq!(
+            snapshot.source_conflicts[0].selected_source_id,
+            "vial-import"
+        );
+    }
+
+    #[test]
+    fn composed_snapshot_applies_keymap_user_overrides_over_source_precedence() {
+        let mut profile = crate::fake_backend::fake_profile();
+        profile.source_precedence = vec![precedence_rule(
+            ":keyboard/keymap",
+            vec!["vial-import", "fake-backend"],
+        )];
+        profile.user_overrides = vec![UserOverride {
+            field_path: ":keyboard/keymap :layer-0 k-q".to_string(),
+            value: "KC_ESC".to_string(),
+            reason: "Pinned by user".to_string(),
+        }];
+        let runtime_state = crate::fake_backend::initial_runtime_state(&profile);
+
+        let snapshot = compose_snapshot(
+            &profile,
+            runtime_state,
+            vec![keymap_action_conflict("fake-backend")],
+        );
+
+        let effective_key = snapshot
+            .effective_keys
+            .iter()
+            .find(|key| key.key_id == "k-q")
+            .expect("k-q effective key exists");
+        assert_eq!(effective_key.raw.value, "KC_ESC");
+        assert_eq!(effective_key.semantic.label, "Esc");
+        assert_eq!(
+            snapshot.source_conflicts[0].selected_source_id,
+            USER_OVERRIDE_SOURCE_ID
         );
     }
 
