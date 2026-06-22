@@ -19,7 +19,7 @@ The current implementation includes:
 - a KeyPeek Live Raw HID path using `qmk-via-api`, with VID/PID connection controls and Tauri Runtime Event streaming
 - a Kanata TCP runtime path with Settings host/port controls, newline JSON event parsing, and Layer Stack Runtime Event streaming
 - a Rust-owned Active Profile store with Import Review commit support
-- visible Backend Health for fake, Overlay Window, KeyPeek Live, Kanata TCP, and Sentinel Keys runtime backends
+- visible Backend Health and State Confidence reasons for fake, Overlay Window, KeyPeek Live, Kanata TCP, and Sentinel Keys runtime backends
 - App Window surfaces for the overlay, Import Review with Active Profile diffs, Source Inspector, Source Provenance, Backend Health, and Positioning Mode
 - active Layer Stack rendering that highlights non-inherited key actions supplied by the top active layer
 - Rust-owned Overlay Window drag and resize controls while Positioning Mode is active, with unsupported window behavior surfaced as typed Backend Health

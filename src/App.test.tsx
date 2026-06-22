@@ -1,4 +1,4 @@
-import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 import App, { FADE_VISIBILITY_INACTIVITY_MS, ImportReview, OverlaySurface } from "./App";
@@ -15,6 +15,8 @@ describe("Keyplane app", () => {
     expect(screen.getByRole("button", { name: /k-q q/i })).toBeInTheDocument();
     expect(screen.getAllByText("ok").length).toBeGreaterThan(0);
     expect(screen.getByText("click-through")).toBeInTheDocument();
+    expect(within(overlay).getByText("Default layer from fake backend")).toBeInTheDocument();
+    expect(within(overlay).getByText("Streaming deterministic layer stack events")).toBeInTheDocument();
   });
 
   it("renders inherited legends after a fake layer event", async () => {
@@ -24,6 +26,7 @@ describe("Keyplane app", () => {
     await user.click(await screen.findByRole("button", { name: /fake event/i }));
 
     expect(screen.getAllByText("inherited").length).toBeGreaterThan(0);
+    expect(screen.getByText("Momentary layer from fake backend Runtime Event")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /k-w up/i })).toHaveClass("top-active-layer");
     expect(screen.getByRole("button", { name: /k-q q/i })).toHaveClass("inherited");
     expect(screen.getByRole("button", { name: /k-q q/i })).not.toHaveClass("top-active-layer");

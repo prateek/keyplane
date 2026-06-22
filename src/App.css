@@ -289,6 +289,14 @@ button:hover {
   color: #173b36;
 }
 
+.overlay-status small {
+  max-width: min(34vw, 360px);
+  color: #52645f;
+  font-size: 0.76rem;
+  line-height: 1.2;
+  overflow-wrap: anywhere;
+}
+
 .keyboard-plane {
   position: relative;
   width: min(100%, 980px);

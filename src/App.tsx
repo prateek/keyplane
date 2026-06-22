@@ -754,9 +754,10 @@ export function OverlaySurface({
       (layer) => layer.id === snapshot.runtime_state.layer_stack[0]?.layer_id,
     )?.name ?? "Unknown";
   const health = snapshot.runtime_state.backend_health[0];
+  const activeLayer = snapshot.runtime_state.layer_stack[0] ?? null;
   const bounds = useMemo(() => layoutBounds(snapshot), [snapshot]);
   const overlayOpacity = clampOpacity(snapshot.overlay_window.display_targeting.opacity);
-  const topLayerId = snapshot.runtime_state.layer_stack[0]?.layer_id ?? null;
+  const topLayerId = activeLayer?.layer_id ?? null;
 
   return (
     <section
@@ -767,11 +768,13 @@ export function OverlaySurface({
       <div className="overlay-status">
         <div>
           <span>{layerName}</span>
-          <strong>{snapshot.runtime_state.layer_stack[0]?.confidence.level ?? "low"} confidence</strong>
+          <strong>{activeLayer?.confidence.level ?? "low"} confidence</strong>
+          <small>{activeLayer?.confidence.reason ?? "No State Confidence reason reported"}</small>
         </div>
         <div>
           <span>{health?.state ?? "unknown"}</span>
           <strong>{snapshot.overlay_window.click_through ? "click-through" : "positioning"}</strong>
+          <small>{health?.message ?? "No Backend Health reported"}</small>
         </div>
         <div>
           <span>{snapshot.overlay_window.visibility}</span>
