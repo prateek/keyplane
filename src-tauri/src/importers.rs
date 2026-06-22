@@ -20,22 +20,36 @@ pub fn import_vial_json(contents: &str) -> Result<ImportCandidate, ImportError> 
         serde_json::from_str(contents).map_err(|err| ImportError::Json(err.to_string()))?;
     let uid = json
         .get("uid")
-        .and_then(JsonValue::as_str)
-        .unwrap_or("vial-file");
-    let key_rows = json
-        .pointer("/layouts/keymap")
-        .or_else(|| json.get("layout"))
-        .and_then(JsonValue::as_array)
-        .ok_or(ImportError::Missing("layouts.keymap"))?;
+        .and_then(json_scalar_to_string)
+        .unwrap_or_else(|| "vial-file".to_string());
     let source = Source {
-        id: format!("vial-file-{}", sanitize_id(uid)),
+        id: format!("vial-file-{}", sanitize_id(&uid)),
         name: format!("Vial file {}", uid),
         kind: "vial-file-import".to_string(),
         authority: SourceAuthority::BestEffortPreview,
     };
-    let physical_keys = import_kle_rows_as_fallback_layout(key_rows, &source.id);
-    let layers = import_layers(&json, &physical_keys, &source.id);
+    let layer_values = import_vial_layer_values(&json);
+    let physical_keys = vial_geometry_rows(&json)
+        .map(|rows| import_kle_rows_as_fallback_layout(rows, &source.id))
+        .filter(|keys| !keys.is_empty())
+        .or_else(|| {
+            layer_values
+                .as_ref()
+                .map(|layers| import_matrix_rows_as_fallback_layout(layers, &source.id))
+                .filter(|keys| !keys.is_empty())
+        })
+        .ok_or(ImportError::Missing("layouts.keymap or layout"))?;
+    let layers = import_layers(layer_values.as_deref(), &physical_keys, &source.id);
     let preserved_sections = preserved_top_level_sections(&json);
+    let mut source_provenance: Vec<SourceRef> = physical_keys
+        .iter()
+        .map(|key| key.provenance.clone())
+        .collect();
+    source_provenance.extend(top_level_source_refs(
+        &json,
+        &source.id,
+        &preserved_sections,
+    ));
     let backend_health = BackendHealth {
         backend_id: source.id.clone(),
         state: HealthState::Stale,
@@ -81,15 +95,18 @@ pub fn import_vial_json(contents: &str) -> Result<ImportCandidate, ImportError> 
                 opacity: 0.9,
             },
         },
-        source_precedence: vec![SourcePrecedenceRule {
-            field_scope: ":keyboard/physical-layout".to_string(),
-            source_order: vec![source.id.clone(), "user-overrides".to_string()],
-        }],
+        source_precedence: vec![
+            SourcePrecedenceRule {
+                field_scope: ":keyboard/physical-layout".to_string(),
+                source_order: vec![source.id.clone(), "user-overrides".to_string()],
+            },
+            SourcePrecedenceRule {
+                field_scope: ":keyboard/keymap".to_string(),
+                source_order: vec![source.id.clone(), "user-overrides".to_string()],
+            },
+        ],
         user_overrides: Vec::new(),
-        source_provenance: physical_keys
-            .iter()
-            .map(|key| key.provenance.clone())
-            .collect(),
+        source_provenance,
     };
 
     Ok(ImportCandidate {
@@ -236,6 +253,217 @@ fn promote_style_precedence(profile: &mut Profile, source_id: &str, active_style
     });
 }
 
+#[derive(Debug, Clone)]
+struct ImportedLayerCell {
+    raw: String,
+    row: Option<usize>,
+    col: Option<usize>,
+}
+
+fn json_scalar_to_string(value: &JsonValue) -> Option<String> {
+    match value {
+        JsonValue::String(value) => Some(value.clone()),
+        JsonValue::Number(value) => Some(value.to_string()),
+        JsonValue::Bool(value) => Some(value.to_string()),
+        _ => None,
+    }
+}
+
+fn vial_geometry_rows(json: &JsonValue) -> Option<&[JsonValue]> {
+    json.pointer("/layouts/keymap")
+        .and_then(JsonValue::as_array)
+        .map(|rows| rows.as_slice())
+        .or_else(|| {
+            let layout = json.get("layout")?;
+            if is_layer_matrix(layout) {
+                return None;
+            }
+            let rows = layout.as_array()?;
+            if rows.iter().any(row_looks_like_kle) {
+                Some(rows.as_slice())
+            } else {
+                None
+            }
+        })
+}
+
+fn row_looks_like_kle(row: &JsonValue) -> bool {
+    let Some(items) = row.as_array() else {
+        return false;
+    };
+
+    items.iter().any(|item| {
+        item.is_string()
+            || item.as_object().is_some_and(|props| {
+                props
+                    .keys()
+                    .any(|key| matches!(key.as_str(), "x" | "y" | "w" | "h" | "r" | "rx" | "ry"))
+            })
+    })
+}
+
+fn import_vial_layer_values(json: &JsonValue) -> Option<Vec<Vec<ImportedLayerCell>>> {
+    let layer_source = json
+        .get("layers")
+        .or_else(|| json.pointer("/keymap/layers"))
+        .or_else(|| json.get("layout").filter(|value| is_layer_matrix(value)))?;
+    let layers = flatten_layer_collection(layer_source);
+
+    if layers.is_empty() {
+        None
+    } else {
+        Some(layers)
+    }
+}
+
+fn is_layer_matrix(value: &JsonValue) -> bool {
+    let Some(layers) = value.as_array() else {
+        return false;
+    };
+
+    !layers.is_empty()
+        && layers.iter().all(|layer| {
+            let Some(rows) = layer.as_array() else {
+                return false;
+            };
+            !rows.is_empty()
+                && rows.iter().all(|row| {
+                    row.as_array().is_some_and(|cells| {
+                        !cells.is_empty()
+                            && cells
+                                .iter()
+                                .all(|cell| raw_action_from_json(cell).is_some())
+                    })
+                })
+        })
+}
+
+fn flatten_layer_collection(layer_source: &JsonValue) -> Vec<Vec<ImportedLayerCell>> {
+    let Some(layers) = layer_source.as_array() else {
+        return Vec::new();
+    };
+
+    layers.iter().filter_map(flatten_layer).collect()
+}
+
+fn flatten_layer(layer: &JsonValue) -> Option<Vec<ImportedLayerCell>> {
+    let values = layer.as_array()?;
+    let cells: Vec<ImportedLayerCell> = if values.iter().all(JsonValue::is_array) {
+        values
+            .iter()
+            .enumerate()
+            .flat_map(|(row_index, row)| {
+                row.as_array().into_iter().flat_map(move |row_values| {
+                    row_values
+                        .iter()
+                        .enumerate()
+                        .filter_map(move |(col_index, value)| {
+                            raw_action_from_json(value).map(|raw| ImportedLayerCell {
+                                raw,
+                                row: Some(row_index),
+                                col: Some(col_index),
+                            })
+                        })
+                })
+            })
+            .collect()
+    } else {
+        values
+            .iter()
+            .filter_map(|value| {
+                raw_action_from_json(value).map(|raw| ImportedLayerCell {
+                    raw,
+                    row: None,
+                    col: None,
+                })
+            })
+            .collect()
+    };
+
+    if cells.is_empty() {
+        None
+    } else {
+        Some(cells)
+    }
+}
+
+fn raw_action_from_json(value: &JsonValue) -> Option<String> {
+    match value {
+        JsonValue::String(value) => Some(value.clone()),
+        JsonValue::Number(value) => Some(value.to_string()),
+        JsonValue::Bool(value) => Some(value.to_string()),
+        JsonValue::Array(_) | JsonValue::Object(_) => serde_json::to_string(value).ok(),
+        JsonValue::Null => None,
+    }
+}
+
+fn import_matrix_rows_as_fallback_layout(
+    layers: &[Vec<ImportedLayerCell>],
+    source_id: &str,
+) -> Vec<PhysicalKey> {
+    let Some(base_layer) = layers.iter().find(|layer| !layer.is_empty()) else {
+        return Vec::new();
+    };
+    let inferred_columns = inferred_column_count(base_layer);
+
+    base_layer
+        .iter()
+        .enumerate()
+        .map(|(key_index, cell)| {
+            let matrix = matrix_from_cell(cell);
+            let (grid_row, grid_col) = matrix
+                .as_ref()
+                .map(|matrix| (usize::from(matrix.row), usize::from(matrix.col)))
+                .unwrap_or_else(|| (key_index / inferred_columns, key_index % inferred_columns));
+            let id = matrix
+                .as_ref()
+                .map(|matrix| format!("vial-r{}c{}", matrix.row, matrix.col))
+                .unwrap_or_else(|| format!("vial-key-{}", key_index));
+
+            PhysicalKey {
+                id: id.clone(),
+                matrix,
+                geometry: KeyGeometry {
+                    x: grid_col as f32,
+                    y: grid_row as f32,
+                    width: 1.0,
+                    height: 1.0,
+                    rotation: 0.0,
+                },
+                provenance: SourceRef {
+                    source_id: source_id.to_string(),
+                    field_path: format!(":keyboard/physical-layout {}", id),
+                    raw: Some(fallback_matrix_source_label(cell, key_index)),
+                },
+            }
+        })
+        .collect()
+}
+
+fn inferred_column_count(cells: &[ImportedLayerCell]) -> usize {
+    cells
+        .iter()
+        .filter_map(|cell| cell.col)
+        .max()
+        .map(|col| col + 1)
+        .unwrap_or_else(|| cells.len().max(1))
+        .max(1)
+}
+
+fn matrix_from_cell(cell: &ImportedLayerCell) -> Option<MatrixPosition> {
+    Some(MatrixPosition {
+        row: u16::try_from(cell.row?).ok()?,
+        col: u16::try_from(cell.col?).ok()?,
+    })
+}
+
+fn fallback_matrix_source_label(cell: &ImportedLayerCell, key_index: usize) -> String {
+    match (cell.row, cell.col) {
+        (Some(row), Some(col)) => format!("layout matrix {},{}", row, col),
+        _ => format!("layer index {}", key_index),
+    }
+}
+
 fn import_kle_rows_as_fallback_layout(rows: &[JsonValue], source_id: &str) -> Vec<PhysicalKey> {
     let mut keys = Vec::new();
     let mut cursor_y = 0.0_f32;
@@ -304,12 +532,11 @@ fn import_kle_rows_as_fallback_layout(rows: &[JsonValue], source_id: &str) -> Ve
     keys
 }
 
-fn import_layers(json: &JsonValue, keys: &[PhysicalKey], source_id: &str) -> Vec<Layer> {
-    let layer_values = json
-        .get("layers")
-        .or_else(|| json.pointer("/keymap/layers"))
-        .and_then(JsonValue::as_array);
-
+fn import_layers(
+    layer_values: Option<&[Vec<ImportedLayerCell>]>,
+    keys: &[PhysicalKey],
+    source_id: &str,
+) -> Vec<Layer> {
     let Some(layer_values) = layer_values else {
         return vec![Layer {
             id: "layer-0".to_string(),
@@ -335,35 +562,32 @@ fn import_layers(json: &JsonValue, keys: &[PhysicalKey], source_id: &str) -> Vec
     layer_values
         .iter()
         .enumerate()
-        .filter_map(|(layer_index, layer)| {
-            let values = layer.as_array()?;
-            Some(Layer {
-                id: format!("layer-{}", layer_index),
-                name: format!("Layer {}", layer_index),
-                actions: keys
-                    .iter()
-                    .enumerate()
-                    .map(|(key_index, key)| {
-                        let raw = values
-                            .get(key_index)
-                            .and_then(JsonValue::as_str)
-                            .unwrap_or("KC_NO");
-                        derive_action(
-                            "vial",
-                            raw,
-                            SourceRef {
-                                source_id: source_id.to_string(),
-                                field_path: format!(
-                                    ":keyboard/keymap :layer-{} {}",
-                                    layer_index, key.id
-                                ),
-                                raw: Some(raw.to_string()),
-                            },
-                            &key.id,
-                        )
-                    })
-                    .collect(),
-            })
+        .map(|(layer_index, layer)| Layer {
+            id: format!("layer-{}", layer_index),
+            name: format!("Layer {}", layer_index),
+            actions: keys
+                .iter()
+                .enumerate()
+                .map(|(key_index, key)| {
+                    let raw = layer
+                        .get(key_index)
+                        .map(|cell| cell.raw.as_str())
+                        .unwrap_or("KC_NO");
+                    derive_action(
+                        "vial",
+                        raw,
+                        SourceRef {
+                            source_id: source_id.to_string(),
+                            field_path: format!(
+                                ":keyboard/keymap :layer-{} {}",
+                                layer_index, key.id
+                            ),
+                            raw: Some(raw.to_string()),
+                        },
+                        &key.id,
+                    )
+                })
+                .collect(),
         })
         .collect()
 }
@@ -382,13 +606,24 @@ fn preserved_top_level_sections(json: &JsonValue) -> Vec<String> {
         return Vec::new();
     };
 
-    let mut sections: Vec<String> = object
-        .keys()
-        .filter(|key| !matches!(key.as_str(), "layouts" | "layout" | "layers"))
-        .cloned()
-        .collect();
+    let mut sections: Vec<String> = object.keys().cloned().collect();
     sections.sort();
     sections
+}
+
+fn top_level_source_refs(json: &JsonValue, source_id: &str, sections: &[String]) -> Vec<SourceRef> {
+    sections
+        .iter()
+        .filter_map(|section| {
+            json.get(section).and_then(|value| {
+                serde_json::to_string(value).ok().map(|raw| SourceRef {
+                    source_id: source_id.to_string(),
+                    field_path: format!(":source/raw {}", section),
+                    raw: Some(raw),
+                })
+            })
+        })
+        .collect()
 }
 
 fn sanitize_id(value: &str) -> String {
@@ -426,6 +661,43 @@ mod tests {
       ],
       "macros": [{"name": "hello"}],
       "combos": []
+    }
+    "#;
+
+    const NOCFREE_BACKUP_FIXTURE: &str = r#"
+    {
+      "version": 1,
+      "uid": 123456,
+      "layout": [
+        [
+          ["KC_ESC", "KC_Q", "KC_W"],
+          ["KC_TAB", "KC_A", "KC_S"]
+        ],
+        [
+          ["KC_TRNS", "MO(2)", "KC_NO"],
+          ["KC_LSFT", "MACRO00", "KC_MS_UP"]
+        ]
+      ],
+      "encoder_layout": [[], []],
+      "layout_options": 0,
+      "macro": [["KC_H", "KC_I"]],
+      "vial_protocol": 6,
+      "via_protocol": 11,
+      "tap_dance": [["KC_A", "KC_B"]],
+      "combo": [["KC_Q", "KC_W", "KC_ESC"]],
+      "key_override": [
+        {
+          "trigger": "KC_A",
+          "trigger_mods": 0,
+          "layers": 0,
+          "negative_mod_mask": 0,
+          "suppressed_mods": 0,
+          "replacement": "KC_B",
+          "options": 0
+        }
+      ],
+      "alt_repeat_key": [],
+      "settings": {"1": 0}
     }
     "#;
 
@@ -499,6 +771,14 @@ mod tests {
         assert_eq!(candidate.summary.imported_keys, 4);
         assert_eq!(candidate.summary.imported_layers, 2);
         assert!(candidate
+            .preview_profile
+            .source_precedence
+            .iter()
+            .any(|rule| {
+                rule.field_scope == ":keyboard/keymap"
+                    && rule.source_order[0] == candidate.source.id
+            }));
+        assert!(candidate
             .summary
             .preserved_sections
             .contains(&"macros".to_string()));
@@ -515,6 +795,85 @@ mod tests {
 
         assert_eq!(nav.actions[0].raw.value, "KC_TRNS");
         assert_eq!(nav.actions[0].provenance.raw.as_deref(), Some("KC_TRNS"));
+    }
+
+    #[test]
+    fn nocfree_backup_layout_matrix_imports_layers_and_fallback_geometry() {
+        let candidate = import_vial_json(NOCFREE_BACKUP_FIXTURE).expect("fixture imports");
+
+        assert_eq!(candidate.source.id, "vial-file-123456");
+        assert!(candidate.preview_profile.physical_layout.fallback);
+        assert_eq!(candidate.summary.imported_keys, 6);
+        assert_eq!(candidate.summary.imported_layers, 2);
+        assert_eq!(
+            candidate.preview_profile.physical_layout.keys[0].id,
+            "vial-r0c0"
+        );
+        assert_eq!(
+            candidate.preview_profile.physical_layout.keys[5].matrix,
+            Some(MatrixPosition { row: 1, col: 2 })
+        );
+        assert_eq!(
+            candidate.preview_profile.physical_layout.keys[5].geometry.x,
+            2.0
+        );
+        assert_eq!(
+            candidate.preview_profile.keymap.layers[1].actions[1]
+                .raw
+                .value,
+            "MO(2)"
+        );
+        assert_eq!(
+            candidate.preview_profile.keymap.layers[1].actions[1]
+                .semantic
+                .kind,
+            crate::domain::SemanticActionKind::LayerMomentary
+        );
+    }
+
+    #[test]
+    fn nocfree_backup_preserves_top_level_sections_as_source_provenance() {
+        let candidate = import_vial_json(NOCFREE_BACKUP_FIXTURE).expect("fixture imports");
+
+        for section in [
+            "combo",
+            "encoder_layout",
+            "key_override",
+            "layout",
+            "macro",
+            "settings",
+            "tap_dance",
+            "uid",
+            "version",
+            "via_protocol",
+            "vial_protocol",
+        ] {
+            assert!(candidate
+                .summary
+                .preserved_sections
+                .contains(&section.to_string()));
+            assert!(candidate
+                .preview_profile
+                .source_provenance
+                .iter()
+                .any(|source_ref| {
+                    source_ref.field_path == format!(":source/raw {}", section)
+                        && source_ref.raw.is_some()
+                }));
+        }
+    }
+
+    #[test]
+    #[ignore = "requires KEYPLANE_LOCAL_VIL_CANDIDATE to point at a private local .vil export"]
+    fn local_vil_candidate_file_imports_when_env_is_set() {
+        let path = std::env::var("KEYPLANE_LOCAL_VIL_CANDIDATE")
+            .expect("KEYPLANE_LOCAL_VIL_CANDIDATE is set");
+        let contents = std::fs::read_to_string(path).expect("local candidate file is readable");
+        let candidate = import_vial_json(&contents).expect("local candidate imports");
+
+        assert!(candidate.best_effort_preview);
+        assert!(candidate.summary.imported_keys > 0);
+        assert!(candidate.summary.imported_layers > 0);
     }
 
     #[test]

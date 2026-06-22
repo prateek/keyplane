@@ -9,7 +9,7 @@ The current implementation includes:
 - a transparent, frameless, always-on-top Tauri Overlay Window owned by Rust
 - Effective Action resolution for transparent keys and inherited legends
 - EDN v1 Profile Codec save/load support with deterministic output and toolbar import/export actions
-- NocFree/Vial `.vil` JSON import as a Best-Effort Preview Import Candidate
+- NocFree/Vial `.vil` JSON import as a Best-Effort Preview Import Candidate, including backup-style layer matrices
 - keyviz style JSON import as a style-only Import Candidate
 - a Rust-owned Active Profile store with Import Review commit support
 - App Window surfaces for the overlay, Import Review, Source Inspector, Backend Health, and Positioning Mode

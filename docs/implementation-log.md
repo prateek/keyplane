@@ -19,11 +19,13 @@ Started the Tauri v2 implementation from the PRD.
 - Added a Rust-owned Active Profile store with Import Candidate commit, active EDN save/load commands, Source Inspector promotion against active profile state, and Best-Effort Preview state confidence.
 - Added toolbar actions to save and load the Active Profile as hand-editable EDN.
 - Added keyviz style JSON import as a style-only Import Candidate with visual-style Source Conflicts.
+- Hardened NocFree/Vial `.vil` import for backup files whose `layout` is a layer matrix, with generated fallback geometry, numeric UID handling, and raw top-level section preservation.
 
 Verification:
 
 - `cargo fmt --check`
-- `cargo test` (29 Rust tests)
+- `cargo test` (31 Rust tests passed, 1 private local `.vil` canary ignored by default)
+- `KEYPLANE_LOCAL_VIL_CANDIDATE=<private .vil path> cargo test local_vil_candidate_file_imports_when_env_is_set -- --ignored`
 - `npm test` (11 frontend tests)
 - `npm run build`
 - `npm run tauri build -- --debug`
