@@ -53,11 +53,13 @@ describe("Keyplane app", () => {
     const standard = renderOverlay("standard");
     expect(screen.getByText("nav-hint")).toBeInTheDocument();
     expect(screen.queryByText("hold-layer")).not.toBeInTheDocument();
+    expect(screen.queryByText("layer-icon")).not.toBeInTheDocument();
     standard.unmount();
 
     renderOverlay("rich");
     expect(screen.getByText("nav-hint")).toBeInTheDocument();
     expect(screen.getByText("hold-layer")).toBeInTheDocument();
+    expect(screen.getByText("layer-icon")).toHaveClass("slot-icon");
   });
 
   it("applies Visual Style color tokens to the overlay surface", () => {
@@ -342,6 +344,7 @@ function snapshotWithDensity(density: "compact" | "standard" | "rich") {
               { slot: "primary", text: "Space" },
               { slot: "layer-hint", text: "nav-hint" },
               { slot: "hold-role", text: "hold-layer" },
+              { slot: "icon", text: "layer-icon" },
             ],
           },
         }

@@ -934,6 +934,7 @@ fn legend_for_semantic(semantic: &SemanticAction) -> DisplayLegend {
                     text: target_layer.clone(),
                 });
             }
+            push_icon_slot(&mut slots, "layer");
         }
         SemanticActionKind::LayerTap => {
             if let Some(target_layer) = &semantic.target_layer {
@@ -950,6 +951,7 @@ fn legend_for_semantic(semantic: &SemanticAction) -> DisplayLegend {
                 slot: LegendSlotKind::TapRole,
                 text: format!("tap {}", semantic.label),
             });
+            push_icon_slot(&mut slots, "layer");
         }
         SemanticActionKind::TapHold => {
             slots.push(LegendSlot {
@@ -964,17 +966,41 @@ fn legend_for_semantic(semantic: &SemanticAction) -> DisplayLegend {
                     .map(|label| format!("hold {label}"))
                     .unwrap_or_else(|| "hold".to_string()),
             });
+            push_icon_slot(&mut slots, "tap-hold");
+        }
+        SemanticActionKind::Modifier => {
+            push_icon_slot(&mut slots, "mod");
+        }
+        SemanticActionKind::Macro => {
+            push_icon_slot(&mut slots, "macro");
+        }
+        SemanticActionKind::Mouse => {
+            push_icon_slot(&mut slots, "mouse");
         }
         SemanticActionKind::Transparent => {
             slots.push(LegendSlot {
                 slot: LegendSlotKind::ActionHint,
                 text: "inherits".to_string(),
             });
+            push_icon_slot(&mut slots, "inherit");
+        }
+        SemanticActionKind::None => {
+            push_icon_slot(&mut slots, "none");
+        }
+        SemanticActionKind::Unknown => {
+            push_icon_slot(&mut slots, "unknown");
         }
         _ => {}
     }
 
     DisplayLegend { slots }
+}
+
+fn push_icon_slot(slots: &mut Vec<LegendSlot>, text: &str) {
+    slots.push(LegendSlot {
+        slot: LegendSlotKind::Icon,
+        text: text.to_string(),
+    });
 }
 
 pub fn promote_conflict_to_override(
@@ -1240,6 +1266,10 @@ mod tests {
                 LegendSlot {
                     slot: LegendSlotKind::LayerHint,
                     text: "layer-1".to_string()
+                },
+                LegendSlot {
+                    slot: LegendSlotKind::Icon,
+                    text: "layer".to_string()
                 }
             ]
         );
@@ -1278,6 +1308,10 @@ mod tests {
                 LegendSlot {
                     slot: LegendSlotKind::TapRole,
                     text: "tap Space".to_string()
+                },
+                LegendSlot {
+                    slot: LegendSlotKind::Icon,
+                    text: "layer".to_string()
                 }
             ]
         );
@@ -1323,6 +1357,10 @@ mod tests {
                 LegendSlot {
                     slot: LegendSlotKind::HoldRole,
                     text: "hold Shift".to_string()
+                },
+                LegendSlot {
+                    slot: LegendSlotKind::Icon,
+                    text: "tap-hold".to_string()
                 }
             ]
         );
@@ -1337,5 +1375,34 @@ mod tests {
         assert_eq!(hyper_tab.semantic.kind, SemanticActionKind::TapHold);
         assert_eq!(hyper_tab.semantic.label, "Tab");
         assert_eq!(hyper_tab.semantic.hold_label.as_deref(), Some("Hyper"));
+    }
+
+    #[test]
+    fn semantic_action_legends_include_optional_icon_slots() {
+        let modifier = derive_action("qmk", "KC_LCTL", source_ref(), "k-ctrl");
+        let mouse = derive_action("qmk", "KC_MS_UP", source_ref(), "k-mouse");
+        let macro_action = derive_action("qmk", "DM_PLY1", source_ref(), "k-macro");
+        let transparent = derive_action("qmk", "KC_TRNS", source_ref(), "k-trans");
+        let none = derive_action("qmk", "KC_NO", source_ref(), "k-none");
+        let unknown = derive_action("qmk", "CUSTOM_BEHAVIOR", source_ref(), "k-custom");
+
+        let icon_texts = [
+            (&modifier, "mod"),
+            (&mouse, "mouse"),
+            (&macro_action, "macro"),
+            (&transparent, "inherit"),
+            (&none, "none"),
+            (&unknown, "unknown"),
+        ];
+
+        for (action, expected_icon) in icon_texts {
+            assert!(
+                action.legend.slots.iter().any(|slot| {
+                    slot.slot == LegendSlotKind::Icon && slot.text == expected_icon
+                }),
+                "expected {expected_icon} icon slot for {}",
+                action.raw.value
+            );
+        }
     }
 }

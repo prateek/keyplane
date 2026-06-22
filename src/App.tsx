@@ -878,7 +878,11 @@ function Keycap({
       {secondarySlots.length > 0 ? (
         <div className="legend-slots">
           {secondarySlots.map((slot) => (
-            <small className={`legend-slot slot-${slot.slot}`} key={`${slot.slot}-${slot.text}`}>
+            <small
+              className={`legend-slot slot-${slot.slot}`}
+              data-slot-kind={slot.slot}
+              key={`${slot.slot}-${slot.text}`}
+            >
               {slot.text}
             </small>
           ))}

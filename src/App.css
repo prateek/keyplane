@@ -361,6 +361,15 @@ button:hover {
   padding: 0 4px;
 }
 
+.legend-slot.slot-icon {
+  min-width: 18px;
+  border: 1px solid rgba(34, 118, 106, 0.18);
+  background: rgba(34, 118, 106, 0.1);
+  color: var(--keyplane-modifier-accent, #22766a);
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
 .keycap.density-rich {
   grid-template-rows: minmax(0, 1fr) auto auto;
 }
