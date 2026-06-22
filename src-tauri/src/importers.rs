@@ -1,11 +1,13 @@
 use crate::domain::{
-    default_kanata_tcp_config, derive_action, BackendConfig, BackendHealth, BackendStatus,
-    CapabilityFlag, DisplayTargeting, HealthState, ImportCandidate, ImportSummary, KeyGeometry,
-    Layer, LegendSlotKind, LogicalKeymap, MatrixPosition, OverlayWindowConfig, PhysicalKey,
-    PhysicalLayout, Profile, Source, SourceAuthority, SourceConflict, SourcePrecedenceRule,
-    SourceRef, StyleDensity, VisibilityPolicy, VisualStyle, VisualStyleColors,
+    default_kanata_tcp_config, derive_action, ActivationKind, BackendConfig, BackendHealth,
+    BackendStatus, CapabilityFlag, DisplayTargeting, HealthState, ImportCandidate, ImportSummary,
+    KeyGeometry, Layer, LegendSlotKind, LogicalKeymap, MatrixPosition, OverlayWindowConfig,
+    PhysicalKey, PhysicalLayout, Profile, SentinelKeyBinding, Source, SourceAuthority,
+    SourceConflict, SourcePrecedenceRule, SourceRef, StyleDensity, VisibilityPolicy, VisualStyle,
+    VisualStyleColors,
 };
 use crate::kanata_backend;
+use crate::sentinel_backend;
 use qmk_via_api::keycodes::Keycode;
 use serde_json::Value as JsonValue;
 use std::collections::BTreeMap;
@@ -351,19 +353,25 @@ pub fn import_keyviz_style_json(
 pub fn import_overkeys_companion_json(contents: &str) -> Result<ImportCandidate, ImportError> {
     let json: JsonValue =
         serde_json::from_str(contents).map_err(|err| ImportError::Json(err.to_string()))?;
-    let layout = selected_overkeys_layout(&json).ok_or(ImportError::Missing("userLayouts.keys"))?;
-    let layer_values = vec![row_arrays_to_layer_cells(layout.rows)];
+    let layouts = overkeys_layouts(&json);
+    let layer_values: Vec<Vec<ImportedLayerCell>> =
+        layouts.iter().map(|layout| layout.cells.clone()).collect();
 
-    if layer_values[0].is_empty() {
+    if layer_values.is_empty() {
         return Err(ImportError::Missing("userLayouts.keys"));
     }
 
     let aliases = overkeys_aliases(&json);
     let kanata_config = overkeys_kanata_config(&json);
-    let source_suffix = sanitize_id_or(&layout.name, "layout");
+    let sentinel_keys = overkeys_sentinel_bindings(&layouts, &json);
+    let primary_layout_name = layouts
+        .first()
+        .map(|layout| layout.name.as_str())
+        .unwrap_or("OverKeys layout");
+    let source_suffix = sanitize_id_or(primary_layout_name, "layout");
     let source = Source {
         id: format!("overkeys-companion-{}", source_suffix),
-        name: format!("OverKeys {} companion", layout.name),
+        name: format!("OverKeys {} companion", primary_layout_name),
         kind: "overkeys-companion-import".to_string(),
         authority: SourceAuthority::BestEffortPreview,
     };
@@ -372,6 +380,12 @@ pub fn import_overkeys_companion_json(contents: &str) -> Result<ImportCandidate,
         name: "Kanata TCP".to_string(),
         kind: "kanata".to_string(),
         authority: SourceAuthority::Authoritative,
+    };
+    let sentinel_source = Source {
+        id: sentinel_backend::SENTINEL_BACKEND_ID.to_string(),
+        name: "Sentinel Keys".to_string(),
+        kind: "sentinel-keys".to_string(),
+        authority: SourceAuthority::Inferred,
     };
     let physical_keys =
         import_matrix_rows_as_fallback_layout(&layer_values, &source.id, "overkeys");
@@ -383,7 +397,7 @@ pub fn import_overkeys_companion_json(contents: &str) -> Result<ImportCandidate,
     );
     apply_overkeys_aliases(&mut layers, &aliases);
 
-    if let Some(layer) = layers.first_mut() {
+    for (layer, layout) in layers.iter_mut().zip(layouts.iter()) {
         layer.name = layout.name.clone();
     }
 
@@ -408,12 +422,37 @@ pub fn import_overkeys_companion_json(contents: &str) -> Result<ImportCandidate,
         "Kanata TCP runtime is not connected; imported OverKeys companion profile supplies layout/keymap data",
     );
     kanata_backend.config = Some(kanata_config);
+    let mut sources = vec![source.clone(), kanata_source];
+    let mut runtime_backends = vec![
+        BackendStatus {
+            id: source.id.clone(),
+            name: source.name.clone(),
+            capabilities: vec![
+                CapabilityFlag::ImportGeometry,
+                CapabilityFlag::ImportKeymaps,
+                CapabilityFlag::PreviewOnly,
+            ],
+            health: backend_health,
+            config: None,
+        },
+        kanata_backend,
+    ];
+    let mut runtime_source_order = vec![kanata_backend::KANATA_BACKEND_ID.to_string()];
+    if !sentinel_keys.is_empty() {
+        sources.push(sentinel_source);
+        runtime_backends.push(sentinel_backend::sentinel_backend_status(
+            HealthState::PermissionMissing,
+            "Input monitoring permission is required before imported OverKeys triggers can infer layers",
+        ));
+        runtime_source_order.push(sentinel_backend::SENTINEL_BACKEND_ID.to_string());
+    }
+    runtime_source_order.push(source.id.clone());
     let profile = Profile {
         schema_version: 1,
         id: format!("profile-{}", source.id),
         keyboard_id: format!("keyboard-{}", source.id),
         name: format!("{} Preview", source.name),
-        sources: vec![source.clone(), kanata_source],
+        sources,
         physical_layout: PhysicalLayout {
             keys: physical_keys.clone(),
             fallback: true,
@@ -421,21 +460,8 @@ pub fn import_overkeys_companion_json(contents: &str) -> Result<ImportCandidate,
         keymap: LogicalKeymap {
             layers: layers.clone(),
         },
-        runtime_backends: vec![
-            BackendStatus {
-                id: source.id.clone(),
-                name: source.name.clone(),
-                capabilities: vec![
-                    CapabilityFlag::ImportGeometry,
-                    CapabilityFlag::ImportKeymaps,
-                    CapabilityFlag::PreviewOnly,
-                ],
-                health: backend_health,
-                config: None,
-            },
-            kanata_backend,
-        ],
-        sentinel_keys: Vec::new(),
+        runtime_backends,
+        sentinel_keys,
         visual_style: VisualStyle {
             id: "style-overkeys-preview".to_string(),
             variant_id: "overkeys-preview".to_string(),
@@ -459,10 +485,7 @@ pub fn import_overkeys_companion_json(contents: &str) -> Result<ImportCandidate,
         source_precedence: vec![
             SourcePrecedenceRule {
                 field_scope: ":runtime/state".to_string(),
-                source_order: vec![
-                    kanata_backend::KANATA_BACKEND_ID.to_string(),
-                    source.id.clone(),
-                ],
+                source_order: runtime_source_order,
             },
             SourcePrecedenceRule {
                 field_scope: ":keyboard/physical-layout".to_string(),
@@ -817,9 +840,11 @@ struct ImportedLayerCell {
     col: Option<usize>,
 }
 
-struct OverkeysLayout<'a> {
+struct OverkeysLayout {
     name: String,
-    rows: &'a [JsonValue],
+    cells: Vec<ImportedLayerCell>,
+    trigger: Option<String>,
+    activation: Option<ActivationKind>,
 }
 
 #[derive(Debug, Clone)]
@@ -996,30 +1021,49 @@ fn finish_zmk_layer(
     });
 }
 
-fn selected_overkeys_layout(json: &JsonValue) -> Option<OverkeysLayout<'_>> {
+fn overkeys_layouts(json: &JsonValue) -> Vec<OverkeysLayout> {
     let default_name = json.get("defaultUserLayout").and_then(JsonValue::as_str);
-    let user_layouts = json.get("userLayouts").and_then(JsonValue::as_array)?;
-    let selected = default_name
-        .and_then(|name| {
-            user_layouts.iter().find(|layout| {
-                layout.get("name").and_then(JsonValue::as_str) == Some(name)
-                    && layout.get("keys").is_some_and(JsonValue::is_array)
-            })
-        })
-        .or_else(|| {
-            user_layouts
-                .iter()
-                .find(|layout| layout.get("keys").is_some_and(JsonValue::is_array))
-        })?;
-    let name = selected
+    let Some(user_layouts) = json.get("userLayouts").and_then(JsonValue::as_array) else {
+        return Vec::new();
+    };
+    let mut layouts: Vec<OverkeysLayout> = user_layouts
+        .iter()
+        .filter_map(overkeys_layout_from_json)
+        .collect();
+
+    if let Some(default_name) = default_name {
+        if let Some(index) = layouts
+            .iter()
+            .position(|layout| layout.name == default_name)
+        {
+            let default_layout = layouts.remove(index);
+            layouts.insert(0, default_layout);
+        }
+    }
+
+    layouts
+}
+
+fn overkeys_layout_from_json(layout: &JsonValue) -> Option<OverkeysLayout> {
+    let rows = layout.get("keys").and_then(JsonValue::as_array)?;
+    let cells = row_arrays_to_layer_cells(rows);
+    if cells.is_empty() {
+        return None;
+    }
+    let name = layout
         .get("name")
         .and_then(json_scalar_to_string)
         .unwrap_or_else(|| "OverKeys layout".to_string());
-    let rows = selected.get("keys").and_then(JsonValue::as_array)?;
 
     Some(OverkeysLayout {
         name,
-        rows: rows.as_slice(),
+        cells,
+        trigger: layout
+            .get("trigger")
+            .and_then(json_scalar_to_string)
+            .map(|trigger| trigger.trim().to_string())
+            .filter(|trigger| !trigger.is_empty()),
+        activation: overkeys_activation_kind(layout.get("type").and_then(json_scalar_to_string)),
     })
 }
 
@@ -1035,6 +1079,69 @@ fn overkeys_aliases(json: &JsonValue) -> BTreeMap<String, String> {
                 .collect()
         })
         .unwrap_or_default()
+}
+
+fn overkeys_sentinel_bindings(
+    layouts: &[OverkeysLayout],
+    json: &JsonValue,
+) -> Vec<SentinelKeyBinding> {
+    let trigger_overrides = overkeys_trigger_overrides(json);
+    layouts
+        .iter()
+        .enumerate()
+        .skip(1)
+        .filter_map(|(layer_index, layout)| {
+            let host_input_code = layout.trigger.clone().or_else(|| {
+                overkeys_trigger_override_for_layout(&layout.name, &trigger_overrides)
+            })?;
+            Some(SentinelKeyBinding {
+                host_input_code,
+                layer_id: format!("layer-{}", layer_index),
+                activation: layout
+                    .activation
+                    .clone()
+                    .unwrap_or(ActivationKind::Momentary),
+            })
+        })
+        .collect()
+}
+
+fn overkeys_trigger_overrides(json: &JsonValue) -> BTreeMap<String, String> {
+    json.get("triggers")
+        .and_then(JsonValue::as_object)
+        .map(|triggers| {
+            triggers
+                .iter()
+                .filter_map(|(layer_name, host_input_code)| {
+                    json_scalar_to_string(host_input_code)
+                        .map(|host_input_code| host_input_code.trim().to_string())
+                        .filter(|host_input_code| !host_input_code.is_empty())
+                        .map(|host_input_code| (layer_name.clone(), host_input_code))
+                })
+                .collect()
+        })
+        .unwrap_or_default()
+}
+
+fn overkeys_trigger_override_for_layout(
+    layout_name: &str,
+    triggers: &BTreeMap<String, String>,
+) -> Option<String> {
+    triggers.get(layout_name).cloned().or_else(|| {
+        triggers
+            .iter()
+            .find(|(candidate, _)| candidate.eq_ignore_ascii_case(layout_name))
+            .map(|(_, host_input_code)| host_input_code.clone())
+    })
+}
+
+fn overkeys_activation_kind(value: Option<String>) -> Option<ActivationKind> {
+    match value?.trim().to_ascii_lowercase().as_str() {
+        "held" | "momentary" => Some(ActivationKind::Momentary),
+        "toggle" => Some(ActivationKind::Toggle),
+        "lock" => Some(ActivationKind::Lock),
+        _ => Some(ActivationKind::Unknown),
+    }
 }
 
 fn overkeys_kanata_config(json: &JsonValue) -> BackendConfig {
@@ -1662,8 +1769,13 @@ mod tests {
       },
       "userLayouts": [
         {
-          "name": "Ignored Layout",
-          "keys": [["X"]]
+          "name": "nav",
+          "trigger": "F14",
+          "type": "held",
+          "keys": [
+            ["spc", "Up", "F"],
+            ["Left", "Down", "Right"]
+          ]
         },
         {
           "name": "Colemak Example",
@@ -1978,8 +2090,15 @@ mod tests {
             .any(|source| source.id == kanata_backend::KANATA_BACKEND_ID
                 && source.kind == "kanata"
                 && source.authority == SourceAuthority::Authoritative));
+        assert!(candidate
+            .preview_profile
+            .sources
+            .iter()
+            .any(|source| source.id == sentinel_backend::SENTINEL_BACKEND_ID
+                && source.kind == "sentinel-keys"
+                && source.authority == SourceAuthority::Inferred));
         assert_eq!(candidate.summary.imported_keys, 6);
-        assert_eq!(candidate.summary.imported_layers, 1);
+        assert_eq!(candidate.summary.imported_layers, 2);
         assert_eq!(
             candidate.preview_profile.physical_layout.keys[0].id,
             "overkeys-r0c0"
@@ -1992,6 +2111,7 @@ mod tests {
             candidate.preview_profile.keymap.layers[0].name,
             "Colemak Example"
         );
+        assert_eq!(candidate.preview_profile.keymap.layers[1].name, "nav");
         assert_eq!(
             candidate.preview_profile.keymap.layers[0].actions[0]
                 .raw
@@ -2022,6 +2142,8 @@ mod tests {
             .any(|rule| {
                 rule.field_scope == ":runtime/state"
                     && rule.source_order[0] == kanata_backend::KANATA_BACKEND_ID
+                    && rule.source_order[1] == sentinel_backend::SENTINEL_BACKEND_ID
+                    && rule.source_order[2] == candidate.source.id
             }));
         assert!(candidate
             .preview_profile
@@ -2067,6 +2189,66 @@ mod tests {
         assert!(kanata_status
             .capabilities
             .contains(&CapabilityFlag::PollState));
+
+        let sentinel_status = profile
+            .runtime_backends
+            .iter()
+            .find(|backend| backend.id == sentinel_backend::SENTINEL_BACKEND_ID)
+            .expect("Sentinel Keys runtime backend exists");
+        assert_eq!(sentinel_status.health.state, HealthState::PermissionMissing);
+        assert!(sentinel_status
+            .capabilities
+            .contains(&CapabilityFlag::StreamLayerStack));
+    }
+
+    #[test]
+    fn overkeys_companion_imports_layer_triggers_as_sentinel_key_bindings() {
+        let candidate =
+            import_overkeys_companion_json(OVERKEYS_COMPANION_FIXTURE).expect("fixture imports");
+        let profile = &candidate.preview_profile;
+
+        assert_eq!(
+            profile.sentinel_keys,
+            vec![SentinelKeyBinding {
+                host_input_code: "F14".to_string(),
+                layer_id: "layer-1".to_string(),
+                activation: ActivationKind::Momentary,
+            }]
+        );
+    }
+
+    #[test]
+    fn overkeys_companion_imports_legacy_trigger_map_as_sentinel_key_bindings() {
+        let candidate = import_overkeys_companion_json(
+            r#"
+            {
+              "defaultUserLayout": "base",
+              "triggers": {
+                "nav": "caps"
+              },
+              "userLayouts": [
+                {
+                  "name": "base",
+                  "keys": [["A"]]
+                },
+                {
+                  "name": "nav",
+                  "keys": [["B"]]
+                }
+              ]
+            }
+            "#,
+        )
+        .expect("fixture imports");
+
+        assert_eq!(
+            candidate.preview_profile.sentinel_keys,
+            vec![SentinelKeyBinding {
+                host_input_code: "caps".to_string(),
+                layer_id: "layer-1".to_string(),
+                activation: ActivationKind::Momentary,
+            }]
+        );
     }
 
     #[test]
