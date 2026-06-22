@@ -309,6 +309,24 @@ button:hover {
   font-size: 1.05rem;
 }
 
+.import-view header {
+  display: flex;
+  align-items: flex-start;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.import-view header button {
+  display: inline-flex;
+  min-height: 36px;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  padding: 0 11px;
+  white-space: nowrap;
+}
+
 .list-row {
   border-top: 1px solid #edf2ef;
   padding: 12px 0;

@@ -22,11 +22,13 @@ import type {
   SourceConflict,
 } from "./domain";
 import { navLayerEvent } from "./fixtures";
-import { applyRuntimeEvent, promoteSourceCandidate } from "./state";
+import { applyRuntimeEvent } from "./state";
 import {
+  commitImportCandidate,
   importVialFile,
   loadFakeRuntimeEvents,
   loadInitialSnapshot,
+  promoteActiveSourceCandidate,
   startOverlayDrag,
   startOverlayResize,
   setOverlayPositioningMode,
@@ -73,8 +75,9 @@ function App() {
     setEventIndex((index) => (index + 1) % Math.max(events.length, 1));
   }
 
-  function promoteSourceValue(conflict: SourceConflict, sourceId: string) {
-    setSnapshot((current) => (current ? promoteSourceCandidate(current, conflict, sourceId) : current));
+  async function promoteSourceValue(conflict: SourceConflict, sourceId: string) {
+    if (!snapshot) return;
+    setSnapshot(await promoteActiveSourceCandidate(snapshot, conflict, sourceId));
   }
 
   function dragOverlay() {
@@ -92,6 +95,17 @@ function App() {
       const contents = await file.text();
       setImportCandidate(await importVialFile(contents));
       setView("import");
+    } catch (error) {
+      setImportError(error instanceof Error ? error.message : String(error));
+    }
+  }
+
+  async function commitImportPreview(candidate: ImportCandidate) {
+    setImportError(null);
+    try {
+      setSnapshot(await commitImportCandidate(candidate));
+      setImportCandidate(null);
+      setView("overlay");
     } catch (error) {
       setImportError(error instanceof Error ? error.message : String(error));
     }
@@ -189,7 +203,11 @@ function App() {
           <SourceInspector snapshot={snapshot} onPromote={promoteSourceValue} />
         ) : null}
         {view === "import" ? (
-          <ImportReview candidate={importCandidate} error={importError} />
+          <ImportReview
+            candidate={importCandidate}
+            error={importError}
+            onCommit={commitImportPreview}
+          />
         ) : null}
       </section>
     </main>
@@ -391,9 +409,11 @@ function SourceInspector({
 function ImportReview({
   candidate,
   error,
+  onCommit,
 }: {
   candidate: ImportCandidate | null;
   error: string | null;
+  onCommit: (candidate: ImportCandidate) => void;
 }) {
   if (error) return <section className="empty-state">{error}</section>;
   if (!candidate) {
@@ -407,8 +427,14 @@ function ImportReview({
   return (
     <section className="import-view">
       <header>
-        <span className="badge">Best-Effort Preview</span>
-        <h2>{candidate.preview_profile.name}</h2>
+        <div>
+          <span className="badge">Best-Effort Preview</span>
+          <h2>{candidate.preview_profile.name}</h2>
+        </div>
+        <button onClick={() => onCommit(candidate)}>
+          <Check size={17} />
+          Use Preview
+        </button>
       </header>
       <div className="metric-strip">
         <strong>{candidate.summary.imported_keys} keys</strong>

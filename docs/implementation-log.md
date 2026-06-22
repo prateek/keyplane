@@ -16,11 +16,12 @@ Started the Tauri v2 implementation from the PRD.
 - Added Rust-owned Source Precedence conflict resolution with User Overrides winning over imported candidates while preserving losing values.
 - Added Source Inspector promotion controls backed by snapshot-level User Overrides for the current demo state.
 - Added Rust-owned Overlay Window drag and resize commands, with Positioning Mode temporarily enabling window resizability.
+- Added a Rust-owned Active Profile store with Import Candidate commit, active EDN save/load commands, Source Inspector promotion against active profile state, and Best-Effort Preview state confidence.
 
 Verification:
 
 - `cargo fmt --check`
-- `cargo test` (22 Rust tests)
-- `npm test` (8 frontend tests)
+- `cargo test` (27 Rust tests)
+- `npm test` (10 frontend tests)
 - `npm run build`
 - `npm run tauri build -- --debug`

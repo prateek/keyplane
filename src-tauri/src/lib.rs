@@ -1,3 +1,4 @@
+pub mod active_profile;
 pub mod backend;
 pub mod domain;
 pub mod fake_backend;
@@ -5,12 +6,13 @@ pub mod importers;
 pub mod keypeek_backend;
 pub mod profile_codec;
 
+use crate::active_profile::ActiveProfileStore;
 use crate::backend::{FakeProtocolBackend, ProtocolBackend};
 use crate::domain::{
-    apply_runtime_event, ImportCandidate, KeyboardSnapshot, Profile, RuntimeEvent,
+    apply_runtime_event, ImportCandidate, KeyboardSnapshot, Profile, RuntimeEvent, SourceConflict,
 };
 use serde::Deserialize;
-use tauri::{Manager, WebviewUrl, WebviewWindowBuilder};
+use tauri::{Manager, State, WebviewUrl, WebviewWindowBuilder};
 use tauri_runtime::ResizeDirection;
 
 #[derive(Debug, Clone, Copy, Deserialize, PartialEq, Eq)]
@@ -42,10 +44,10 @@ impl From<OverlayResizeDirection> for ResizeDirection {
 }
 
 #[tauri::command]
-fn initial_snapshot() -> KeyboardSnapshot {
-    FakeProtocolBackend
-        .initial_snapshot()
-        .expect("fake backend always provides a snapshot")
+fn initial_snapshot(
+    active_profile: State<'_, ActiveProfileStore>,
+) -> Result<KeyboardSnapshot, String> {
+    active_profile.snapshot().map_err(|err| err.to_string())
 }
 
 #[tauri::command]
@@ -70,8 +72,49 @@ fn load_profile_edn(contents: String) -> Result<Profile, String> {
 }
 
 #[tauri::command]
+fn save_active_profile_edn(
+    active_profile: State<'_, ActiveProfileStore>,
+) -> Result<String, String> {
+    active_profile
+        .save_profile_edn()
+        .map_err(|err| err.to_string())
+}
+
+#[tauri::command]
+fn load_active_profile_edn(
+    active_profile: State<'_, ActiveProfileStore>,
+    contents: String,
+) -> Result<KeyboardSnapshot, String> {
+    let profile = profile_codec::load_profile(&contents).map_err(|err| err.to_string())?;
+    active_profile
+        .load_profile(profile)
+        .map_err(|err| err.to_string())
+}
+
+#[tauri::command]
 fn import_vial_file(contents: String) -> Result<ImportCandidate, String> {
     importers::import_vial_json(&contents).map_err(|err| err.to_string())
+}
+
+#[tauri::command]
+fn commit_import_candidate(
+    active_profile: State<'_, ActiveProfileStore>,
+    candidate: ImportCandidate,
+) -> Result<KeyboardSnapshot, String> {
+    active_profile
+        .commit_import_candidate(candidate)
+        .map_err(|err| err.to_string())
+}
+
+#[tauri::command]
+fn promote_source_candidate(
+    active_profile: State<'_, ActiveProfileStore>,
+    conflict: SourceConflict,
+    source_id: String,
+) -> Result<KeyboardSnapshot, String> {
+    active_profile
+        .promote_source_candidate(conflict, &source_id)
+        .map_err(|err| err.to_string())
 }
 
 #[tauri::command]
@@ -110,6 +153,7 @@ fn start_overlay_resize(
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
+        .manage(ActiveProfileStore::new(fake_backend::fake_profile()))
         .plugin(tauri_plugin_opener::init())
         .setup(|app| {
             create_overlay_window(app.handle())?;
@@ -121,7 +165,11 @@ pub fn run() {
             apply_event,
             save_profile_edn,
             load_profile_edn,
+            save_active_profile_edn,
+            load_active_profile_edn,
             import_vial_file,
+            commit_import_candidate,
+            promote_source_candidate,
             set_overlay_positioning_mode,
             start_overlay_drag,
             start_overlay_resize,

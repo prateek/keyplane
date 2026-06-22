@@ -10,6 +10,7 @@ The current implementation includes:
 - Effective Action resolution for transparent keys and inherited legends
 - EDN v1 Profile Codec save/load support with deterministic output
 - NocFree/Vial `.vil` JSON import as a Best-Effort Preview Import Candidate
+- a Rust-owned Active Profile store with Import Review commit support
 - App Window surfaces for the overlay, Import Review, Source Inspector, Backend Health, and Positioning Mode
 - Rust-owned Overlay Window drag and resize controls while Positioning Mode is active
 
