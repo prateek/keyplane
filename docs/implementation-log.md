@@ -55,7 +55,28 @@ renders snapshots and applies runtime events.
   (`poll()`); the driver decides cadence and stale detection. Core resolution is
   deterministic and clock-free, which keeps the test seam pure.
 
+## Validation
+
+- `cargo test --workspace` — 39 domain tests green; `cargo clippy` clean.
+- `pnpm test` — frontend contract tests green, run against real serde output
+  dumped by `cargo run -p keyplane-core --example dump_dtos`.
+- `pnpm build` — both window bundles build.
+- `cargo run -p keyplane` — the app launches, creates the App + Overlay
+  windows, and runs the Fake Backend driver loop without panicking. (A runtime
+  smoke test caught and fixed an invalid-icon startup crash.)
+
+## Hardware-gated / deferred
+
+- Real KeyPeek/HID live validation needs a supported device (ADR 0045); the
+  Fake Backend is the automated/dev source. The real backend trait is in place
+  but no HID transport is wired.
+- Applying User Overrides to live resolution (promotion records them in the
+  profile/EDN today), Fade Visibility, and full Display Targeting window
+  placement are modeled but not yet driving the window.
+- Signed builds, launch-at-login, and packaging are out of scope for the local
+  MVP (ADR 0038, 0039).
+
 ## Status
 
-See the PR description for the live checklist. The PRD critical-path numbering
-(Further Notes) maps onto the tasks tracked there.
+See the PR description checklist. The PRD critical-path numbering (Further
+Notes) maps onto the tasks tracked there.
