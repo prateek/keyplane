@@ -28,9 +28,10 @@ The current implementation includes:
 - macOS Accessibility and Input Monitoring permission checks and prompts surfaced as persistent Sentinel Keys Backend Health
 - launch-at-login Settings backed by the Tauri autostart plugin and scoped autostart permissions
 - a GitHub Actions desktop build workflow that verifies the app, uploads unsigned macOS debug bundles, and uploads Linux/Windows debug binaries
+- a signed macOS release workflow scaffold for Apple certificate import, Tauri signing/notarization, and signed `.app`/`.dmg` artifact upload
 - an env-gated KeyPeek Live hardware canary and validation checklist for compatible firmware devices
 
-The remaining PRD scope includes observed real KeyPeek-supported layer-change validation and signed release packaging beyond unsigned/debug artifacts.
+The remaining PRD scope includes observed real KeyPeek-supported layer-change validation and first signed release execution with real Apple credentials.
 
 ## Decisions
 
@@ -78,6 +79,15 @@ npm run tauri build -- --debug
 
 The `Desktop Build` GitHub Actions workflow runs the same verification path on macOS, uploads unsigned debug `.app` and `.dmg` artifacts, and builds Linux/Windows debug binaries without installer bundling.
 
+Build a signed macOS release in CI:
+
+```sh
+git tag v0.1.0
+git push origin v0.1.0
+```
+
+See [Signed Release Workflow](docs/release/signing.md) for required Apple secrets and the current verification boundary.
+
 ## Documentation Map
 
 - [PRD](docs/prd/keyplane-prd.md): product scope, acceptance criteria, implementation defaults
@@ -86,6 +96,7 @@ The `Desktop Build` GitHub Actions workflow runs the same verification path on m
 - [Ecosystem report](docs/research/keyboard-rendering-and-configuration-ecosystem.md): source research on keyboard rendering/configuration tools
 - [Attribution](docs/attribution.md): GPL/source reuse notes
 - [Implementation log](docs/implementation-log.md): execution notes and verification history
+- [Signed Release Workflow](docs/release/signing.md): macOS signing/notarization workflow and required CI secrets
 - [KeyPeek Live hardware validation](docs/validation/keypeek-live-hardware.md): opt-in hardware canary and manual layer-change checklist
 - [Agent instructions](AGENTS.md): how implementation agents should read the docs
 

@@ -43,6 +43,7 @@ Started the Tauri v2 implementation from the PRD.
 - Refreshed npm dependency metadata and made the Rolldown wasm runtime peer dependencies explicit so the desktop build workflow can use `npm ci` reliably.
 - Extended the desktop build workflow with Linux and Windows debug binary builds using Tauri's no-bundle path.
 - Added an env-gated KeyPeek Live hardware canary for Raw HID subscription start/stop plus a hardware validation checklist for manual layer-change acceptance.
+- Added a signed macOS release workflow scaffold that imports Apple signing certificates from GitHub Actions secrets, runs Tauri signing/notarization, uploads signed `.app` and `.dmg` artifacts, and documents the unverified Apple-credential boundary.
 
 Verification:
 
@@ -52,6 +53,7 @@ Verification:
 - `npm ci`
 - `npm test` (23 frontend tests)
 - `npm run build`
-- `ruby -e 'require "yaml"; YAML.load_file(".github/workflows/desktop-build.yml")'`
+- `actionlint .github/workflows/signed-release.yml .github/workflows/desktop-build.yml`
+- `ruby -e 'require "yaml"; %w[.github/workflows/signed-release.yml .github/workflows/desktop-build.yml].each { |path| YAML.load_file(path) }'`
 - `npm run tauri build -- --debug`
 - `npm run tauri build -- --debug --no-bundle`
