@@ -1,5 +1,8 @@
-use crate::domain::{BackendStatus, KeyboardSnapshot, RuntimeEvent};
-use crate::{fake_backend, keypeek_backend};
+use crate::domain::{
+    BackendStatus, HealthState, HostInputEvent, KeyboardSnapshot, RuntimeEvent, SentinelKeyBinding,
+};
+use crate::{fake_backend, keypeek_backend, sentinel_backend};
+use std::sync::Mutex;
 
 pub trait ProtocolBackend {
     fn status(&self) -> BackendStatus;
@@ -8,6 +11,9 @@ pub trait ProtocolBackend {
         Vec::new()
     }
     fn ingest_packet(&self, _packet: &[u8]) -> Option<RuntimeEvent> {
+        None
+    }
+    fn ingest_host_input_event(&self, _event: &HostInputEvent) -> Option<RuntimeEvent> {
         None
     }
 }
@@ -61,6 +67,50 @@ impl ProtocolBackend for KeyPeekPacketBackend {
     }
 }
 
+pub struct SentinelKeyProtocolBackend {
+    base_layer_id: String,
+    bindings: Vec<SentinelKeyBinding>,
+    active_layers: Mutex<Vec<String>>,
+    status: BackendStatus,
+}
+
+impl SentinelKeyProtocolBackend {
+    pub fn permission_missing(
+        base_layer_id: impl Into<String>,
+        bindings: Vec<SentinelKeyBinding>,
+    ) -> Self {
+        Self {
+            base_layer_id: base_layer_id.into(),
+            bindings,
+            active_layers: Mutex::new(Vec::new()),
+            status: sentinel_backend::sentinel_backend_status(
+                HealthState::PermissionMissing,
+                "Input monitoring permission is required before Sentinel Keys can infer layers",
+            ),
+        }
+    }
+}
+
+impl ProtocolBackend for SentinelKeyProtocolBackend {
+    fn status(&self) -> BackendStatus {
+        self.status.clone()
+    }
+
+    fn initial_snapshot(&self) -> Option<KeyboardSnapshot> {
+        None
+    }
+
+    fn ingest_host_input_event(&self, event: &HostInputEvent) -> Option<RuntimeEvent> {
+        let mut active_layers = self.active_layers.lock().ok()?;
+        sentinel_backend::runtime_event_from_host_input_event(
+            &mut active_layers,
+            &self.bindings,
+            &self.base_layer_id,
+            event,
+        )
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -86,6 +136,34 @@ mod tests {
         match event {
             RuntimeEvent::LayerStackChanged { layer_stack } => {
                 assert_eq!(layer_stack[0].layer_id, "layer-2");
+                assert_eq!(layer_stack[1].layer_id, "layer-0");
+            }
+            _ => panic!("expected layer stack event"),
+        }
+    }
+
+    #[test]
+    fn sentinel_key_protocol_backend_maps_host_input_events_without_os_input() {
+        let backend = SentinelKeyProtocolBackend::permission_missing(
+            "layer-0",
+            vec![SentinelKeyBinding {
+                host_input_code: "F24".to_string(),
+                layer_id: "layer-1".to_string(),
+                activation: crate::domain::ActivationKind::Momentary,
+            }],
+        );
+
+        let event = backend
+            .ingest_host_input_event(&HostInputEvent {
+                code: "F24".to_string(),
+                pressed: true,
+            })
+            .expect("host input maps to layer event");
+
+        assert_eq!(backend.status().id, sentinel_backend::SENTINEL_BACKEND_ID);
+        match event {
+            RuntimeEvent::LayerStackChanged { layer_stack } => {
+                assert_eq!(layer_stack[0].layer_id, "layer-1");
                 assert_eq!(layer_stack[1].layer_id, "layer-0");
             }
             _ => panic!("expected layer stack event"),

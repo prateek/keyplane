@@ -110,6 +110,17 @@ const kanataBackend: BackendStatus = {
   },
 };
 
+const sentinelBackend: BackendStatus = {
+  id: "sentinel-keys",
+  name: "Sentinel Keys",
+  capabilities: ["stream-layer-stack"],
+  health: {
+    backend_id: "sentinel-keys",
+    state: "permission-missing",
+    message: "Input monitoring permission is required before Sentinel Keys can infer layers",
+  },
+};
+
 const runtimeState: RuntimeState = {
   layer_stack: [
     {
@@ -122,7 +133,7 @@ const runtimeState: RuntimeState = {
     },
   ],
   pressed_keys: [],
-  backend_health: [backend.health, keyPeekBackend.health, kanataBackend.health],
+  backend_health: [backend.health, keyPeekBackend.health, kanataBackend.health, sentinelBackend.health],
 };
 
 export const fakeSnapshot: KeyboardSnapshot = {
@@ -137,7 +148,14 @@ export const fakeSnapshot: KeyboardSnapshot = {
   },
   runtime_state: runtimeState,
   effective_keys: resolveEffectiveKeys({ layers: [baseLayer, navLayer] }, runtimeState),
-  backends: [backend, keyPeekBackend, kanataBackend],
+  backends: [backend, keyPeekBackend, kanataBackend, sentinelBackend],
+  sentinel_keys: [
+    {
+      host_input_code: "F24",
+      layer_id: "layer-1",
+      activation: "momentary",
+    },
+  ],
   source_conflicts: [
     {
       field_path: ":visual/style :style/variant-id",

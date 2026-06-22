@@ -120,6 +120,17 @@ export interface LayerActivation {
   confidence: StateConfidence;
 }
 
+export interface HostInputEvent {
+  code: string;
+  pressed: boolean;
+}
+
+export interface SentinelKeyBinding {
+  host_input_code: string;
+  layer_id: string;
+  activation: ActivationKind;
+}
+
 export type CapabilityFlag =
   | "discover-devices"
   | "import-geometry"
@@ -222,6 +233,7 @@ export interface Profile {
   physical_layout: PhysicalLayout;
   keymap: LogicalKeymap;
   runtime_backends: BackendStatus[];
+  sentinel_keys: SentinelKeyBinding[];
   visual_style: VisualStyle;
   overlay_window: OverlayWindowConfig;
   source_precedence: SourcePrecedenceRule[];
@@ -237,6 +249,7 @@ export interface KeyboardSnapshot {
   runtime_state: RuntimeState;
   effective_keys: EffectiveKey[];
   backends: BackendStatus[];
+  sentinel_keys: SentinelKeyBinding[];
   source_conflicts: SourceConflict[];
   source_precedence: SourcePrecedenceRule[];
   user_overrides: UserOverride[];

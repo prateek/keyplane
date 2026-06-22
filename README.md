@@ -19,8 +19,9 @@ The current implementation includes:
 - App Window surfaces for the overlay, Import Review, Source Inspector, Backend Health, and Positioning Mode
 - Rust-owned Overlay Window drag and resize controls while Positioning Mode is active
 - Profile-owned Overlay Window placement, size, click-through, visibility, and renderer opacity application
+- Sentinel Key bindings in the public Profile contract, with lower-confidence Host Input Event ingestion through a Rust Protocol Backend
 
-The remaining PRD scope includes KeyPeek-derived live hardware connection, sentinel-key runtime inference, permission prompts, launch-at-login settings, and release packaging work beyond local debug bundles.
+The remaining PRD scope includes KeyPeek-derived live hardware connection, native host-input monitoring and permission prompts, launch-at-login settings, and release packaging work beyond local debug bundles.
 
 ## Decisions
 

@@ -2,9 +2,9 @@ use crate::domain::{
     ActivationKind, BackendHealth, BackendStatus, CapabilityFlag, DisplayLegend, DisplayTargeting,
     HealthState, KeyAction, KeyGeometry, Layer, LegendSlot, LegendSlotKind, LogicalKeymap,
     MatrixPosition, OverlayWindowConfig, PhysicalKey, PhysicalLayout, Profile, RawAction,
-    SemanticAction, SemanticActionKind, Source, SourceAuthority, SourcePrecedenceRule, SourceRef,
-    StateConfidence, StateConfidenceLevel, StyleDensity, UserOverride, VisibilityPolicy,
-    VisualStyle,
+    SemanticAction, SemanticActionKind, SentinelKeyBinding, Source, SourceAuthority,
+    SourcePrecedenceRule, SourceRef, StateConfidence, StateConfidenceLevel, StyleDensity,
+    UserOverride, VisibilityPolicy, VisualStyle,
 };
 use edn_format::{emit_str, parse_str, Keyword, Value};
 use std::collections::BTreeMap;
@@ -36,6 +36,10 @@ pub fn load_profile(input: &str) -> Result<Profile, ProfileCodecError> {
         physical_layout: parse_physical_layout(get(map, "keyboard", "physical-layout")?)?,
         keymap: parse_keymap(get(map, "keyboard", "keymap")?)?,
         runtime_backends: parse_backends(get(map, "runtime", "backends")?)?,
+        sentinel_keys: match get_optional(map, "runtime", "sentinel-keys") {
+            Some(value) => parse_sentinel_keys(value)?,
+            None => Vec::new(),
+        },
         visual_style: parse_visual_style(get(map, "visual", "style")?)?,
         overlay_window: parse_overlay_window(get(map, "overlay", "window")?)?,
         source_precedence: parse_precedence(get(map, "source", "precedence")?)?,
@@ -60,6 +64,10 @@ fn profile_to_value(profile: &Profile) -> Value {
         (
             kw("runtime", "backends"),
             vector(profile.runtime_backends.iter().map(backend_to_value)),
+        ),
+        (
+            kw("runtime", "sentinel-keys"),
+            vector(profile.sentinel_keys.iter().map(sentinel_key_to_value)),
         ),
         (kw("schema", "version"), Value::from(profile.schema_version)),
         (
@@ -241,6 +249,23 @@ fn backend_health_to_value(health: &BackendHealth) -> Value {
         (kw("backend", "id"), Value::from(health.backend_id.clone())),
         (kw("health", "message"), Value::from(health.message.clone())),
         (kw("health", "state"), health_state_to_value(&health.state)),
+    ])
+}
+
+fn sentinel_key_to_value(binding: &SentinelKeyBinding) -> Value {
+    map([
+        (
+            kw("sentinel", "activation"),
+            activation_kind_to_value(&binding.activation),
+        ),
+        (
+            kw("sentinel", "host-input-code"),
+            Value::from(binding.host_input_code.clone()),
+        ),
+        (
+            kw("sentinel", "layer-id"),
+            Value::from(binding.layer_id.clone()),
+        ),
     ])
 }
 
@@ -512,6 +537,23 @@ fn parse_backend_health(value: &Value) -> Result<BackendHealth, ProfileCodecErro
     })
 }
 
+fn parse_sentinel_keys(value: &Value) -> Result<Vec<SentinelKeyBinding>, ProfileCodecError> {
+    as_vector(value, ":runtime/sentinel-keys")?
+        .iter()
+        .map(|item| {
+            let map = as_map(item, ":runtime/sentinel-keys entry")?;
+            Ok(SentinelKeyBinding {
+                host_input_code: as_string(
+                    get(map, "sentinel", "host-input-code")?,
+                    ":sentinel/host-input-code",
+                )?,
+                layer_id: as_string(get(map, "sentinel", "layer-id")?, ":sentinel/layer-id")?,
+                activation: parse_activation_kind(get(map, "sentinel", "activation")?)?,
+            })
+        })
+        .collect()
+}
+
 fn parse_visual_style(value: &Value) -> Result<VisualStyle, ProfileCodecError> {
     let map = as_map(value, ":visual/style")?;
     Ok(VisualStyle {
@@ -636,6 +678,7 @@ fn get<'a>(
             ("keyboard", "physical-layout") => ":keyboard/physical-layout",
             ("keyboard", "keymap") => ":keyboard/keymap",
             ("runtime", "backends") => ":runtime/backends",
+            ("runtime", "sentinel-keys") => ":runtime/sentinel-keys",
             ("visual", "style") => ":visual/style",
             ("overlay", "window") => ":overlay/window",
             ("source", "precedence") => ":source/precedence",
@@ -643,6 +686,14 @@ fn get<'a>(
             ("source", "provenance") => ":source/provenance",
             _ => "nested profile field",
         }))
+}
+
+fn get_optional<'a>(
+    map: &'a BTreeMap<Value, Value>,
+    namespace: &'static str,
+    name: &'static str,
+) -> Option<&'a Value> {
+    map.get(&kw(namespace, name))
 }
 
 fn as_map<'a>(
@@ -880,7 +931,6 @@ fn parse_visibility_policy(value: &Value) -> Result<VisibilityPolicy, ProfileCod
     }
 }
 
-#[allow(dead_code)]
 fn activation_kind_to_value(value: &ActivationKind) -> Value {
     enum_kw(
         "activation",
@@ -894,6 +944,19 @@ fn activation_kind_to_value(value: &ActivationKind) -> Value {
             ActivationKind::Unknown => "unknown",
         },
     )
+}
+
+fn parse_activation_kind(value: &Value) -> Result<ActivationKind, ProfileCodecError> {
+    match enum_name(value, "activation")?.as_str() {
+        "default" => Ok(ActivationKind::Default),
+        "momentary" => Ok(ActivationKind::Momentary),
+        "toggle" => Ok(ActivationKind::Toggle),
+        "tap-hold" => Ok(ActivationKind::TapHold),
+        "lock" => Ok(ActivationKind::Lock),
+        "remapper-state" => Ok(ActivationKind::RemapperState),
+        "unknown" => Ok(ActivationKind::Unknown),
+        _ => Err(ProfileCodecError::Invalid(":sentinel/activation")),
+    }
 }
 
 #[allow(dead_code)]
@@ -935,8 +998,11 @@ mod tests {
             profile.physical_layout.keys.len()
         );
         assert_eq!(loaded.keymap.layers[1].actions[1].raw.value, "KC_TRNS");
+        assert_eq!(loaded.sentinel_keys.len(), 1);
+        assert_eq!(loaded.sentinel_keys[0].host_input_code, "F24");
         assert!(saved.contains(":schema/version"));
         assert!(saved.contains(":keyboard/physical-layout"));
+        assert!(saved.contains(":runtime/sentinel-keys"));
         assert!(saved.contains(":source/provenance"));
     }
 
@@ -945,5 +1011,20 @@ mod tests {
         let profile = fake_profile();
 
         assert_eq!(save_profile(&profile), save_profile(&profile));
+    }
+
+    #[test]
+    fn profile_codec_loads_profiles_without_sentinel_keys_as_empty_bindings() {
+        let profile = fake_profile();
+        let Value::Map(mut map) = profile_to_value(&profile) else {
+            panic!("profile should serialize as map");
+        };
+        map.remove(&kw("runtime", "sentinel-keys"));
+        let saved_without_sentinel_keys = emit_str(&Value::Map(map));
+
+        let loaded =
+            load_profile(&saved_without_sentinel_keys).expect("legacy profile should load");
+
+        assert!(loaded.sentinel_keys.is_empty());
     }
 }

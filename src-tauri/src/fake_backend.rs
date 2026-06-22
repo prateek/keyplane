@@ -8,6 +8,7 @@ use crate::domain::{
 };
 use crate::kanata_backend;
 use crate::keypeek_backend;
+use crate::sentinel_backend;
 
 const FAKE_SOURCE_ID: &str = "fake-backend";
 const PROFILE_ID: &str = "profile-keyplane-demo";
@@ -30,6 +31,12 @@ pub fn fake_profile() -> Profile {
         name: "Kanata TCP".to_string(),
         kind: "kanata".to_string(),
         authority: SourceAuthority::Authoritative,
+    };
+    let sentinel_source = Source {
+        id: sentinel_backend::SENTINEL_BACKEND_ID.to_string(),
+        name: "Sentinel Keys".to_string(),
+        kind: "sentinel-keys".to_string(),
+        authority: SourceAuthority::Inferred,
     };
     let keys = fake_keys();
     let base_actions = [
@@ -106,7 +113,7 @@ pub fn fake_profile() -> Profile {
         schema_version: 1,
         id: PROFILE_ID.to_string(),
         name: "Keyplane Demo".to_string(),
-        sources: vec![fake_source, keypeek_source, kanata_source],
+        sources: vec![fake_source, keypeek_source, kanata_source, sentinel_source],
         physical_layout: PhysicalLayout {
             keys: keys.clone(),
             fallback: false,
@@ -132,7 +139,16 @@ pub fn fake_profile() -> Profile {
                 HealthState::Disconnected,
                 "Kanata TCP runtime is not connected",
             ),
+            sentinel_backend::sentinel_backend_status(
+                HealthState::PermissionMissing,
+                "Input monitoring permission is required before Sentinel Keys can infer layers",
+            ),
         ],
+        sentinel_keys: vec![crate::domain::SentinelKeyBinding {
+            host_input_code: "F24".to_string(),
+            layer_id: "layer-1".to_string(),
+            activation: ActivationKind::Momentary,
+        }],
         visual_style: VisualStyle {
             variant_id: "keyplane-default".to_string(),
             density: StyleDensity::Rich,
@@ -157,7 +173,7 @@ pub fn fake_profile() -> Profile {
                     "keypeek-live".to_string(),
                     kanata_backend::KANATA_BACKEND_ID.to_string(),
                     FAKE_SOURCE_ID.to_string(),
-                    "sentinel".to_string(),
+                    sentinel_backend::SENTINEL_BACKEND_ID.to_string(),
                 ],
             },
             SourcePrecedenceRule {
@@ -350,6 +366,12 @@ mod tests {
             backend.id == kanata_backend::KANATA_BACKEND_ID
                 && backend.health.state == HealthState::Disconnected
         }));
+        assert!(snapshot.backends.iter().any(|backend| {
+            backend.id == sentinel_backend::SENTINEL_BACKEND_ID
+                && backend.health.state == HealthState::PermissionMissing
+        }));
+        assert_eq!(snapshot.sentinel_keys[0].host_input_code, "F24");
+        assert_eq!(snapshot.sentinel_keys[0].layer_id, "layer-1");
         assert!(snapshot
             .runtime_state
             .backend_health
@@ -360,6 +382,7 @@ mod tests {
             rule.field_scope == ":runtime/state"
                 && rule.source_order[0] == "keypeek-live"
                 && rule.source_order[1] == kanata_backend::KANATA_BACKEND_ID
+                && rule.source_order[3] == sentinel_backend::SENTINEL_BACKEND_ID
         }));
     }
 

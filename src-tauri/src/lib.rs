@@ -7,12 +7,13 @@ pub mod kanata_backend;
 pub mod keypeek_backend;
 pub mod keypeek_contract;
 pub mod profile_codec;
+pub mod sentinel_backend;
 
 use crate::active_profile::ActiveProfileStore;
 use crate::backend::{FakeProtocolBackend, ProtocolBackend};
 use crate::domain::{
-    apply_runtime_event, ImportCandidate, KeyboardSnapshot, OverlayWindowConfig, Profile,
-    RuntimeEvent, SourceConflict, VisibilityPolicy,
+    apply_runtime_event, HostInputEvent, ImportCandidate, KeyboardSnapshot, OverlayWindowConfig,
+    Profile, RuntimeEvent, SourceConflict, VisibilityPolicy,
 };
 use serde::Deserialize;
 use tauri::{LogicalPosition, LogicalSize, Manager, State, WebviewUrl, WebviewWindowBuilder};
@@ -59,6 +60,16 @@ fn initial_snapshot(
 #[tauri::command]
 fn fake_runtime_events() -> Vec<RuntimeEvent> {
     FakeProtocolBackend.demo_events()
+}
+
+#[tauri::command]
+fn ingest_sentinel_host_input_event(
+    active_profile: State<'_, ActiveProfileStore>,
+    event: HostInputEvent,
+) -> Result<Option<RuntimeEvent>, String> {
+    active_profile
+        .ingest_sentinel_host_input_event(event)
+        .map_err(|err| err.to_string())
 }
 
 #[tauri::command]
@@ -205,6 +216,7 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             initial_snapshot,
             fake_runtime_events,
+            ingest_sentinel_host_input_event,
             apply_event,
             save_profile_edn,
             load_profile_edn,

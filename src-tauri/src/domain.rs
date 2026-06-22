@@ -161,6 +161,19 @@ pub struct LayerActivation {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct HostInputEvent {
+    pub code: String,
+    pub pressed: bool,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct SentinelKeyBinding {
+    pub host_input_code: String,
+    pub layer_id: String,
+    pub activation: ActivationKind,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "kebab-case")]
 pub enum CapabilityFlag {
     DiscoverDevices,
@@ -292,6 +305,7 @@ pub struct Profile {
     pub physical_layout: PhysicalLayout,
     pub keymap: LogicalKeymap,
     pub runtime_backends: Vec<BackendStatus>,
+    pub sentinel_keys: Vec<SentinelKeyBinding>,
     pub visual_style: VisualStyle,
     pub overlay_window: OverlayWindowConfig,
     pub source_precedence: Vec<SourcePrecedenceRule>,
@@ -308,6 +322,7 @@ pub struct KeyboardSnapshot {
     pub runtime_state: RuntimeState,
     pub effective_keys: Vec<EffectiveKey>,
     pub backends: Vec<BackendStatus>,
+    pub sentinel_keys: Vec<SentinelKeyBinding>,
     pub source_conflicts: Vec<SourceConflict>,
     pub source_precedence: Vec<SourcePrecedenceRule>,
     pub user_overrides: Vec<UserOverride>,
@@ -362,6 +377,7 @@ pub fn compose_snapshot(
         runtime_state,
         effective_keys,
         backends: profile.runtime_backends.clone(),
+        sentinel_keys: profile.sentinel_keys.clone(),
         source_conflicts,
         source_precedence: profile.source_precedence.clone(),
         user_overrides: profile.user_overrides.clone(),

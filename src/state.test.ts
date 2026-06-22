@@ -30,18 +30,29 @@ describe("frontend runtime state", () => {
     const next = applyRuntimeEvent(fakeSnapshot, {
       type: "backend-health-changed",
       health: {
-        backend_id: "sentinel-keys",
+        backend_id: "external-host-input",
         state: "permission-missing",
-        message: "Input monitoring permission is missing",
+        message: "External host input permission is missing",
       },
     });
 
     expect(next.runtime_state.backend_health).toContainEqual({
-      backend_id: "sentinel-keys",
+      backend_id: "external-host-input",
       state: "permission-missing",
-      message: "Input monitoring permission is missing",
+      message: "External host input permission is missing",
     });
-    expect(next.backends.find((backend) => backend.id === "sentinel-keys")).toBeUndefined();
+    expect(next.backends.find((backend) => backend.id === "external-host-input")).toBeUndefined();
+  });
+
+  it("keeps Sentinel Keys visible as a lower-confidence backend", () => {
+    const sentinel = fakeSnapshot.backends.find((backend) => backend.id === "sentinel-keys");
+
+    expect(sentinel?.health.state).toBe("permission-missing");
+    expect(fakeSnapshot.sentinel_keys).toContainEqual({
+      host_input_code: "F24",
+      layer_id: "layer-1",
+      activation: "momentary",
+    });
   });
 
   it("promotes a source conflict candidate to a User Override", () => {

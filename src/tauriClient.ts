@@ -1,5 +1,6 @@
 import { invoke } from "@tauri-apps/api/core";
 import type {
+  HostInputEvent,
   ImportCandidate,
   KeyboardSnapshot,
   Profile,
@@ -33,6 +34,16 @@ export async function loadFakeRuntimeEvents(): Promise<RuntimeEvent[]> {
     return await invoke<RuntimeEvent[]>("fake_runtime_events");
   } catch {
     return [];
+  }
+}
+
+export async function ingestSentinelHostInputEvent(
+  event: HostInputEvent,
+): Promise<RuntimeEvent | null> {
+  try {
+    return await invoke<RuntimeEvent | null>("ingest_sentinel_host_input_event", { event });
+  } catch {
+    return null;
   }
 }
 
@@ -146,6 +157,7 @@ function snapshotFromProfile(
     runtime_state: runtimeState,
     effective_keys: resolveEffectiveKeys(profile.keymap, runtimeState),
     backends: profile.runtime_backends,
+    sentinel_keys: profile.sentinel_keys,
     source_conflicts: sourceConflicts,
     source_precedence: profile.source_precedence,
     user_overrides: profile.user_overrides,

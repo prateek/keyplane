@@ -78,6 +78,7 @@ pub fn import_vial_json(contents: &str) -> Result<ImportCandidate, ImportError> 
             ],
             health: backend_health,
         }],
+        sentinel_keys: Vec::new(),
         visual_style: VisualStyle {
             variant_id: "vial-preview".to_string(),
             density: StyleDensity::Standard,
@@ -270,6 +271,7 @@ pub fn import_overkeys_companion_json(contents: &str) -> Result<ImportCandidate,
             ],
             health: backend_health,
         }],
+        sentinel_keys: Vec::new(),
         visual_style: VisualStyle {
             variant_id: "overkeys-preview".to_string(),
             density: StyleDensity::Standard,
@@ -382,6 +384,7 @@ pub fn import_zmk_keymap(contents: &str) -> Result<ImportCandidate, ImportError>
             ],
             health: backend_health,
         }],
+        sentinel_keys: Vec::new(),
         visual_style: VisualStyle {
             variant_id: "zmk-preview".to_string(),
             density: StyleDensity::Standard,

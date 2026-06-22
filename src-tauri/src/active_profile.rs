@@ -1,9 +1,10 @@
 use crate::domain::{
     compose_snapshot, promote_conflict_to_override, ActivationKind, CapabilityFlag, HealthState,
-    ImportCandidate, KeyboardSnapshot, LayerActivation, Profile, RuntimeState, SourceConflict,
-    StateConfidence, StateConfidenceLevel,
+    HostInputEvent, ImportCandidate, KeyboardSnapshot, LayerActivation, Profile, RuntimeEvent,
+    RuntimeState, SourceConflict, StateConfidence, StateConfidenceLevel,
 };
 use crate::profile_codec;
+use crate::sentinel_backend;
 use std::sync::{Mutex, MutexGuard};
 use thiserror::Error;
 
@@ -11,6 +12,7 @@ use thiserror::Error;
 pub struct ActiveProfileStore {
     profile: Mutex<Profile>,
     source_conflicts: Mutex<Vec<SourceConflict>>,
+    sentinel_active_layers: Mutex<Vec<String>>,
 }
 
 #[derive(Debug, Error, PartialEq, Eq)]
@@ -29,6 +31,7 @@ impl ActiveProfileStore {
         Self {
             profile: Mutex::new(profile),
             source_conflicts: Mutex::new(Vec::new()),
+            sentinel_active_layers: Mutex::new(Vec::new()),
         }
     }
 
@@ -66,6 +69,27 @@ impl ActiveProfileStore {
         let source_conflicts = self.source_conflicts()?.clone();
 
         Ok(snapshot_from_profile(&profile, source_conflicts))
+    }
+
+    pub fn ingest_sentinel_host_input_event(
+        &self,
+        event: HostInputEvent,
+    ) -> Result<Option<RuntimeEvent>, ActiveProfileError> {
+        let profile = self.profile()?.clone();
+        let base_layer_id = profile
+            .keymap
+            .layers
+            .first()
+            .map(|layer| layer.id.as_str())
+            .unwrap_or("layer-0");
+        let mut active_layers = self.sentinel_active_layers()?;
+
+        Ok(sentinel_backend::runtime_event_from_host_input_event(
+            &mut active_layers,
+            &profile.sentinel_keys,
+            base_layer_id,
+            &event,
+        ))
     }
 
     pub fn save_profile_edn(&self) -> Result<String, ActiveProfileError> {
@@ -110,6 +134,10 @@ impl ActiveProfileStore {
             let mut active_conflicts = self.source_conflicts()?;
             *active_conflicts = source_conflicts.clone();
         }
+        {
+            let mut sentinel_active_layers = self.sentinel_active_layers()?;
+            sentinel_active_layers.clear();
+        }
 
         Ok(snapshot_from_profile(&profile, source_conflicts))
     }
@@ -122,6 +150,12 @@ impl ActiveProfileStore {
 
     fn source_conflicts(&self) -> Result<MutexGuard<'_, Vec<SourceConflict>>, ActiveProfileError> {
         self.source_conflicts
+            .lock()
+            .map_err(|_| ActiveProfileError::StateUnavailable)
+    }
+
+    fn sentinel_active_layers(&self) -> Result<MutexGuard<'_, Vec<String>>, ActiveProfileError> {
+        self.sentinel_active_layers
             .lock()
             .map_err(|_| ActiveProfileError::StateUnavailable)
     }
@@ -306,6 +340,63 @@ mod tests {
             .expect("positioning mode disables");
         assert!(!locked.overlay_window.positioning_mode);
         assert!(locked.overlay_window.click_through);
+    }
+
+    #[test]
+    fn sentinel_host_input_event_uses_profile_bindings_with_low_confidence() {
+        let store = ActiveProfileStore::new(crate::fake_backend::fake_profile());
+
+        let event = store
+            .ingest_sentinel_host_input_event(HostInputEvent {
+                code: "F24".to_string(),
+                pressed: true,
+            })
+            .expect("sentinel event ingests")
+            .expect("binding matches");
+
+        match event {
+            RuntimeEvent::LayerStackChanged { layer_stack } => {
+                assert_eq!(layer_stack[0].layer_id, "layer-1");
+                assert_eq!(layer_stack[0].kind, ActivationKind::Momentary);
+                assert_eq!(layer_stack[0].confidence.level, StateConfidenceLevel::Low);
+                assert_eq!(layer_stack[1].layer_id, "layer-0");
+            }
+            _ => panic!("expected layer stack event"),
+        }
+    }
+
+    #[test]
+    fn replacing_active_profile_clears_sentinel_runtime_state() {
+        let store = ActiveProfileStore::new(crate::fake_backend::fake_profile());
+        assert!(store
+            .ingest_sentinel_host_input_event(HostInputEvent {
+                code: "F24".to_string(),
+                pressed: true,
+            })
+            .expect("sentinel event ingests")
+            .is_some());
+
+        let mut imported_profile = crate::fake_backend::fake_profile();
+        imported_profile.id = "profile-replaced".to_string();
+        store
+            .load_profile(imported_profile)
+            .expect("profile replacement succeeds");
+
+        let release_after_reset = store
+            .ingest_sentinel_host_input_event(HostInputEvent {
+                code: "F24".to_string(),
+                pressed: false,
+            })
+            .expect("sentinel event ingests")
+            .expect("binding still matches");
+
+        match release_after_reset {
+            RuntimeEvent::LayerStackChanged { layer_stack } => {
+                assert_eq!(layer_stack.len(), 1);
+                assert_eq!(layer_stack[0].layer_id, "layer-0");
+            }
+            _ => panic!("expected layer stack event"),
+        }
     }
 
     #[test]
