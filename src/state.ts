@@ -89,11 +89,42 @@ export function promoteSourceCandidate(
     selected: candidate.source_id === userOverrideSourceId,
   }));
 
-  if (conflict.field_path === ":visual/style :style/variant-id") {
-    next.visual_style.variant_id = selected.value;
-  }
+  applyVisualConflictSelection(next, conflict.field_path, selected.value);
 
   return next;
+}
+
+function applyVisualConflictSelection(
+  snapshot: KeyboardSnapshot,
+  fieldPath: string,
+  value: string,
+) {
+  if (fieldPath === ":visual/style :style/id") snapshot.visual_style.id = value;
+  if (fieldPath === ":visual/style :style/variant-id") snapshot.visual_style.variant_id = value;
+  if (fieldPath === ":visual/style :style/density") {
+    if (value === "compact" || value === "standard" || value === "rich") {
+      snapshot.visual_style.density = value;
+    }
+  }
+  if (fieldPath === ":visual/style :style/colors :color/keycap-background") {
+    snapshot.visual_style.colors.keycap_background = sourceConflictOptionalValue(value);
+  }
+  if (fieldPath === ":visual/style :style/colors :color/keycap-text") {
+    snapshot.visual_style.colors.keycap_text = sourceConflictOptionalValue(value);
+  }
+  if (fieldPath === ":visual/style :style/colors :color/keycap-border") {
+    snapshot.visual_style.colors.keycap_border = sourceConflictOptionalValue(value);
+  }
+  if (fieldPath === ":visual/style :style/colors :color/modifier-accent") {
+    snapshot.visual_style.colors.modifier_accent = sourceConflictOptionalValue(value);
+  }
+  if (fieldPath === ":visual/style :style/colors :color/overlay-background") {
+    snapshot.visual_style.colors.overlay_background = sourceConflictOptionalValue(value);
+  }
+}
+
+function sourceConflictOptionalValue(value: string) {
+  return value === "nil" ? null : value;
 }
 
 export function resolveEffectiveKeys(

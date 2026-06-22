@@ -323,26 +323,12 @@ pub fn import_keyviz_style_json(
     });
     promote_style_precedence(&mut preview_profile, &source.id, &active_style_source_id);
 
-    let conflicts = if base_profile.visual_style.variant_id == imported_style.variant_id {
-        Vec::new()
-    } else {
-        vec![SourceConflict {
-            field_path: ":visual/style :style/variant-id".to_string(),
-            selected_source_id: source.id.clone(),
-            candidates: vec![
-                crate::domain::SourceCandidate {
-                    source_id: active_style_source_id,
-                    value: base_profile.visual_style.variant_id.clone(),
-                    selected: false,
-                },
-                crate::domain::SourceCandidate {
-                    source_id: source.id.clone(),
-                    value: imported_style.variant_id.clone(),
-                    selected: true,
-                },
-            ],
-        }]
-    };
+    let conflicts = visual_style_conflicts(
+        &base_profile.visual_style,
+        &imported_style,
+        &active_style_source_id,
+        &source.id,
+    );
 
     Ok(ImportCandidate {
         id: format!("candidate-{}", source.id),
@@ -642,6 +628,122 @@ fn json_color_at(json: &JsonValue, pointer: &str) -> Option<String> {
         .map(str::trim)
         .filter(|value| is_hex_color(value))
         .map(ToOwned::to_owned)
+}
+
+fn visual_style_conflicts(
+    base_style: &VisualStyle,
+    imported_style: &VisualStyle,
+    active_style_source_id: &str,
+    imported_style_source_id: &str,
+) -> Vec<SourceConflict> {
+    let mut conflicts = Vec::new();
+    push_style_conflict(
+        &mut conflicts,
+        ":visual/style :style/id",
+        &base_style.id,
+        &imported_style.id,
+        active_style_source_id,
+        imported_style_source_id,
+    );
+    push_style_conflict(
+        &mut conflicts,
+        ":visual/style :style/variant-id",
+        &base_style.variant_id,
+        &imported_style.variant_id,
+        active_style_source_id,
+        imported_style_source_id,
+    );
+    push_style_conflict(
+        &mut conflicts,
+        ":visual/style :style/density",
+        style_density_label(&base_style.density),
+        style_density_label(&imported_style.density),
+        active_style_source_id,
+        imported_style_source_id,
+    );
+    push_style_conflict(
+        &mut conflicts,
+        ":visual/style :style/colors :color/keycap-background",
+        style_color_value(&base_style.colors.keycap_background),
+        style_color_value(&imported_style.colors.keycap_background),
+        active_style_source_id,
+        imported_style_source_id,
+    );
+    push_style_conflict(
+        &mut conflicts,
+        ":visual/style :style/colors :color/keycap-text",
+        style_color_value(&base_style.colors.keycap_text),
+        style_color_value(&imported_style.colors.keycap_text),
+        active_style_source_id,
+        imported_style_source_id,
+    );
+    push_style_conflict(
+        &mut conflicts,
+        ":visual/style :style/colors :color/keycap-border",
+        style_color_value(&base_style.colors.keycap_border),
+        style_color_value(&imported_style.colors.keycap_border),
+        active_style_source_id,
+        imported_style_source_id,
+    );
+    push_style_conflict(
+        &mut conflicts,
+        ":visual/style :style/colors :color/modifier-accent",
+        style_color_value(&base_style.colors.modifier_accent),
+        style_color_value(&imported_style.colors.modifier_accent),
+        active_style_source_id,
+        imported_style_source_id,
+    );
+    push_style_conflict(
+        &mut conflicts,
+        ":visual/style :style/colors :color/overlay-background",
+        style_color_value(&base_style.colors.overlay_background),
+        style_color_value(&imported_style.colors.overlay_background),
+        active_style_source_id,
+        imported_style_source_id,
+    );
+    conflicts
+}
+
+fn push_style_conflict(
+    conflicts: &mut Vec<SourceConflict>,
+    field_path: &str,
+    active_value: &str,
+    imported_value: &str,
+    active_style_source_id: &str,
+    imported_style_source_id: &str,
+) {
+    if active_value == imported_value {
+        return;
+    }
+
+    conflicts.push(SourceConflict {
+        field_path: field_path.to_string(),
+        selected_source_id: imported_style_source_id.to_string(),
+        candidates: vec![
+            crate::domain::SourceCandidate {
+                source_id: active_style_source_id.to_string(),
+                value: active_value.to_string(),
+                selected: false,
+            },
+            crate::domain::SourceCandidate {
+                source_id: imported_style_source_id.to_string(),
+                value: imported_value.to_string(),
+                selected: true,
+            },
+        ],
+    });
+}
+
+fn style_color_value(value: &Option<String>) -> &str {
+    value.as_deref().unwrap_or("nil")
+}
+
+fn style_density_label(value: &StyleDensity) -> &'static str {
+    match value {
+        StyleDensity::Compact => "compact",
+        StyleDensity::Standard => "standard",
+        StyleDensity::Rich => "rich",
+    }
 }
 
 fn is_hex_color(value: &str) -> bool {
@@ -1991,13 +2093,18 @@ mod tests {
         let candidate =
             import_keyviz_style_json(KEYVIZ_STYLE_FIXTURE, &base_profile).expect("style imports");
 
-        assert_eq!(candidate.conflicts.len(), 1);
+        assert_eq!(candidate.conflicts.len(), 7);
+        let variant_conflict = candidate
+            .conflicts
+            .iter()
+            .find(|conflict| conflict.field_path == ":visual/style :style/variant-id")
+            .expect("variant conflict exists");
         assert_eq!(
-            candidate.conflicts[0].field_path,
+            variant_conflict.field_path,
             ":visual/style :style/variant-id"
         );
         assert_eq!(
-            candidate.conflicts[0].selected_source_id,
+            variant_conflict.selected_source_id,
             "keyviz-style-lowprofile"
         );
         assert!(candidate
@@ -2010,14 +2117,52 @@ mod tests {
                     && rule.source_order[1] == "keyviz-style-lowprofile"
                     && rule.source_order[2] == "fake-backend"
             }));
-        assert!(candidate.conflicts[0].candidates.iter().any(|candidate| {
+        assert!(variant_conflict.candidates.iter().any(|candidate| {
             candidate.source_id == "fake-backend"
                 && candidate.value == "keyplane-default"
                 && !candidate.selected
         }));
-        assert!(candidate.conflicts[0].candidates.iter().any(|candidate| {
+        assert!(variant_conflict.candidates.iter().any(|candidate| {
             candidate.source_id == "keyviz-style-lowprofile"
                 && candidate.value == "keyviz-lowprofile"
+                && candidate.selected
+        }));
+        assert!(candidate.conflicts.iter().any(|conflict| {
+            conflict.field_path == ":visual/style :style/colors :color/keycap-background"
+                && conflict.candidates.iter().any(|candidate| {
+                    candidate.source_id == "fake-backend"
+                        && candidate.value == "nil"
+                        && !candidate.selected
+                })
+                && conflict.candidates.iter().any(|candidate| {
+                    candidate.source_id == "keyviz-style-lowprofile"
+                        && candidate.value == "#ffffff"
+                        && candidate.selected
+                })
+        }));
+    }
+
+    #[test]
+    fn keyviz_style_import_exposes_visual_density_conflicts() {
+        let base_profile = crate::fake_backend::fake_profile();
+        let minimal_fixture =
+            KEYVIZ_STYLE_FIXTURE.replace("\"style\": \"lowprofile\"", "\"style\": \"minimal\"");
+        let candidate =
+            import_keyviz_style_json(&minimal_fixture, &base_profile).expect("style imports");
+
+        let density_conflict = candidate
+            .conflicts
+            .iter()
+            .find(|conflict| conflict.field_path == ":visual/style :style/density")
+            .expect("density conflict exists");
+        assert!(density_conflict.candidates.iter().any(|candidate| {
+            candidate.source_id == "fake-backend"
+                && candidate.value == "rich"
+                && !candidate.selected
+        }));
+        assert!(density_conflict.candidates.iter().any(|candidate| {
+            candidate.source_id == "keyviz-style-minimal"
+                && candidate.value == "compact"
                 && candidate.selected
         }));
     }

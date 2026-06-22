@@ -79,4 +79,26 @@ describe("frontend runtime state", () => {
     });
     expect(next.visual_style.variant_id).toBe("keyviz-minimal");
   });
+
+  it("applies promoted Visual Style color token conflicts", () => {
+    const conflict = {
+      field_path: ":visual/style :style/colors :color/keycap-background",
+      selected_source_id: "fake-backend",
+      candidates: [
+        { source_id: "fake-backend", value: "nil", selected: true },
+        { source_id: "keyviz-import", value: "#ffffff", selected: false },
+      ],
+    };
+    const snapshot = structuredClone(fakeSnapshot);
+    snapshot.source_conflicts = [conflict];
+
+    const next = promoteSourceCandidate(snapshot, conflict, "keyviz-import");
+
+    expect(next.user_overrides).toContainEqual({
+      field_path: ":visual/style :style/colors :color/keycap-background",
+      value: "#ffffff",
+      reason: "Promoted from keyviz-import",
+    });
+    expect(next.visual_style.colors.keycap_background).toBe("#ffffff");
+  });
 });

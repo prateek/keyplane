@@ -528,16 +528,57 @@ fn apply_visual_conflict_selection(
     source_conflicts: &[SourceConflict],
 ) {
     for conflict in source_conflicts {
-        if conflict.field_path == ":visual/style :style/variant-id" {
-            if let Some(value) = conflict
-                .candidates
-                .iter()
-                .find(|candidate| candidate.selected)
-                .map(|candidate| candidate.value.clone())
-            {
-                visual_style.variant_id = value;
+        let Some(value) = conflict
+            .candidates
+            .iter()
+            .find(|candidate| candidate.selected)
+            .map(|candidate| candidate.value.clone())
+        else {
+            continue;
+        };
+
+        match conflict.field_path.as_str() {
+            ":visual/style :style/id" => visual_style.id = value,
+            ":visual/style :style/variant-id" => visual_style.variant_id = value,
+            ":visual/style :style/density" => {
+                if let Some(density) = parse_style_density_label(&value) {
+                    visual_style.density = density;
+                }
             }
+            ":visual/style :style/colors :color/keycap-background" => {
+                visual_style.colors.keycap_background = source_conflict_optional_value(&value);
+            }
+            ":visual/style :style/colors :color/keycap-text" => {
+                visual_style.colors.keycap_text = source_conflict_optional_value(&value);
+            }
+            ":visual/style :style/colors :color/keycap-border" => {
+                visual_style.colors.keycap_border = source_conflict_optional_value(&value);
+            }
+            ":visual/style :style/colors :color/modifier-accent" => {
+                visual_style.colors.modifier_accent = source_conflict_optional_value(&value);
+            }
+            ":visual/style :style/colors :color/overlay-background" => {
+                visual_style.colors.overlay_background = source_conflict_optional_value(&value);
+            }
+            _ => {}
         }
+    }
+}
+
+fn parse_style_density_label(value: &str) -> Option<StyleDensity> {
+    match value {
+        "compact" => Some(StyleDensity::Compact),
+        "standard" => Some(StyleDensity::Standard),
+        "rich" => Some(StyleDensity::Rich),
+        _ => None,
+    }
+}
+
+fn source_conflict_optional_value(value: &str) -> Option<String> {
+    if value == "nil" {
+        None
+    } else {
+        Some(value.to_string())
     }
 }
 
@@ -1338,6 +1379,78 @@ mod tests {
         );
         assert_eq!(snapshot.source_precedence, profile.source_precedence);
         assert!(snapshot.user_overrides.is_empty());
+    }
+
+    #[test]
+    fn composed_snapshot_applies_selected_visual_style_field_conflicts() {
+        let mut profile = crate::fake_backend::fake_profile();
+        profile.source_precedence = vec![precedence_rule(
+            ":visual/style",
+            vec!["keyviz-import", "fake-backend"],
+        )];
+        let runtime_state = crate::fake_backend::initial_runtime_state(&profile);
+
+        let snapshot = compose_snapshot(
+            &profile,
+            runtime_state,
+            vec![
+                SourceConflict {
+                    field_path: ":visual/style :style/id".to_string(),
+                    selected_source_id: "keyviz-import".to_string(),
+                    candidates: vec![
+                        SourceCandidate {
+                            source_id: "fake-backend".to_string(),
+                            value: "style-keyplane-default".to_string(),
+                            selected: false,
+                        },
+                        SourceCandidate {
+                            source_id: "keyviz-import".to_string(),
+                            value: "style-keyviz-lowprofile".to_string(),
+                            selected: true,
+                        },
+                    ],
+                },
+                SourceConflict {
+                    field_path: ":visual/style :style/density".to_string(),
+                    selected_source_id: "keyviz-import".to_string(),
+                    candidates: vec![
+                        SourceCandidate {
+                            source_id: "fake-backend".to_string(),
+                            value: "standard".to_string(),
+                            selected: false,
+                        },
+                        SourceCandidate {
+                            source_id: "keyviz-import".to_string(),
+                            value: "rich".to_string(),
+                            selected: true,
+                        },
+                    ],
+                },
+                SourceConflict {
+                    field_path: ":visual/style :style/colors :color/keycap-background".to_string(),
+                    selected_source_id: "keyviz-import".to_string(),
+                    candidates: vec![
+                        SourceCandidate {
+                            source_id: "fake-backend".to_string(),
+                            value: "nil".to_string(),
+                            selected: false,
+                        },
+                        SourceCandidate {
+                            source_id: "keyviz-import".to_string(),
+                            value: "#ffffff".to_string(),
+                            selected: true,
+                        },
+                    ],
+                },
+            ],
+        );
+
+        assert_eq!(snapshot.visual_style.id, "style-keyviz-lowprofile");
+        assert_eq!(snapshot.visual_style.density, StyleDensity::Rich);
+        assert_eq!(
+            snapshot.visual_style.colors.keycap_background.as_deref(),
+            Some("#ffffff")
+        );
     }
 
     #[test]
