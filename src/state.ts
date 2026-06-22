@@ -5,7 +5,10 @@ import type {
   LogicalKeymap,
   RuntimeEvent,
   RuntimeState,
+  SourceConflict,
 } from "./domain";
+
+const userOverrideSourceId = "user-overrides";
 
 export function applyRuntimeEvent(
   snapshot: KeyboardSnapshot,
@@ -35,6 +38,61 @@ export function applyRuntimeEvent(
   }
 
   next.effective_keys = resolveEffectiveKeys(next.keymap, next.runtime_state);
+  return next;
+}
+
+export function promoteSourceCandidate(
+  snapshot: KeyboardSnapshot,
+  conflict: SourceConflict,
+  sourceId: string,
+): KeyboardSnapshot {
+  const selected = conflict.candidates.find((candidate) => candidate.source_id === sourceId);
+  if (!selected) return snapshot;
+
+  const next: KeyboardSnapshot = structuredClone(snapshot);
+  const nextConflict = next.source_conflicts.find(
+    (candidate) => candidate.field_path === conflict.field_path,
+  );
+  if (!nextConflict) return snapshot;
+
+  const userOverride = {
+    field_path: conflict.field_path,
+    value: selected.value,
+    reason: `Promoted from ${sourceId}`,
+  };
+
+  const existingOverride = next.user_overrides.findIndex(
+    (override) => override.field_path === conflict.field_path,
+  );
+  if (existingOverride >= 0) {
+    next.user_overrides[existingOverride] = userOverride;
+  } else {
+    next.user_overrides.push(userOverride);
+  }
+
+  const existingOverrideCandidate = nextConflict.candidates.find(
+    (candidate) => candidate.source_id === userOverrideSourceId,
+  );
+  if (existingOverrideCandidate) {
+    existingOverrideCandidate.value = selected.value;
+  } else {
+    nextConflict.candidates.push({
+      source_id: userOverrideSourceId,
+      value: selected.value,
+      selected: false,
+    });
+  }
+
+  nextConflict.selected_source_id = userOverrideSourceId;
+  nextConflict.candidates = nextConflict.candidates.map((candidate) => ({
+    ...candidate,
+    selected: candidate.source_id === userOverrideSourceId,
+  }));
+
+  if (conflict.field_path === ":visual/style :style/variant-id") {
+    next.visual_style.variant_id = selected.value;
+  }
+
   return next;
 }
 

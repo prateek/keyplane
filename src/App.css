@@ -315,11 +315,11 @@ button:hover {
 }
 
 .list-row strong,
-.list-row span {
+.list-row > span {
   display: block;
 }
 
-.list-row span,
+.list-row > span,
 .badge {
   width: fit-content;
   margin-top: 3px;
@@ -328,6 +328,53 @@ button:hover {
   color: #22558c;
   font-size: 0.78rem;
   padding: 2px 8px;
+}
+
+.conflict-candidates {
+  display: grid;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.candidate-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 110px;
+  align-items: center;
+  gap: 10px;
+  min-height: 48px;
+  border: 1px solid #e1e9e5;
+  border-radius: 6px;
+  background: #f8fbf9;
+  padding: 8px;
+}
+
+.candidate-row.selected {
+  border-color: #74aa9f;
+  background: #eef8f5;
+}
+
+.candidate-row strong,
+.candidate-row span {
+  display: block;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.candidate-row span:not(.badge) {
+  color: #5e716b;
+  font-size: 0.84rem;
+}
+
+.promote-button {
+  display: inline-flex;
+  min-height: 32px;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 0 10px;
+  white-space: nowrap;
 }
 
 .metric-strip,

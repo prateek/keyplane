@@ -238,6 +238,8 @@ export interface KeyboardSnapshot {
   effective_keys: EffectiveKey[];
   backends: BackendStatus[];
   source_conflicts: SourceConflict[];
+  source_precedence: SourcePrecedenceRule[];
+  user_overrides: UserOverride[];
   visual_style: VisualStyle;
   overlay_window: OverlayWindowConfig;
 }

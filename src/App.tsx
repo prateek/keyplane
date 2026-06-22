@@ -1,4 +1,5 @@
 import {
+  Check,
   Crosshair,
   FileJson,
   Layers3,
@@ -12,9 +13,15 @@ import {
 import type { CSSProperties } from "react";
 import { useEffect, useMemo, useState } from "react";
 import "./App.css";
-import type { EffectiveKey, ImportCandidate, KeyboardSnapshot, RuntimeEvent } from "./domain";
+import type {
+  EffectiveKey,
+  ImportCandidate,
+  KeyboardSnapshot,
+  RuntimeEvent,
+  SourceConflict,
+} from "./domain";
 import { navLayerEvent } from "./fixtures";
-import { applyRuntimeEvent } from "./state";
+import { applyRuntimeEvent, promoteSourceCandidate } from "./state";
 import {
   importVialFile,
   loadFakeRuntimeEvents,
@@ -61,6 +68,10 @@ function App() {
     const event = events[eventIndex] ?? navLayerEvent;
     setSnapshot(applyRuntimeEvent(snapshot, event));
     setEventIndex((index) => (index + 1) % Math.max(events.length, 1));
+  }
+
+  function promoteSourceValue(conflict: SourceConflict, sourceId: string) {
+    setSnapshot((current) => (current ? promoteSourceCandidate(current, conflict, sourceId) : current));
   }
 
   async function handleImport(file: File | null) {
@@ -159,7 +170,9 @@ function App() {
             onTogglePositioningMode={togglePositioningMode}
           />
         ) : null}
-        {view === "inspector" ? <SourceInspector snapshot={snapshot} /> : null}
+        {view === "inspector" ? (
+          <SourceInspector snapshot={snapshot} onPromote={promoteSourceValue} />
+        ) : null}
         {view === "import" ? (
           <ImportReview candidate={importCandidate} error={importError} />
         ) : null}
@@ -258,35 +271,87 @@ function Keycap({
   );
 }
 
-function SourceInspector({ snapshot }: { snapshot: KeyboardSnapshot }) {
+function SourceInspector({
+  snapshot,
+  onPromote,
+}: {
+  snapshot: KeyboardSnapshot;
+  onPromote: (conflict: SourceConflict, sourceId: string) => void;
+}) {
   return (
     <section className="inspector-view">
       <div className="inspector-grid">
-        <section>
-          <h2>Backends</h2>
-          {snapshot.backends.map((backend) => (
-            <article className="list-row" key={backend.id}>
-              <strong>{backend.name}</strong>
-              <span>{backend.health.state}</span>
-              <p>{backend.capabilities.join(", ")}</p>
-            </article>
-          ))}
-        </section>
-        <section>
-          <h2>Source Conflicts</h2>
-          {snapshot.source_conflicts.length === 0 ? <p>No conflicts for the selected values.</p> : null}
-          {snapshot.source_conflicts.map((conflict) => (
-            <article className="list-row" key={conflict.field_path}>
-              <strong>{conflict.field_path}</strong>
-              <span>{conflict.selected_source_id}</span>
-              <p>
-                {conflict.candidates
-                  .map((candidate) => `${candidate.source_id}: ${candidate.value}`)
-                  .join(" / ")}
-              </p>
-            </article>
-          ))}
-        </section>
+        <div>
+          <section>
+            <h2>Backends</h2>
+            {snapshot.backends.map((backend) => (
+              <article className="list-row" key={backend.id}>
+                <strong>{backend.name}</strong>
+                <span className="badge">{backend.health.state}</span>
+                <p>{backend.capabilities.join(", ")}</p>
+              </article>
+            ))}
+          </section>
+
+          <section>
+            <h2>Precedence</h2>
+            {snapshot.source_precedence.map((rule) => (
+              <article className="list-row" key={rule.field_scope}>
+                <strong>{rule.field_scope}</strong>
+                <p>{rule.source_order.join(" -> ")}</p>
+              </article>
+            ))}
+          </section>
+        </div>
+
+        <div>
+          <section>
+            <h2>Source Conflicts</h2>
+            {snapshot.source_conflicts.length === 0 ? <p>No conflicts for the selected values.</p> : null}
+            {snapshot.source_conflicts.map((conflict) => (
+              <article className="list-row" key={conflict.field_path}>
+                <strong>{conflict.field_path}</strong>
+                <span className="badge">{conflict.selected_source_id}</span>
+                <div className="conflict-candidates">
+                  {conflict.candidates.map((candidate) => (
+                    <div
+                      className={`candidate-row ${candidate.selected ? "selected" : ""}`}
+                      key={candidate.source_id}
+                    >
+                      <div>
+                        <strong>{candidate.source_id}</strong>
+                        <span>{candidate.value}</span>
+                      </div>
+                      {candidate.selected ? (
+                        <span className="badge">Selected</span>
+                      ) : (
+                        <button
+                          className="promote-button"
+                          onClick={() => onPromote(conflict, candidate.source_id)}
+                        >
+                          <Check size={15} />
+                          Promote
+                        </button>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </article>
+            ))}
+          </section>
+
+          <section>
+            <h2>User Overrides</h2>
+            {snapshot.user_overrides.length === 0 ? <p>No active overrides.</p> : null}
+            {snapshot.user_overrides.map((override) => (
+              <article className="list-row" key={override.field_path}>
+                <strong>{override.field_path}</strong>
+                <span className="badge">{override.value}</span>
+                <p>{override.reason}</p>
+              </article>
+            ))}
+          </section>
+        </div>
       </div>
     </section>
   );

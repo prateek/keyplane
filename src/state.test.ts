@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { fakeSnapshot, navLayerEvent } from "./fixtures";
-import { applyRuntimeEvent } from "./state";
+import { applyRuntimeEvent, promoteSourceCandidate } from "./state";
 
 describe("frontend runtime state", () => {
   it("recomputes inherited Effective Actions after a layer-stack Runtime Event", () => {
@@ -24,5 +24,30 @@ describe("frontend runtime state", () => {
 
     expect(next.runtime_state.backend_health[0].state).toBe("disconnected");
     expect(next.backends[0].health.message).toBe("Fake backend disconnected");
+  });
+
+  it("promotes a source conflict candidate to a User Override", () => {
+    const conflict = fakeSnapshot.source_conflicts[0];
+    const next = promoteSourceCandidate(fakeSnapshot, conflict, "keyviz-import");
+
+    expect(next.user_overrides).toEqual([
+      {
+        field_path: ":visual/style :style/variant-id",
+        value: "keyviz-minimal",
+        reason: "Promoted from keyviz-import",
+      },
+    ]);
+    expect(next.source_conflicts[0].selected_source_id).toBe("user-overrides");
+    expect(next.source_conflicts[0].candidates).toContainEqual({
+      source_id: "fake-backend",
+      value: "keyplane-default",
+      selected: false,
+    });
+    expect(next.source_conflicts[0].candidates).toContainEqual({
+      source_id: "user-overrides",
+      value: "keyviz-minimal",
+      selected: true,
+    });
+    expect(next.visual_style.variant_id).toBe("keyviz-minimal");
   });
 });

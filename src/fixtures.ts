@@ -120,6 +120,13 @@ export const fakeSnapshot: KeyboardSnapshot = {
       ],
     },
   ],
+  source_precedence: [
+    {
+      field_scope: ":visual/style",
+      source_order: [sourceId, "keyviz-import"],
+    },
+  ],
+  user_overrides: [],
   visual_style: {
     variant_id: "keyplane-default",
     density: "rich",

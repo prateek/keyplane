@@ -1,5 +1,7 @@
 use serde::{Deserialize, Serialize};
 
+const USER_OVERRIDE_SOURCE_ID: &str = "user-overrides";
+
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "kebab-case")]
 pub enum SourceAuthority {
@@ -307,6 +309,8 @@ pub struct KeyboardSnapshot {
     pub effective_keys: Vec<EffectiveKey>,
     pub backends: Vec<BackendStatus>,
     pub source_conflicts: Vec<SourceConflict>,
+    pub source_precedence: Vec<SourcePrecedenceRule>,
+    pub user_overrides: Vec<UserOverride>,
     pub visual_style: VisualStyle,
     pub overlay_window: OverlayWindowConfig,
 }
@@ -342,6 +346,13 @@ pub fn compose_snapshot(
     source_conflicts: Vec<SourceConflict>,
 ) -> KeyboardSnapshot {
     let effective_keys = resolve_effective_keys(&profile.keymap, &runtime_state);
+    let source_conflicts = resolve_source_conflicts(
+        source_conflicts,
+        &profile.source_precedence,
+        &profile.user_overrides,
+    );
+    let mut visual_style = profile.visual_style.clone();
+    apply_visual_conflict_selection(&mut visual_style, &source_conflicts);
 
     KeyboardSnapshot {
         profile_id: profile.id.clone(),
@@ -352,8 +363,130 @@ pub fn compose_snapshot(
         effective_keys,
         backends: profile.runtime_backends.clone(),
         source_conflicts,
-        visual_style: profile.visual_style.clone(),
+        source_precedence: profile.source_precedence.clone(),
+        user_overrides: profile.user_overrides.clone(),
+        visual_style,
         overlay_window: profile.overlay_window.clone(),
+    }
+}
+
+pub fn resolve_source_conflicts(
+    conflicts: Vec<SourceConflict>,
+    precedence_rules: &[SourcePrecedenceRule],
+    user_overrides: &[UserOverride],
+) -> Vec<SourceConflict> {
+    conflicts
+        .into_iter()
+        .map(|conflict| resolve_source_conflict(&conflict, precedence_rules, user_overrides))
+        .collect()
+}
+
+pub fn resolve_source_conflict(
+    conflict: &SourceConflict,
+    precedence_rules: &[SourcePrecedenceRule],
+    user_overrides: &[UserOverride],
+) -> SourceConflict {
+    let mut resolved = conflict.clone();
+
+    if let Some(user_override) = user_overrides
+        .iter()
+        .rev()
+        .find(|candidate| candidate.field_path == resolved.field_path)
+    {
+        upsert_user_override_candidate(&mut resolved, user_override);
+        select_conflict_source(&mut resolved, USER_OVERRIDE_SOURCE_ID);
+        return resolved;
+    }
+
+    if let Some(source_id) = selected_source_from_precedence(&resolved, precedence_rules) {
+        select_conflict_source(&mut resolved, &source_id);
+        return resolved;
+    }
+
+    if resolved
+        .candidates
+        .iter()
+        .any(|candidate| candidate.source_id == resolved.selected_source_id)
+    {
+        let selected_source_id = resolved.selected_source_id.clone();
+        select_conflict_source(&mut resolved, &selected_source_id);
+        return resolved;
+    }
+
+    if let Some(source_id) = resolved
+        .candidates
+        .first()
+        .map(|candidate| candidate.source_id.clone())
+    {
+        select_conflict_source(&mut resolved, &source_id);
+    }
+
+    resolved
+}
+
+fn selected_source_from_precedence(
+    conflict: &SourceConflict,
+    precedence_rules: &[SourcePrecedenceRule],
+) -> Option<String> {
+    let rule = precedence_rules
+        .iter()
+        .filter(|rule| field_path_matches_scope(&conflict.field_path, &rule.field_scope))
+        .max_by_key(|rule| rule.field_scope.len())?;
+
+    rule.source_order
+        .iter()
+        .find(|source_id| {
+            conflict
+                .candidates
+                .iter()
+                .any(|candidate| candidate.source_id == **source_id)
+        })
+        .cloned()
+}
+
+fn field_path_matches_scope(field_path: &str, field_scope: &str) -> bool {
+    field_path == field_scope || field_path.starts_with(&format!("{field_scope} "))
+}
+
+fn upsert_user_override_candidate(conflict: &mut SourceConflict, user_override: &UserOverride) {
+    if let Some(existing) = conflict
+        .candidates
+        .iter_mut()
+        .find(|candidate| candidate.source_id == USER_OVERRIDE_SOURCE_ID)
+    {
+        existing.value = user_override.value.clone();
+        return;
+    }
+
+    conflict.candidates.push(SourceCandidate {
+        source_id: USER_OVERRIDE_SOURCE_ID.to_string(),
+        value: user_override.value.clone(),
+        selected: false,
+    });
+}
+
+fn select_conflict_source(conflict: &mut SourceConflict, source_id: &str) {
+    conflict.selected_source_id = source_id.to_string();
+    for candidate in conflict.candidates.iter_mut() {
+        candidate.selected = candidate.source_id == source_id;
+    }
+}
+
+fn apply_visual_conflict_selection(
+    visual_style: &mut VisualStyle,
+    source_conflicts: &[SourceConflict],
+) {
+    for conflict in source_conflicts {
+        if conflict.field_path == ":visual/style :style/variant-id" {
+            if let Some(value) = conflict
+                .candidates
+                .iter()
+                .find(|candidate| candidate.selected)
+                .map(|candidate| candidate.value.clone())
+            {
+                visual_style.variant_id = value;
+            }
+        }
     }
 }
 
@@ -679,7 +812,17 @@ pub fn promote_conflict_to_override(
         value: selected.value.clone(),
         reason: format!("Promoted from {}", source_id),
     };
-    profile.user_overrides.push(user_override.clone());
+
+    if let Some(existing) = profile
+        .user_overrides
+        .iter_mut()
+        .find(|candidate| candidate.field_path == user_override.field_path)
+    {
+        *existing = user_override.clone();
+    } else {
+        profile.user_overrides.push(user_override.clone());
+    }
+
     Some(user_override)
 }
 
@@ -693,6 +836,164 @@ mod tests {
             field_path: ":keyboard/keymap".to_string(),
             raw: None,
         }
+    }
+
+    fn visual_style_conflict(selected_source_id: &str) -> SourceConflict {
+        SourceConflict {
+            field_path: ":visual/style :style/variant-id".to_string(),
+            selected_source_id: selected_source_id.to_string(),
+            candidates: vec![
+                SourceCandidate {
+                    source_id: "fake-backend".to_string(),
+                    value: "keyplane-default".to_string(),
+                    selected: selected_source_id == "fake-backend",
+                },
+                SourceCandidate {
+                    source_id: "keyviz-import".to_string(),
+                    value: "keyviz-minimal".to_string(),
+                    selected: selected_source_id == "keyviz-import",
+                },
+            ],
+        }
+    }
+
+    fn precedence_rule(field_scope: &str, source_order: Vec<&str>) -> SourcePrecedenceRule {
+        SourcePrecedenceRule {
+            field_scope: field_scope.to_string(),
+            source_order: source_order
+                .into_iter()
+                .map(|source_id| source_id.to_string())
+                .collect(),
+        }
+    }
+
+    #[test]
+    fn source_precedence_selects_the_first_matching_source_for_a_field() {
+        let conflict = visual_style_conflict("fake-backend");
+        let resolved = resolve_source_conflict(
+            &conflict,
+            &[precedence_rule(
+                ":visual/style",
+                vec!["keyviz-import", "fake-backend"],
+            )],
+            &[],
+        );
+
+        assert_eq!(resolved.selected_source_id, "keyviz-import");
+        assert!(resolved
+            .candidates
+            .iter()
+            .any(|candidate| candidate.source_id == "fake-backend"
+                && candidate.value == "keyplane-default"
+                && !candidate.selected));
+        assert!(resolved
+            .candidates
+            .iter()
+            .any(|candidate| candidate.source_id == "keyviz-import"
+                && candidate.value == "keyviz-minimal"
+                && candidate.selected));
+    }
+
+    #[test]
+    fn user_override_wins_over_source_precedence_and_keeps_losing_candidates() {
+        let conflict = visual_style_conflict("fake-backend");
+        let resolved = resolve_source_conflict(
+            &conflict,
+            &[precedence_rule(
+                ":visual/style",
+                vec!["fake-backend", "keyviz-import"],
+            )],
+            &[UserOverride {
+                field_path: ":visual/style :style/variant-id".to_string(),
+                value: "keyviz-minimal".to_string(),
+                reason: "Pinned by user".to_string(),
+            }],
+        );
+
+        assert_eq!(resolved.selected_source_id, USER_OVERRIDE_SOURCE_ID);
+        assert_eq!(resolved.candidates.len(), 3);
+        assert!(resolved
+            .candidates
+            .iter()
+            .any(|candidate| candidate.source_id == USER_OVERRIDE_SOURCE_ID
+                && candidate.value == "keyviz-minimal"
+                && candidate.selected));
+        assert!(resolved
+            .candidates
+            .iter()
+            .any(|candidate| candidate.source_id == "fake-backend"
+                && candidate.value == "keyplane-default"
+                && !candidate.selected));
+    }
+
+    #[test]
+    fn source_conflict_resolution_falls_back_to_existing_selection_without_a_rule() {
+        let conflict = visual_style_conflict("keyviz-import");
+        let resolved = resolve_source_conflict(&conflict, &[], &[]);
+
+        assert_eq!(resolved.selected_source_id, "keyviz-import");
+        assert!(resolved
+            .candidates
+            .iter()
+            .any(|candidate| candidate.source_id == "keyviz-import" && candidate.selected));
+    }
+
+    #[test]
+    fn source_precedence_scope_does_not_match_accidental_prefixes() {
+        let mut conflict = visual_style_conflict("fake-backend");
+        conflict.field_path = ":visual/style-extra :style/variant-id".to_string();
+
+        let resolved = resolve_source_conflict(
+            &conflict,
+            &[precedence_rule(
+                ":visual/style",
+                vec!["keyviz-import", "fake-backend"],
+            )],
+            &[],
+        );
+
+        assert_eq!(resolved.selected_source_id, "fake-backend");
+    }
+
+    #[test]
+    fn promoted_conflict_candidate_replaces_the_field_user_override() {
+        let mut profile = crate::fake_backend::fake_profile();
+        let conflict = visual_style_conflict("fake-backend");
+
+        let first = promote_conflict_to_override(&mut profile, &conflict, "keyviz-import")
+            .expect("candidate should be promotable");
+        let second = promote_conflict_to_override(&mut profile, &conflict, "fake-backend")
+            .expect("candidate should replace the prior override");
+
+        assert_eq!(first.value, "keyviz-minimal");
+        assert_eq!(second.value, "keyplane-default");
+        assert_eq!(profile.user_overrides.len(), 1);
+        assert_eq!(profile.user_overrides[0].field_path, conflict.field_path);
+        assert_eq!(profile.user_overrides[0].value, "keyplane-default");
+    }
+
+    #[test]
+    fn composed_snapshot_exposes_resolved_source_metadata_and_selected_style() {
+        let mut profile = crate::fake_backend::fake_profile();
+        profile.source_precedence.push(precedence_rule(
+            ":visual/style",
+            vec!["keyviz-import", "fake-backend"],
+        ));
+        let runtime_state = crate::fake_backend::initial_runtime_state(&profile);
+
+        let snapshot = compose_snapshot(
+            &profile,
+            runtime_state,
+            vec![visual_style_conflict("fake-backend")],
+        );
+
+        assert_eq!(snapshot.visual_style.variant_id, "keyviz-minimal");
+        assert_eq!(
+            snapshot.source_conflicts[0].selected_source_id,
+            "keyviz-import"
+        );
+        assert_eq!(snapshot.source_precedence, profile.source_precedence);
+        assert!(snapshot.user_overrides.is_empty());
     }
 
     #[test]

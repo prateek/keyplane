@@ -28,6 +28,19 @@ describe("Keyplane app", () => {
     await user.click(await screen.findByRole("button", { name: /source inspector/i }));
 
     expect(screen.getByText(":visual/style :style/variant-id")).toBeInTheDocument();
-    expect(screen.getByText(/keyviz-import: keyviz-minimal/)).toBeInTheDocument();
+    expect(screen.getByText("keyviz-import")).toBeInTheDocument();
+    expect(screen.getByText("keyviz-minimal")).toBeInTheDocument();
+  });
+
+  it("promotes a Source Conflict candidate to a User Override", async () => {
+    const user = userEvent.setup();
+    render(<App />);
+
+    await user.click(await screen.findByRole("button", { name: /source inspector/i }));
+    await user.click(screen.getByRole("button", { name: /promote/i }));
+
+    expect(screen.getAllByText("user-overrides").length).toBeGreaterThan(0);
+    expect(screen.getAllByText("keyviz-minimal").length).toBeGreaterThan(0);
+    expect(screen.getByText("Promoted from keyviz-import")).toBeInTheDocument();
   });
 });
