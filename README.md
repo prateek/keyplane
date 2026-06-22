@@ -88,12 +88,13 @@ It also runs `npm run check:workflows` so signed-release workflow and Tauri capa
 Validate KeyPeek Live hardware canaries:
 
 ```sh
-KEYPLANE_KEYPEEK_LIVE_VID=feed \
-KEYPLANE_KEYPEEK_LIVE_PID=cafe \
 KEYPLANE_KEYPEEK_LIVE_WAIT_MS=10000 \
 npm run validate:keypeek-live
 ```
 
+The runner auto-discovers the target when exactly one VIA Raw HID device is
+attached. Set `KEYPLANE_KEYPEEK_LIVE_VID` and `KEYPLANE_KEYPEEK_LIVE_PID` when
+multiple devices are present or discovery cannot identify the target.
 The runner writes a sanitized report to `target/keyplane-validation/`.
 Use `npm run validate:keypeek-live:dry` only to check report generation without
 opening hardware.

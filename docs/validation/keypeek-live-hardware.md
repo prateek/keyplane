@@ -18,11 +18,13 @@ The preferred validation path runs both ignored canaries and writes a sanitized
 local report under `target/keyplane-validation/`:
 
 ```sh
-KEYPLANE_KEYPEEK_LIVE_VID=feed \
-KEYPLANE_KEYPEEK_LIVE_PID=cafe \
 KEYPLANE_KEYPEEK_LIVE_WAIT_MS=10000 \
 npm run validate:keypeek-live
 ```
+
+The runner auto-discovers the target when exactly one VIA Raw HID device is
+attached. If no device is discovered, or if multiple devices are discovered, set
+`KEYPLANE_KEYPEEK_LIVE_VID` and `KEYPLANE_KEYPEEK_LIVE_PID` explicitly.
 
 The generated report redacts USB IDs. Add
 `KEYPLANE_KEYPEEK_LIVE_DEVICE_LABEL` and

@@ -2,7 +2,9 @@
 # frozen_string_literal: true
 
 require "fileutils"
+require "json"
 require "open3"
+require "optparse"
 require "shellwords"
 require "time"
 
@@ -29,20 +31,93 @@ CANARIES = [
   )
 ].freeze
 
-def dry_run?
-  ARGV.include?("--dry-run") || ENV["KEYPLANE_KEYPEEK_LIVE_DRY_RUN"] == "1"
-end
-
 def fail_with(message)
   warn "KeyPeek live hardware validation failed: #{message}"
   exit 1
 end
 
-def ensure_env!
-  missing = REQUIRED_ENV.select { |name| ENV[name].to_s.strip.empty? }
-  return if missing.empty?
+def parse_options
+  options = {
+    dry_run: ENV["KEYPLANE_KEYPEEK_LIVE_DRY_RUN"] == "1"
+  }
 
-  fail_with("missing #{missing.join(", ")}; pass --dry-run to check report generation without hardware")
+  OptionParser.new do |parser|
+    parser.banner = "Usage: validate-keypeek-live-hardware.rb [options]"
+    parser.on("--dry-run", "Write a sample report without opening hardware") do
+      options[:dry_run] = true
+    end
+    parser.on("--devices-json PATH", "Read discovered VIA Raw HID device JSON from a file") do |path|
+      options[:devices_json_path] = path
+    end
+  end.parse!
+
+  options
+end
+
+def load_json_file(path)
+  JSON.parse(File.read(path))
+rescue JSON::ParserError => e
+  fail_with("#{path} is not valid JSON: #{e.message}")
+end
+
+def discover_devices_json
+  stdout, stderr, status = Open3.capture3(
+    "cargo",
+    "run",
+    "--quiet",
+    "--manifest-path",
+    File.join(SRC_TAURI, "Cargo.toml"),
+    "--example",
+    "discover_keypeek_devices",
+    chdir: ROOT
+  )
+  return JSON.parse(stdout) if status.success?
+
+  fail_with("could not discover VIA Raw HID devices: #{stderr.strip}")
+rescue JSON::ParserError => e
+  fail_with("VIA Raw HID discovery returned invalid JSON: #{e.message}")
+end
+
+def discovery_devices(options)
+  return load_json_file(options[:devices_json_path]) if options[:devices_json_path]
+
+  discover_devices_json
+end
+
+def env_has_usb_ids?
+  REQUIRED_ENV.all? { |name| ENV[name].to_s.strip != "" }
+end
+
+def ensure_or_discover_env!(options)
+  return if env_has_usb_ids?
+
+  devices = discovery_devices(options)
+  fail_with("VIA Raw HID discovery expected a JSON array") unless devices.is_a?(Array)
+
+  case devices.length
+  when 0
+    fail_with(
+      "missing #{REQUIRED_ENV.join(", ")} and no VIA Raw HID devices were discovered; " \
+      "connect a KeyPeek-compatible keyboard or set VID/PID explicitly"
+    )
+  when 1
+    device = devices.first
+    vid = device["vid"].to_s
+    pid = device["pid"].to_s
+    fail_with("discovered VIA Raw HID device was missing vid or pid") if vid.empty? || pid.empty?
+
+    ENV["KEYPLANE_KEYPEEK_LIVE_VID"] = vid
+    ENV["KEYPLANE_KEYPEEK_LIVE_PID"] = pid
+    if ENV["KEYPLANE_KEYPEEK_LIVE_DEVICE_LABEL"].to_s.strip == "" && device["label"]
+      ENV["KEYPLANE_KEYPEEK_LIVE_DEVICE_LABEL"] = device["label"].to_s
+    end
+  else
+    labels = devices.map { |device| "#{device["label"]} #{device["vid"]}:#{device["pid"]}" }
+    fail_with(
+      "discovered multiple VIA Raw HID devices; set KEYPLANE_KEYPEEK_LIVE_VID and " \
+      "KEYPLANE_KEYPEEK_LIVE_PID for the intended KeyPeek-compatible keyboard: #{labels.join("; ")}"
+    )
+  end
 end
 
 def redaction_tokens
@@ -152,8 +227,9 @@ def build_report(results, dry:)
   report
 end
 
-dry = dry_run?
-ensure_env! unless dry
+options = parse_options
+dry = options[:dry_run]
+ensure_or_discover_env!(options) if !dry || options[:devices_json_path]
 
 results = dry ? CANARIES.map { |canary| dry_result(canary) } : CANARIES.map { |canary| run_canary(canary) }
 

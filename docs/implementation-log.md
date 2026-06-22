@@ -87,6 +87,7 @@ Started the Tauri v2 implementation from the PRD.
 - Extended the desktop build workflow with Linux and Windows debug binary builds using Tauri's no-bundle path.
 - Updated GitHub-managed workflow actions to Node 24-compatible majors for checkout, Node setup, and artifact upload.
 - Added env-gated KeyPeek Live hardware canaries for Raw HID subscription start/stop and observed layer-change Runtime Events, plus a hardware validation checklist for manual layer-change acceptance.
+- Added VIA Raw HID auto-discovery to the KeyPeek Live hardware validation runner so a single attached candidate device can populate the canary VID/PID without manual copying.
 - Added a signed macOS release workflow scaffold that imports Apple signing certificates from GitHub Actions secrets, runs Tauri signing/notarization, uploads signed `.app` and `.dmg` artifacts, and documents the unverified Apple-credential boundary.
 - Added a repository-owned signed-release workflow validator and wired it into the Desktop Build PR workflow so release scaffold drift is checked before Apple credentials are available.
 - Added a KeyPeek Live hardware validation runner that executes the ignored subscription and layer-change canaries, writes a sanitized local evidence report under `target/keyplane-validation/`, and supports dry-run report generation without opening hardware.
