@@ -81,6 +81,7 @@ pub struct SemanticAction {
     pub kind: SemanticActionKind,
     pub label: String,
     pub target_layer: Option<String>,
+    pub hold_label: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
@@ -670,6 +671,7 @@ pub fn derive_semantic_action(raw_value: &str) -> SemanticAction {
             kind: SemanticActionKind::Transparent,
             label: "trans".to_string(),
             target_layer: None,
+            hold_label: None,
         };
     }
 
@@ -678,6 +680,7 @@ pub fn derive_semantic_action(raw_value: &str) -> SemanticAction {
             kind: SemanticActionKind::None,
             label: "none".to_string(),
             target_layer: None,
+            hold_label: None,
         };
     }
 
@@ -695,6 +698,7 @@ pub fn derive_semantic_action(raw_value: &str) -> SemanticAction {
             kind: SemanticActionKind::LayerTap,
             label: tap_label,
             target_layer: Some(format!("layer-{}", target.trim())),
+            hold_label: None,
         };
     }
 
@@ -711,14 +715,16 @@ pub fn derive_semantic_action(raw_value: &str) -> SemanticAction {
             kind: SemanticActionKind::LayerTap,
             label: key_label(tap),
             target_layer: Some(format!("layer-{}", target.trim())),
+            hold_label: None,
         };
     }
 
-    if upper.starts_with("MT(") || upper.starts_with("LGUI_T(") || upper.starts_with("LCTL_T(") {
+    if let Some((hold_label, tap)) = parse_qmk_mod_tap(value) {
         return SemanticAction {
             kind: SemanticActionKind::TapHold,
-            label: "tap-hold".to_string(),
+            label: key_label(tap),
             target_layer: None,
+            hold_label: Some(hold_label),
         };
     }
 
@@ -727,6 +733,7 @@ pub fn derive_semantic_action(raw_value: &str) -> SemanticAction {
             kind: SemanticActionKind::Mouse,
             label: mouse_label(value),
             target_layer: None,
+            hold_label: None,
         };
     }
 
@@ -735,6 +742,7 @@ pub fn derive_semantic_action(raw_value: &str) -> SemanticAction {
             kind: SemanticActionKind::Macro,
             label: "macro".to_string(),
             target_layer: None,
+            hold_label: None,
         };
     }
 
@@ -755,6 +763,7 @@ pub fn derive_semantic_action(raw_value: &str) -> SemanticAction {
             kind: SemanticActionKind::Modifier,
             label: key_label(value),
             target_layer: None,
+            hold_label: None,
         };
     }
 
@@ -763,6 +772,7 @@ pub fn derive_semantic_action(raw_value: &str) -> SemanticAction {
             kind: SemanticActionKind::Key,
             label: key_label(value),
             target_layer: None,
+            hold_label: None,
         };
     }
 
@@ -770,6 +780,7 @@ pub fn derive_semantic_action(raw_value: &str) -> SemanticAction {
         kind: SemanticActionKind::Unknown,
         label: value.to_string(),
         target_layer: None,
+        hold_label: None,
     }
 }
 
@@ -778,6 +789,7 @@ fn layer_action(kind: SemanticActionKind, label: &str, target: &str) -> Semantic
         kind,
         label: label.to_string(),
         target_layer: Some(format!("layer-{}", target.trim())),
+        hold_label: None,
     }
 }
 
@@ -813,6 +825,70 @@ fn parse_zmk_layer_tap(value: &str) -> Option<(&str, &str)> {
     let target = parts.next()?;
     let tap = parts.next()?;
     Some((target, tap))
+}
+
+fn parse_qmk_mod_tap(value: &str) -> Option<(String, &str)> {
+    if let Some((hold, tap)) = parse_mod_tap_args(value) {
+        return Some((modifier_label(hold), tap));
+    }
+
+    let (alias, tap) = parse_qmk_mod_tap_alias(value)?;
+    Some((qmk_mod_tap_alias_label(alias)?, tap))
+}
+
+fn parse_mod_tap_args(value: &str) -> Option<(&str, &str)> {
+    let rest = value.strip_prefix("MT(")?.strip_suffix(')')?;
+    let (hold, tap) = rest.split_once(',')?;
+    Some((hold.trim(), tap.trim()))
+}
+
+fn parse_qmk_mod_tap_alias(value: &str) -> Option<(&str, &str)> {
+    let (alias, rest) = value.split_once('(')?;
+    let tap = rest.strip_suffix(')')?.trim();
+    Some((alias.trim(), tap))
+}
+
+fn qmk_mod_tap_alias_label(alias: &str) -> Option<String> {
+    let label = match alias.to_ascii_uppercase().as_str() {
+        "LCTL_T" | "RCTL_T" | "CTL_T" => "Ctrl",
+        "LSFT_T" | "RSFT_T" | "SFT_T" => "Shift",
+        "LALT_T" | "RALT_T" | "ALT_T" => "Alt",
+        "LGUI_T" | "RGUI_T" | "GUI_T" => "Cmd",
+        "MEH_T" => "Meh",
+        "HYPR_T" | "ALL_T" => "Hyper",
+        _ => return None,
+    };
+    Some(label.to_string())
+}
+
+fn modifier_label(value: &str) -> String {
+    let normalized = value
+        .replace("MOD_", "")
+        .replace("KC_", "")
+        .replace(' ', "");
+    let parts: Vec<String> = normalized
+        .split('|')
+        .filter(|part| !part.is_empty())
+        .map(single_modifier_label)
+        .collect();
+
+    if parts.is_empty() {
+        value.trim().to_string()
+    } else {
+        parts.join("+")
+    }
+}
+
+fn single_modifier_label(value: &str) -> String {
+    match value.to_ascii_uppercase().as_str() {
+        "LCTL" | "RCTL" | "CTL" => "Ctrl".to_string(),
+        "LSFT" | "RSFT" | "SFT" => "Shift".to_string(),
+        "LALT" | "RALT" | "ALT" => "Alt".to_string(),
+        "LGUI" | "RGUI" | "GUI" => "Cmd".to_string(),
+        "MEH" => "Meh".to_string(),
+        "HYPR" | "ALL" => "Hyper".to_string(),
+        other => other.replace('_', " "),
+    }
 }
 
 fn key_label(value: &str) -> String {
@@ -878,11 +954,15 @@ fn legend_for_semantic(semantic: &SemanticAction) -> DisplayLegend {
         SemanticActionKind::TapHold => {
             slots.push(LegendSlot {
                 slot: LegendSlotKind::TapRole,
-                text: "tap".to_string(),
+                text: format!("tap {}", semantic.label),
             });
             slots.push(LegendSlot {
                 slot: LegendSlotKind::HoldRole,
-                text: "hold".to_string(),
+                text: semantic
+                    .hold_label
+                    .as_ref()
+                    .map(|label| format!("hold {label}"))
+                    .unwrap_or_else(|| "hold".to_string()),
             });
         }
         SemanticActionKind::Transparent => {
@@ -1217,5 +1297,45 @@ mod tests {
             .slots
             .iter()
             .any(|slot| { slot.slot == LegendSlotKind::HoldRole && slot.text == "hold layer-2" }));
+    }
+
+    #[test]
+    fn qmk_mod_taps_derive_tap_hold_role_slots() {
+        let shifted_space = derive_action("qmk", "LSFT_T(KC_SPC)", source_ref(), "k-space");
+        let ctrl_escape = derive_action("qmk", "MT(MOD_LCTL, KC_ESC)", source_ref(), "k-esc");
+        let hyper_tab = derive_action("qmk", "HYPR_T(KC_TAB)", source_ref(), "k-tab");
+
+        assert_eq!(shifted_space.raw.value, "LSFT_T(KC_SPC)");
+        assert_eq!(shifted_space.semantic.kind, SemanticActionKind::TapHold);
+        assert_eq!(shifted_space.semantic.label, "Space");
+        assert_eq!(shifted_space.semantic.hold_label.as_deref(), Some("Shift"));
+        assert_eq!(
+            shifted_space.legend.slots,
+            vec![
+                LegendSlot {
+                    slot: LegendSlotKind::Primary,
+                    text: "Space".to_string()
+                },
+                LegendSlot {
+                    slot: LegendSlotKind::TapRole,
+                    text: "tap Space".to_string()
+                },
+                LegendSlot {
+                    slot: LegendSlotKind::HoldRole,
+                    text: "hold Shift".to_string()
+                }
+            ]
+        );
+        assert_eq!(ctrl_escape.semantic.kind, SemanticActionKind::TapHold);
+        assert_eq!(ctrl_escape.semantic.label, "Esc");
+        assert_eq!(ctrl_escape.semantic.hold_label.as_deref(), Some("Ctrl"));
+        assert!(ctrl_escape
+            .legend
+            .slots
+            .iter()
+            .any(|slot| { slot.slot == LegendSlotKind::HoldRole && slot.text == "hold Ctrl" }));
+        assert_eq!(hyper_tab.semantic.kind, SemanticActionKind::TapHold);
+        assert_eq!(hyper_tab.semantic.label, "Tab");
+        assert_eq!(hyper_tab.semantic.hold_label.as_deref(), Some("Hyper"));
     }
 }

@@ -234,6 +234,14 @@ fn raw_action_to_value(raw: &RawAction) -> Value {
 fn semantic_action_to_value(semantic: &SemanticAction) -> Value {
     map([
         (
+            kw("semantic", "hold-label"),
+            semantic
+                .hold_label
+                .as_ref()
+                .map(|label| Value::from(label.clone()))
+                .unwrap_or(Value::Nil),
+        ),
+        (
             kw("semantic", "kind"),
             semantic_kind_to_value(&semantic.kind),
         ),
@@ -553,6 +561,10 @@ fn parse_semantic_action(value: &Value) -> Result<SemanticAction, ProfileCodecEr
     Ok(SemanticAction {
         kind: parse_semantic_kind(get(map, "semantic", "kind")?)?,
         label: as_string(get(map, "semantic", "label")?, ":semantic/label")?,
+        hold_label: match get_optional(map, "semantic", "hold-label") {
+            Some(Value::Nil) | None => None,
+            Some(value) => Some(as_string(value, ":semantic/hold-label")?),
+        },
         target_layer: match get(map, "semantic", "target-layer")? {
             Value::Nil => None,
             value => Some(as_string(value, ":semantic/target-layer")?),
@@ -1177,6 +1189,53 @@ mod tests {
             load_profile(&saved_without_sentinel_keys).expect("legacy profile should load");
 
         assert!(loaded.sentinel_keys.is_empty());
+    }
+
+    #[test]
+    fn profile_codec_defaults_missing_semantic_hold_label() {
+        let profile = fake_profile();
+        let Value::Map(mut map) = profile_to_value(&profile) else {
+            panic!("profile should serialize as map");
+        };
+        let keymap = map
+            .get_mut(&kw("keyboard", "keymap"))
+            .expect("keymap section exists");
+        let Value::Map(keymap_map) = keymap else {
+            panic!("keymap section should be a map");
+        };
+        let layers = keymap_map
+            .get_mut(&kw("keymap", "layers"))
+            .expect("layers exist");
+        let Value::Vector(layers) = layers else {
+            panic!("layers should be a vector");
+        };
+        let Value::Map(first_layer) = &mut layers[0] else {
+            panic!("layer should be a map");
+        };
+        let actions = first_layer
+            .get_mut(&kw("layer", "actions"))
+            .expect("actions exist");
+        let Value::Vector(actions) = actions else {
+            panic!("actions should be a vector");
+        };
+        let Value::Map(first_action) = &mut actions[0] else {
+            panic!("action should be a map");
+        };
+        let semantic = first_action
+            .get_mut(&kw("action", "semantic"))
+            .expect("semantic action exists");
+        let Value::Map(semantic_map) = semantic else {
+            panic!("semantic action should be a map");
+        };
+        semantic_map.remove(&kw("semantic", "hold-label"));
+        let saved_without_hold_label = emit_str(&Value::Map(map));
+
+        let loaded = load_profile(&saved_without_hold_label).expect("legacy profile should load");
+
+        assert!(loaded.keymap.layers[0].actions[0]
+            .semantic
+            .hold_label
+            .is_none());
     }
 
     #[test]

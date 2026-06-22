@@ -327,6 +327,7 @@ function action(
       kind,
       label,
       target_layer: targetLayer,
+      hold_label: null,
     },
     legend: {
       slots: [

@@ -45,6 +45,7 @@ Started the Tauri v2 implementation from the PRD.
 - Added selected-winner and raw Source Provenance rows to Import Review Source Conflicts before Import Candidate commit.
 - Added density-aware structured Display Legend rendering so compact Visual Styles collapse to primary labels, standard styles show one secondary slot, and rich styles preserve all secondary Legend Slots.
 - Added derived `tap-role` and `hold-role` Display Legend Slots for QMK and ZMK layer-tap actions while preserving compact primary labels.
+- Added QMK mod-tap alias parsing and `tap-role`/`hold-role` Legend Slots with persisted optional hold labels for richer tap-hold visualization.
 - Added top active layer highlighting for non-inherited Effective Actions in the full-keyboard Overlay Surface.
 - Added a Visual Style density Settings control backed by the Rust Active Profile store so compact, standard, and rich density choices persist into saved EDN Profiles.
 - Added first-class Visual Style color tokens to the Profile contract, keyviz style import, EDN codec, and overlay renderer so imported keyviz keycap colors affect the full-keyboard overlay.
@@ -60,7 +61,7 @@ Started the Tauri v2 implementation from the PRD.
 Verification:
 
 - `cargo fmt --check`
-- `cargo test` (91 Rust tests passed, 3 private local hardware canaries ignored by default)
+- `cargo test` (93 Rust tests passed, 3 private local hardware canaries ignored by default)
 - `KEYPLANE_LOCAL_VIL_CANDIDATE=<private .vil path> cargo test local_vil_candidate_file_imports_when_env_is_set -- --ignored`
 - `npm ci`
 - `npm test` (28 frontend tests)

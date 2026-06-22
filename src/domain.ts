@@ -60,6 +60,7 @@ export interface SemanticAction {
   kind: SemanticActionKind;
   label: string;
   target_layer: string | null;
+  hold_label: string | null;
 }
 
 export type LegendSlotKind =
