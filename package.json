@@ -10,6 +10,8 @@
     "check:workflows": "ruby scripts/validate-release-workflow.rb",
     "validate:keypeek-live": "ruby scripts/validate-keypeek-live-hardware.rb",
     "validate:keypeek-live:dry": "ruby scripts/validate-keypeek-live-hardware.rb --dry-run",
+    "validate:signed-release": "ruby scripts/collect-signed-release-evidence.rb",
+    "validate:signed-release:dry": "ruby scripts/collect-signed-release-evidence.rb --dry-run",
     "preview": "vite preview",
     "tauri": "tauri"
   },

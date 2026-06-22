@@ -29,7 +29,7 @@ The current implementation includes:
 - macOS Accessibility and Input Monitoring permission checks and prompts surfaced as persistent Sentinel Keys Backend Health
 - launch-at-login Settings backed by the Tauri autostart plugin and scoped autostart permissions
 - a GitHub Actions desktop build workflow that verifies the app, validates the signed-release workflow shape, uploads unsigned macOS debug bundles, and uploads Linux/Windows debug binaries
-- a signed macOS release workflow scaffold for Apple certificate import, Tauri signing/notarization, and signed `.app`/`.dmg` artifact upload
+- a signed macOS release workflow scaffold for Apple certificate import, Tauri signing/notarization, signed `.app`/`.dmg` artifact upload, and sanitized signed-run evidence reports
 - env-gated KeyPeek Live hardware canaries, a sanitized validation report runner, and a validation checklist for compatible firmware devices
 
 The remaining PRD scope includes observed real KeyPeek-supported layer-change validation and first signed release execution with real Apple credentials.
@@ -102,6 +102,16 @@ git push origin v0.1.0
 ```
 
 See [Signed Release Workflow](docs/release/signing.md) for required Apple secrets and the current verification boundary.
+
+After the signed workflow has run with real Apple credentials, collect the
+sanitized release evidence report:
+
+```sh
+KEYPLANE_SIGNED_RELEASE_RUN_ID=123456789 npm run validate:signed-release
+```
+
+Use `npm run validate:signed-release:dry` only to check report generation
+without querying GitHub.
 
 ## Documentation Map
 

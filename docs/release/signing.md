@@ -52,3 +52,28 @@ release scaffold stays checked before real Apple credentials are available.
 The unsigned/debug build path remains covered by the `Desktop Build` workflow.
 Windows and Linux signed installers are intentionally not part of this scaffold;
 those platforms need separate certificate/provider decisions.
+
+## Signed Run Evidence
+
+After the first real signed run completes with Apple credentials, collect a
+sanitized evidence report from the GitHub Actions run:
+
+```sh
+KEYPLANE_SIGNED_RELEASE_RUN_ID=123456789 npm run validate:signed-release
+```
+
+The report is written to `target/keyplane-validation/signed-release.md`. It
+checks that the `Signed Release` workflow completed successfully, that the
+`Signed macOS release` job passed, and that both signed artifact records exist:
+
+- `keyplane-macos-signed-app`
+- `keyplane-macos-signed-dmg`
+
+To check report generation without querying GitHub:
+
+```sh
+npm run validate:signed-release:dry
+```
+
+The dry run is not release evidence. Do not paste Apple credentials, signing
+identities, or notarization secrets into PR comments or committed files.

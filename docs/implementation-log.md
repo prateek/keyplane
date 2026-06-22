@@ -79,6 +79,7 @@ Started the Tauri v2 implementation from the PRD.
 - Added a signed macOS release workflow scaffold that imports Apple signing certificates from GitHub Actions secrets, runs Tauri signing/notarization, uploads signed `.app` and `.dmg` artifacts, and documents the unverified Apple-credential boundary.
 - Added a repository-owned signed-release workflow validator and wired it into the Desktop Build PR workflow so release scaffold drift is checked before Apple credentials are available.
 - Added a KeyPeek Live hardware validation runner that executes the ignored subscription and layer-change canaries, writes a sanitized local evidence report under `target/keyplane-validation/`, and supports dry-run report generation without opening hardware.
+- Added a signed-release evidence collector that checks a completed `Signed Release` GitHub Actions run and its signed `.app`/`.dmg` artifacts, writes a sanitized local report under `target/keyplane-validation/`, and supports dry-run report generation before Apple credentials are available.
 
 Verification:
 
@@ -90,6 +91,7 @@ Verification:
 - `npm run build`
 - `npm run check:workflows`
 - `npm run validate:keypeek-live:dry`
+- `npm run validate:signed-release:dry`
 - `actionlint .github/workflows/signed-release.yml .github/workflows/desktop-build.yml`
 - `ruby -e 'require "yaml"; %w[.github/workflows/signed-release.yml .github/workflows/desktop-build.yml].each { |path| YAML.load_file(path) }'`
 - `npm run tauri build -- --debug`
