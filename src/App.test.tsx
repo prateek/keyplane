@@ -256,14 +256,14 @@ describe("Keyplane app", () => {
       overlay_window: fakeSnapshot.overlay_window,
       source_precedence: fakeSnapshot.source_precedence,
       user_overrides: [],
-      source_provenance: fakeSnapshot.source_provenance.slice(0, 2),
+      source_provenance: fakeSnapshot.source_provenance,
     };
     const candidate: ImportCandidate = {
       id: "candidate-small-preview",
       source: previewProfile.sources[0],
       best_effort_preview: true,
       preview_profile: previewProfile,
-      conflicts: [],
+      conflicts: fakeSnapshot.source_conflicts,
       summary: {
         imported_keys: 1,
         imported_layers: 1,
@@ -287,6 +287,11 @@ describe("Keyplane app", () => {
     expect(screen.getByText("keyplane-default -> vial-preview")).toBeInTheDocument();
     expect(screen.getByText("Fallback Layout")).toBeInTheDocument();
     expect(screen.getByText("no -> yes")).toBeInTheDocument();
+    expect(screen.getByText(":visual/style :style/variant-id")).toBeInTheDocument();
+    expect(screen.getByText("Selected")).toBeInTheDocument();
+    expect(screen.getByText("Candidate")).toBeInTheDocument();
+    expect(screen.getByText("variant=keyplane-default")).toBeInTheDocument();
+    expect(screen.getByText('{"style":"minimal"}')).toBeInTheDocument();
   });
 });
 

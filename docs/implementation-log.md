@@ -42,6 +42,7 @@ Started the Tauri v2 implementation from the PRD.
 - Expanded the Source Inspector to show concrete Backend Health messages and raw Source Provenance beside matching Source Conflict candidates.
 - Added State Confidence reasons and Backend Health messages to the Overlay Surface status strip so inferred, stale, and disconnected state is visible without opening Source Inspector.
 - Added an Active Profile diff summary to Import Review so Import Candidates show changed keys, layers, sources, provenance records, backends, style, and fallback-layout state before commit.
+- Added selected-winner and raw Source Provenance rows to Import Review Source Conflicts before Import Candidate commit.
 - Added density-aware structured Display Legend rendering so compact Visual Styles collapse to primary labels, standard styles show one secondary slot, and rich styles preserve all secondary Legend Slots.
 - Added derived `tap-role` and `hold-role` Display Legend Slots for QMK and ZMK layer-tap actions while preserving compact primary labels.
 - Added top active layer highlighting for non-inherited Effective Actions in the full-keyboard Overlay Surface.
