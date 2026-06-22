@@ -134,6 +134,16 @@ assert_run_contains(cleanup, "security delete-keychain build.keychain", "tempora
 
 desktop_job = desktop_build.dig("jobs", "release-workflow-static-validation")
 fail_with("Desktop Build must validate release workflow on PRs") unless desktop_job
-step_named(desktop_job, "Validate signed release workflow")
+validation_step = step_named(desktop_job, "Validate release workflow and Tauri capabilities")
+assert_run_contains(
+  validation_step,
+  "ruby scripts/validate-release-workflow.rb",
+  "Desktop Build must validate the signed release workflow on PRs"
+)
+assert_run_contains(
+  validation_step,
+  "ruby scripts/validate-tauri-capabilities.rb",
+  "Desktop Build must validate Tauri capabilities on PRs"
+)
 
 puts "release workflow validation passed"

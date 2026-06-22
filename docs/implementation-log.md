@@ -82,6 +82,7 @@ Started the Tauri v2 implementation from the PRD.
 - Added a repository-owned signed-release workflow validator and wired it into the Desktop Build PR workflow so release scaffold drift is checked before Apple credentials are available.
 - Added a KeyPeek Live hardware validation runner that executes the ignored subscription and layer-change canaries, writes a sanitized local evidence report under `target/keyplane-validation/`, and supports dry-run report generation without opening hardware.
 - Added a signed-release evidence collector that checks a completed `Signed Release` GitHub Actions run and its signed `.app`/`.dmg` artifacts, writes a sanitized local report under `target/keyplane-validation/`, and supports dry-run report generation before Apple credentials are available.
+- Removed the unused Tauri opener plugin and `opener:default` permission, then added a static capability validator so the default app/overlay window capability stays limited to the permissions Keyplane currently needs.
 
 Verification:
 

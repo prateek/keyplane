@@ -15,8 +15,10 @@ jobs:
       - name: Check out repository
         uses: actions/checkout@v5
 
-      - name: Validate signed release workflow
-        run: ruby scripts/validate-release-workflow.rb
+      - name: Validate release workflow and Tauri capabilities
+        run: |
+          ruby scripts/validate-release-workflow.rb
+          ruby scripts/validate-tauri-capabilities.rb
 
   macos-debug-bundle:
     name: macOS unsigned debug bundle

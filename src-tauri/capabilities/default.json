@@ -7,7 +7,6 @@
     "autostart:allow-disable",
     "autostart:allow-enable",
     "autostart:allow-is-enabled",
-    "core:default",
-    "opener:default"
+    "core:default"
   ]
 }

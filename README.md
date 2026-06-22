@@ -29,6 +29,7 @@ The current implementation includes:
 - native Sentinel Key global shortcut registration through a Rust-owned Tauri backend and Settings toggle
 - macOS Accessibility and Input Monitoring permission checks and prompts surfaced as persistent Sentinel Keys Backend Health
 - launch-at-login Settings backed by the Tauri autostart plugin and scoped autostart permissions
+- a static Tauri capability check that keeps unused plugin permissions out of the default app/overlay window capability
 - a GitHub Actions desktop build workflow that verifies the app, validates the signed-release workflow shape, uploads unsigned macOS debug bundles, and uploads Linux/Windows debug binaries
 - a signed macOS release workflow scaffold for Apple certificate import, Tauri signing/notarization, signed `.app`/`.dmg` artifact upload, and sanitized signed-run evidence reports
 - env-gated KeyPeek Live hardware canaries, a sanitized validation report runner, and a validation checklist for compatible firmware devices
@@ -80,7 +81,7 @@ npm run tauri build -- --debug
 ```
 
 The `Desktop Build` GitHub Actions workflow runs the same verification path on macOS, uploads unsigned debug `.app` and `.dmg` artifacts, and builds Linux/Windows debug binaries without installer bundling.
-It also runs `npm run check:workflows` so signed-release workflow drift is caught in PRs before real Apple credentials are available.
+It also runs `npm run check:workflows` so signed-release workflow and Tauri capability drift are caught in PRs before real Apple credentials are available.
 
 Validate KeyPeek Live hardware canaries:
 

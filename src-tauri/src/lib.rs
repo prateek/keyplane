@@ -715,7 +715,6 @@ pub fn run() {
     }
 
     builder
-        .plugin(tauri_plugin_opener::init())
         .setup(|app| {
             #[cfg(desktop)]
             {
