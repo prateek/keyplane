@@ -1017,8 +1017,7 @@ fn import_layers(
                 .iter()
                 .enumerate()
                 .map(|(key_index, key)| {
-                    let raw = layer
-                        .get(key_index)
+                    let raw = layer_cell_for_key(layer, key_index, key)
                         .map(|cell| cell.raw.as_str())
                         .unwrap_or("KC_NO");
                     derive_action(
@@ -1038,6 +1037,22 @@ fn import_layers(
                 .collect(),
         })
         .collect()
+}
+
+fn layer_cell_for_key<'a>(
+    layer: &'a [ImportedLayerCell],
+    key_index: usize,
+    key: &PhysicalKey,
+) -> Option<&'a ImportedLayerCell> {
+    if let Some(matrix) = &key.matrix {
+        if let Some(cell) = layer.iter().find(|cell| {
+            cell.row == Some(usize::from(matrix.row)) && cell.col == Some(usize::from(matrix.col))
+        }) {
+            return Some(cell);
+        }
+    }
+
+    layer.get(key_index)
 }
 
 fn parse_vial_matrix(label: &str) -> Option<MatrixPosition> {
@@ -1118,6 +1133,22 @@ mod tests {
       ],
       "macros": [{"name": "hello"}],
       "combos": []
+    }
+    "#;
+
+    const VIAL_MATRIX_ORDER_FIXTURE: &str = r#"
+    {
+      "uid": "Matrix-Order",
+      "layouts": {
+        "keymap": [
+          ["0,1\nRight", "0,0\nLeft"]
+        ]
+      },
+      "layout": [
+        [
+          ["KC_A", "KC_B"]
+        ]
+      ]
     }
     "#;
 
@@ -1304,6 +1335,26 @@ mod tests {
 
         assert_eq!(nav.actions[0].raw.value, "KC_TRNS");
         assert_eq!(nav.actions[0].provenance.raw.as_deref(), Some("KC_TRNS"));
+    }
+
+    #[test]
+    fn vial_import_maps_layer_cells_by_matrix_position_when_geometry_order_differs() {
+        let candidate = import_vial_json(VIAL_MATRIX_ORDER_FIXTURE).expect("fixture imports");
+        let layer = &candidate.preview_profile.keymap.layers[0];
+
+        let right = layer
+            .actions
+            .iter()
+            .find(|action| action.key_id == "vial-r0c1")
+            .expect("right matrix key imported");
+        let left = layer
+            .actions
+            .iter()
+            .find(|action| action.key_id == "vial-r0c0")
+            .expect("left matrix key imported");
+
+        assert_eq!(right.raw.value, "KC_B");
+        assert_eq!(left.raw.value, "KC_A");
     }
 
     #[test]

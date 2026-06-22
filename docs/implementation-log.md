@@ -31,11 +31,12 @@ Started the Tauri v2 implementation from the PRD.
 - Added a KeyPeek Live Raw HID session using `qmk-via-api`, with subscription keepalive, layer and pressed-key packet mapping through the app-domain Runtime Event boundary, VID/PID connection controls, and Tauri event delivery to both App Window and Overlay Window renderers.
 - Added launch-at-login Settings backed by `tauri-plugin-autostart`, with explicit Tauri autostart permissions and browser-preview fallback state.
 - Added native Sentinel Key global shortcut registration through `tauri-plugin-global-shortcut`, with a Rust-owned shortcut registry, Runtime Event emission, registration rollback on partial failure, and a Settings toggle backed by typed Backend Health.
+- Fixed Vial layer import resolution so matrix-addressed layer cells map to Physical Keys by `MatrixPosition` even when KLE geometry order differs from row/column order.
 
 Verification:
 
 - `cargo fmt --check`
-- `cargo test` (66 Rust tests passed, 1 private local `.vil` canary ignored by default)
+- `cargo test` (67 Rust tests passed, 1 private local `.vil` canary ignored by default)
 - `KEYPLANE_LOCAL_VIL_CANDIDATE=<private .vil path> cargo test local_vil_candidate_file_imports_when_env_is_set -- --ignored`
 - `npm test` (17 frontend tests)
 - `npm run build`
