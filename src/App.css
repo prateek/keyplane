@@ -318,7 +318,15 @@ button:hover {
   white-space: nowrap;
 }
 
-.keycap small,
+.legend-slots {
+  display: flex;
+  max-width: 100%;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 2px 4px;
+}
+
+.legend-slot,
 .keycap i {
   max-width: 100%;
   overflow: hidden;
@@ -327,6 +335,16 @@ button:hover {
   font-style: normal;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.legend-slot {
+  border-radius: 4px;
+  background: rgba(110, 90, 32, 0.08);
+  padding: 0 4px;
+}
+
+.keycap.density-rich {
+  grid-template-rows: minmax(0, 1fr) auto auto;
 }
 
 .keycap.inherited {

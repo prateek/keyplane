@@ -1,7 +1,7 @@
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it } from "vitest";
-import App, { ImportReview } from "./App";
+import App, { ImportReview, OverlaySurface } from "./App";
 import type { ImportCandidate } from "./domain";
 import { fakeSnapshot } from "./fixtures";
 
@@ -24,6 +24,34 @@ describe("Keyplane app", () => {
     await user.click(await screen.findByRole("button", { name: /fake event/i }));
 
     expect(screen.getAllByText("inherited").length).toBeGreaterThan(0);
+  });
+
+  it("uses Visual Style density to collapse or preserve structured Legend Slots", () => {
+    const renderOverlay = (density: "compact" | "standard" | "rich") =>
+      render(
+        <OverlaySurface
+          snapshot={snapshotWithDensity(density)}
+          onAdvance={() => undefined}
+          onDragOverlay={() => undefined}
+          onResizeOverlay={() => undefined}
+          onTogglePositioningMode={() => undefined}
+        />,
+      );
+
+    const compact = renderOverlay("compact");
+    expect(screen.getByRole("button", { name: /k-space space/i })).toBeInTheDocument();
+    expect(screen.queryByText("nav-hint")).not.toBeInTheDocument();
+    expect(screen.queryByText("hold-layer")).not.toBeInTheDocument();
+    compact.unmount();
+
+    const standard = renderOverlay("standard");
+    expect(screen.getByText("nav-hint")).toBeInTheDocument();
+    expect(screen.queryByText("hold-layer")).not.toBeInTheDocument();
+    standard.unmount();
+
+    renderOverlay("rich");
+    expect(screen.getByText("nav-hint")).toBeInTheDocument();
+    expect(screen.getByText("hold-layer")).toBeInTheDocument();
   });
 
   it("exposes active Profile EDN save and load actions", async () => {
@@ -157,3 +185,26 @@ describe("Keyplane app", () => {
     expect(screen.getByText("no -> yes")).toBeInTheDocument();
   });
 });
+
+function snapshotWithDensity(density: "compact" | "standard" | "rich") {
+  const snapshot = structuredClone(fakeSnapshot);
+  snapshot.visual_style = {
+    ...snapshot.visual_style,
+    density,
+  };
+  snapshot.effective_keys = snapshot.effective_keys.map((key) =>
+    key.key_id === "k-space"
+      ? {
+          ...key,
+          legend: {
+            slots: [
+              { slot: "primary", text: "Space" },
+              { slot: "layer-hint", text: "nav-hint" },
+              { slot: "hold-role", text: "hold-layer" },
+            ],
+          },
+        }
+      : key,
+  );
+  return snapshot;
+}

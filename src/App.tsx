@@ -25,6 +25,7 @@ import type {
   KeyboardSnapshot,
   RuntimeEvent,
   SourceConflict,
+  StyleDensity,
 } from "./domain";
 import { navLayerEvent } from "./fixtures";
 import { applyRuntimeEvent } from "./state";
@@ -520,7 +521,7 @@ function App() {
   );
 }
 
-function OverlaySurface({
+export function OverlaySurface({
   snapshot,
   onAdvance,
   onDragOverlay,
@@ -566,6 +567,7 @@ function OverlaySurface({
             <Keycap
               key={physicalKey.id}
               effective={effective}
+              density={snapshot.visual_style.density}
               pressed={snapshot.runtime_state.pressed_keys.includes(physicalKey.id)}
               style={{
                 left: `${((physicalKey.geometry.x - bounds.x) / bounds.width) * 100}%`,
@@ -607,28 +609,50 @@ function OverlaySurface({
 
 function Keycap({
   effective,
+  density,
   pressed,
   style,
 }: {
   effective: EffectiveKey;
+  density: StyleDensity;
   pressed: boolean;
   style: CSSProperties;
 }) {
-  const primary = effective.legend.slots.find((slot) => slot.slot === "primary")?.text;
-  const hint = effective.legend.slots.find((slot) => slot.slot !== "primary")?.text;
+  const primary =
+    effective.legend.slots.find((slot) => slot.slot === "primary")?.text ??
+    effective.semantic.label ??
+    effective.raw.value;
+  const secondarySlots = visibleLegendSlots(effective, density);
 
   return (
     <button
-      className={`keycap ${pressed ? "pressed" : ""} ${effective.inherited ? "inherited" : ""}`}
+      className={`keycap density-${density} ${pressed ? "pressed" : ""} ${
+        effective.inherited ? "inherited" : ""
+      }`}
       style={style}
       aria-label={`${effective.key_id} ${primary}`}
       title={effective.raw.value}
     >
       <span>{primary}</span>
-      {hint ? <small>{hint}</small> : null}
+      {secondarySlots.length > 0 ? (
+        <div className="legend-slots">
+          {secondarySlots.map((slot) => (
+            <small className={`legend-slot slot-${slot.slot}`} key={`${slot.slot}-${slot.text}`}>
+              {slot.text}
+            </small>
+          ))}
+        </div>
+      ) : null}
       {effective.inherited ? <i>inherited</i> : null}
     </button>
   );
+}
+
+function visibleLegendSlots(effective: EffectiveKey, density: StyleDensity) {
+  const secondarySlots = effective.legend.slots.filter((slot) => slot.slot !== "primary");
+  if (density === "compact") return [];
+  if (density === "standard") return secondarySlots.slice(0, 1);
+  return secondarySlots;
 }
 
 function SourceInspector({
