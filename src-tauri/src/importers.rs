@@ -1,10 +1,10 @@
 use crate::domain::{
     default_kanata_tcp_config, derive_action, ActivationKind, BackendConfig, BackendHealth,
     BackendStatus, CapabilityFlag, DisplayTargeting, HealthState, ImportCandidate, ImportSummary,
-    KeyGeometry, Layer, LegendSlotKind, LogicalKeymap, MatrixPosition, OverlayWindowConfig,
-    PhysicalKey, PhysicalLayout, Profile, SentinelKeyBinding, Source, SourceAuthority,
-    SourceConflict, SourcePrecedenceRule, SourceRef, StyleDensity, VisibilityPolicy, VisualStyle,
-    VisualStyleColors,
+    KeyGeometry, Layer, LegendSlot, LegendSlotKind, LogicalKeymap, MatrixPosition,
+    OverlayWindowConfig, PhysicalKey, PhysicalLayout, Profile, SentinelKeyBinding, Source,
+    SourceAuthority, SourceConflict, SourcePrecedenceRule, SourceRef, StyleDensity,
+    VisibilityPolicy, VisualStyle, VisualStyleColors,
 };
 use crate::kanata_backend;
 use crate::sentinel_backend;
@@ -361,7 +361,7 @@ pub fn import_overkeys_companion_json(contents: &str) -> Result<ImportCandidate,
         return Err(ImportError::Missing("userLayouts.keys"));
     }
 
-    let aliases = overkeys_aliases(&json);
+    let display_mappings = overkeys_display_mappings(&json);
     let kanata_config = overkeys_kanata_config(&json);
     let sentinel_keys = overkeys_sentinel_bindings(&layouts, &json);
     let primary_layout_name = layouts
@@ -395,7 +395,7 @@ pub fn import_overkeys_companion_json(contents: &str) -> Result<ImportCandidate,
         &source.id,
         "overkeys",
     );
-    apply_overkeys_aliases(&mut layers, &aliases);
+    apply_overkeys_display_mappings(&mut layers, &display_mappings);
 
     for (layer, layout) in layers.iter_mut().zip(layouts.iter()) {
         layer.name = layout.name.clone();
@@ -847,6 +847,13 @@ struct OverkeysLayout {
     activation: Option<ActivationKind>,
 }
 
+#[derive(Debug, Clone, Default)]
+struct OverkeysDisplayMappings {
+    aliases: BTreeMap<String, String>,
+    custom_aliases: BTreeMap<String, String>,
+    custom_shift_mappings: BTreeMap<String, String>,
+}
+
 #[derive(Debug, Clone)]
 struct ZmkParsedLayer {
     name: String,
@@ -1081,6 +1088,66 @@ fn overkeys_aliases(json: &JsonValue) -> BTreeMap<String, String> {
         .unwrap_or_default()
 }
 
+fn overkeys_display_mappings(json: &JsonValue) -> OverkeysDisplayMappings {
+    OverkeysDisplayMappings {
+        aliases: overkeys_aliases(json),
+        custom_aliases: overkeys_custom_aliases(json),
+        custom_shift_mappings: overkeys_custom_shift_mappings(json),
+    }
+}
+
+fn overkeys_custom_aliases(json: &JsonValue) -> BTreeMap<String, String> {
+    json.get("customAliases")
+        .and_then(JsonValue::as_object)
+        .map(|aliases| {
+            aliases
+                .iter()
+                .filter_map(|(raw, combo)| {
+                    overkeys_combo_label(combo).map(|label| (raw.clone(), label))
+                })
+                .collect()
+        })
+        .unwrap_or_default()
+}
+
+fn overkeys_combo_label(value: &JsonValue) -> Option<String> {
+    match value {
+        JsonValue::Array(values) => {
+            let labels: Vec<String> = values
+                .iter()
+                .filter_map(json_scalar_to_string)
+                .map(|label| label.trim().to_string())
+                .filter(|label| !label.is_empty())
+                .collect();
+            if labels.is_empty() {
+                None
+            } else {
+                Some(labels.join(" + "))
+            }
+        }
+        _ => json_scalar_to_string(value)
+            .map(|label| label.trim().to_string())
+            .filter(|label| !label.is_empty()),
+    }
+}
+
+fn overkeys_custom_shift_mappings(json: &JsonValue) -> BTreeMap<String, String> {
+    json.get("customShiftMappings")
+        .and_then(JsonValue::as_object)
+        .map(|mappings| {
+            mappings
+                .iter()
+                .filter_map(|(raw, shifted)| {
+                    json_scalar_to_string(shifted)
+                        .map(|shifted| shifted.trim().to_string())
+                        .filter(|shifted| !shifted.is_empty())
+                        .map(|shifted| (raw.clone(), shifted))
+                })
+                .collect()
+        })
+        .unwrap_or_default()
+}
+
 fn overkeys_sentinel_bindings(
     layouts: &[OverkeysLayout],
     json: &JsonValue,
@@ -1175,25 +1242,59 @@ fn json_tcp_port(value: &JsonValue) -> Option<u16> {
     }
 }
 
-fn apply_overkeys_aliases(layers: &mut [Layer], aliases: &BTreeMap<String, String>) {
-    if aliases.is_empty() {
+fn apply_overkeys_display_mappings(layers: &mut [Layer], mappings: &OverkeysDisplayMappings) {
+    if mappings.aliases.is_empty()
+        && mappings.custom_aliases.is_empty()
+        && mappings.custom_shift_mappings.is_empty()
+    {
         return;
     }
 
     for action in layers.iter_mut().flat_map(|layer| layer.actions.iter_mut()) {
-        let Some(label) = aliases.get(&action.raw.value) else {
-            continue;
-        };
-        action.semantic.label = label.clone();
-        if let Some(primary) = action
-            .legend
-            .slots
-            .iter_mut()
-            .find(|slot| slot.slot == LegendSlotKind::Primary)
-        {
-            primary.text = label.clone();
+        if let Some(label) = mappings.aliases.get(&action.raw.value) {
+            action.semantic.label = label.clone();
+            upsert_overkeys_legend_slot(&mut action.legend.slots, LegendSlotKind::Primary, label);
+        }
+
+        if let Some(shifted) = mappings.custom_shift_mappings.get(&action.raw.value) {
+            upsert_overkeys_legend_slot(&mut action.legend.slots, LegendSlotKind::Shifted, shifted);
+        }
+
+        if let Some(combo) = mappings.custom_aliases.get(&action.raw.value) {
+            upsert_overkeys_legend_slot(
+                &mut action.legend.slots,
+                LegendSlotKind::ActionHint,
+                combo,
+            );
         }
     }
+}
+
+fn upsert_overkeys_legend_slot(slots: &mut Vec<LegendSlot>, kind: LegendSlotKind, text: &str) {
+    if let Some(slot) = slots.iter_mut().find(|slot| slot.slot == kind) {
+        slot.text = text.to_string();
+        return;
+    }
+
+    let index = match kind {
+        LegendSlotKind::Primary => 0,
+        LegendSlotKind::Shifted => slots
+            .iter()
+            .position(|slot| slot.slot != LegendSlotKind::Primary)
+            .unwrap_or(slots.len()),
+        LegendSlotKind::ActionHint => slots
+            .iter()
+            .position(|slot| slot.slot == LegendSlotKind::Icon)
+            .unwrap_or(slots.len()),
+        _ => slots.len(),
+    };
+    slots.insert(
+        index,
+        LegendSlot {
+            slot: kind,
+            text: text.to_string(),
+        },
+    );
 }
 
 fn row_arrays_to_layer_cells(rows: &[JsonValue]) -> Vec<ImportedLayerCell> {
@@ -1761,6 +1862,12 @@ mod tests {
       "aliases": {
         "spc": "Space"
       },
+      "customAliases": {
+        "UNDO": ["Control", "Z"]
+      },
+      "customShiftMappings": {
+        "openBracket": "{"
+      },
       "triggers": {
         "nav": "caps"
       },
@@ -1773,15 +1880,15 @@ mod tests {
           "trigger": "F14",
           "type": "held",
           "keys": [
-            ["spc", "Up", "F"],
-            ["Left", "Down", "Right"]
+            ["spc", "Up", "UNDO"],
+            ["Left", "Down", "openBracket"]
           ]
         },
         {
           "name": "Colemak Example",
           "keys": [
-            ["spc", "W", "F"],
-            ["A", "R", "S"]
+            ["spc", "W", "UNDO"],
+            ["A", "R", "openBracket"]
           ]
         }
       ]
@@ -2135,6 +2242,26 @@ mod tests {
                 .label,
             "Space"
         );
+        let custom_alias_action = candidate.preview_profile.keymap.layers[0]
+            .actions
+            .iter()
+            .find(|action| action.raw.value == "UNDO")
+            .expect("custom alias action imported");
+        assert!(custom_alias_action
+            .legend
+            .slots
+            .iter()
+            .any(|slot| slot.slot == LegendSlotKind::ActionHint && slot.text == "Control + Z"));
+        let custom_shift_action = candidate.preview_profile.keymap.layers[0]
+            .actions
+            .iter()
+            .find(|action| action.raw.value == "openBracket")
+            .expect("custom shift mapping action imported");
+        assert!(custom_shift_action
+            .legend
+            .slots
+            .iter()
+            .any(|slot| slot.slot == LegendSlotKind::Shifted && slot.text == "{"));
         assert!(candidate
             .preview_profile
             .source_precedence
@@ -2258,6 +2385,8 @@ mod tests {
 
         for section in [
             "aliases",
+            "customAliases",
+            "customShiftMappings",
             "defaultUserLayout",
             "kanataHost",
             "kanataPort",
