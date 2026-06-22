@@ -276,6 +276,7 @@ fn runtime_state_for_profile(profile: &Profile) -> RuntimeState {
             .collect(),
         layer_stack_source_id: None,
         pressed_keys: Vec::new(),
+        pressed_keys_source_id: None,
         backend_health: profile
             .runtime_backends
             .iter()

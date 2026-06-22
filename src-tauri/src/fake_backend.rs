@@ -222,6 +222,7 @@ pub fn initial_runtime_state(profile: &Profile) -> RuntimeState {
         layer_stack: vec![default_layer_activation()],
         layer_stack_source_id: None,
         pressed_keys: Vec::new(),
+        pressed_keys_source_id: None,
         backend_health: profile
             .runtime_backends
             .iter()
@@ -243,6 +244,7 @@ pub fn demo_runtime_events() -> Vec<RuntimeEvent> {
     vec![
         RuntimeEvent::PressedKeysChanged {
             pressed_keys: vec!["k-fn".to_string()],
+            source_id: Some(FAKE_SOURCE_ID.to_string()),
         },
         RuntimeEvent::LayerStackChanged {
             layer_stack: vec![nav_layer_activation(), default_layer_activation()],
@@ -253,6 +255,7 @@ pub fn demo_runtime_events() -> Vec<RuntimeEvent> {
         },
         RuntimeEvent::PressedKeysChanged {
             pressed_keys: vec!["k-fn".to_string(), "k-w".to_string()],
+            source_id: Some(FAKE_SOURCE_ID.to_string()),
         },
         RuntimeEvent::LayerStackChanged {
             layer_stack: vec![default_layer_activation()],
@@ -263,6 +266,7 @@ pub fn demo_runtime_events() -> Vec<RuntimeEvent> {
         },
         RuntimeEvent::PressedKeysChanged {
             pressed_keys: Vec::new(),
+            source_id: Some(FAKE_SOURCE_ID.to_string()),
         },
     ]
 }

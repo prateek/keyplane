@@ -111,6 +111,7 @@ impl<T: RawHidTransport> KeyPeekLiveSession<T> {
 
         Some(RuntimeEvent::PressedKeysChanged {
             pressed_keys: self.pressed_key_ids.iter().cloned().collect(),
+            source_id: Some(crate::keypeek_backend::KEYPEEK_BACKEND_ID.to_string()),
         })
     }
 }
@@ -444,13 +445,15 @@ mod tests {
         assert_eq!(
             pressed,
             RuntimeEvent::PressedKeysChanged {
-                pressed_keys: vec!["k-b".to_string()]
+                pressed_keys: vec!["k-b".to_string()],
+                source_id: Some(crate::keypeek_backend::KEYPEEK_BACKEND_ID.to_string()),
             }
         );
         assert_eq!(
             released,
             RuntimeEvent::PressedKeysChanged {
-                pressed_keys: Vec::new()
+                pressed_keys: Vec::new(),
+                source_id: Some(crate::keypeek_backend::KEYPEEK_BACKEND_ID.to_string()),
             }
         );
     }

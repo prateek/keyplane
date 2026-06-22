@@ -60,6 +60,7 @@ Started the Tauri v2 implementation from the PRD.
 - Added Import Review promotion controls that turn selected Source Conflict candidates into pending Profile User Overrides before Import Candidate commit.
 - Routed frontend Runtime Event application through the Rust `apply_event` command when Tauri is available so Effective Actions continue to be resolved by Rust during live event updates.
 - Added source-aware Layer Stack Runtime Events and Runtime State Source Precedence so lower-authority sources such as Sentinel Keys cannot overwrite higher-authority KeyPeek, Kanata, or Fake Backend layer state by arrival order.
+- Applied the same Runtime State Source Precedence to pressed-key Runtime Events so lower-authority pressed-key streams cannot overwrite higher-authority firmware pressed-key state by arrival order.
 - Added density-aware structured Display Legend rendering so compact Visual Styles collapse to primary labels, standard styles show one secondary slot, and rich styles preserve all secondary Legend Slots.
 - Added derived `tap-role` and `hold-role` Display Legend Slots for QMK and ZMK layer-tap actions while preserving compact primary labels.
 - Added QMK mod-tap alias parsing and `tap-role`/`hold-role` Legend Slots with persisted optional hold labels for richer tap-hold visualization.
@@ -92,10 +93,10 @@ Started the Tauri v2 implementation from the PRD.
 Verification:
 
 - `cargo fmt --check`
-- `cargo test` (124 Rust tests passed, 3 private local hardware canaries ignored by default)
+- `cargo test` (126 Rust tests passed, 3 private local hardware canaries ignored by default)
 - `KEYPLANE_LOCAL_VIL_CANDIDATE=<private .vil path> cargo test local_vil_candidate_file_imports_when_env_is_set -- --ignored`
 - `npm ci`
-- `npm test` (43 frontend tests)
+- `npm test` (45 frontend tests)
 - `npm run build`
 - `npm run check:workflows`
 - `KEYPLANE_LOCAL_VIL_CANDIDATE=<private .vil path> npm run validate:mvp` (fails with only the expected external evidence gaps: real KeyPeek live layer-change proof and signed-release proof)

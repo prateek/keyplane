@@ -72,6 +72,36 @@ describe("frontend runtime state", () => {
     expect(next.runtime_state.layer_stack_source_id).toBe("keypeek-live");
   });
 
+  it("ignores lower-priority pressed-key Runtime Events", () => {
+    const snapshot = structuredClone(fakeSnapshot);
+    snapshot.runtime_state.pressed_keys = ["k-q"];
+    snapshot.runtime_state.pressed_keys_source_id = "keypeek-live";
+
+    const next = applyRuntimeEvent(snapshot, {
+      type: "pressed-keys-changed",
+      source_id: "fake-backend",
+      pressed_keys: ["k-fn"],
+    });
+
+    expect(next.runtime_state.pressed_keys).toEqual(["k-q"]);
+    expect(next.runtime_state.pressed_keys_source_id).toBe("keypeek-live");
+  });
+
+  it("accepts higher-priority pressed-key Runtime Events", () => {
+    const snapshot = structuredClone(fakeSnapshot);
+    snapshot.runtime_state.pressed_keys = ["k-fn"];
+    snapshot.runtime_state.pressed_keys_source_id = "fake-backend";
+
+    const next = applyRuntimeEvent(snapshot, {
+      type: "pressed-keys-changed",
+      source_id: "keypeek-live",
+      pressed_keys: ["k-q"],
+    });
+
+    expect(next.runtime_state.pressed_keys).toEqual(["k-q"]);
+    expect(next.runtime_state.pressed_keys_source_id).toBe("keypeek-live");
+  });
+
   it("keeps Backend Health as observable runtime state", () => {
     const next = applyRuntimeEvent(fakeSnapshot, {
       type: "backend-health-changed",

@@ -190,6 +190,7 @@ export interface RuntimeState {
   layer_stack: LayerActivation[];
   layer_stack_source_id: string | null;
   pressed_keys: string[];
+  pressed_keys_source_id: string | null;
   backend_health: BackendHealth[];
 }
 
@@ -300,7 +301,7 @@ export interface KeyboardSnapshot {
 export type RuntimeEvent =
   | { type: "layer-stack-changed"; layer_stack: LayerActivation[]; source_id?: string | null }
   | { type: "backend-health-changed"; health: BackendHealth }
-  | { type: "pressed-keys-changed"; pressed_keys: string[] };
+  | { type: "pressed-keys-changed"; pressed_keys: string[]; source_id?: string | null };
 
 export interface ImportSummary {
   imported_keys: number;

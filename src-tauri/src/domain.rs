@@ -255,6 +255,8 @@ pub struct RuntimeState {
     #[serde(default)]
     pub layer_stack_source_id: Option<String>,
     pub pressed_keys: Vec<String>,
+    #[serde(default)]
+    pub pressed_keys_source_id: Option<String>,
     pub backend_health: Vec<BackendHealth>,
 }
 
@@ -409,6 +411,8 @@ pub enum RuntimeEvent {
     },
     PressedKeysChanged {
         pressed_keys: Vec<String>,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        source_id: Option<String>,
     },
 }
 
@@ -805,7 +809,11 @@ pub fn apply_runtime_event(snapshot: &mut KeyboardSnapshot, event: RuntimeEvent)
             layer_stack,
             source_id,
         } => {
-            if should_apply_runtime_state_event(snapshot, source_id.as_deref()) {
+            if should_apply_runtime_state_event(
+                snapshot,
+                snapshot.runtime_state.layer_stack_source_id.as_deref(),
+                source_id.as_deref(),
+            ) {
                 snapshot.runtime_state.layer_stack = layer_stack;
                 snapshot.runtime_state.layer_stack_source_id = source_id;
             }
@@ -830,8 +838,18 @@ pub fn apply_runtime_event(snapshot: &mut KeyboardSnapshot, event: RuntimeEvent)
                 existing.health = health;
             }
         }
-        RuntimeEvent::PressedKeysChanged { pressed_keys } => {
-            snapshot.runtime_state.pressed_keys = pressed_keys;
+        RuntimeEvent::PressedKeysChanged {
+            pressed_keys,
+            source_id,
+        } => {
+            if should_apply_runtime_state_event(
+                snapshot,
+                snapshot.runtime_state.pressed_keys_source_id.as_deref(),
+                source_id.as_deref(),
+            ) {
+                snapshot.runtime_state.pressed_keys = pressed_keys;
+                snapshot.runtime_state.pressed_keys_source_id = source_id;
+            }
         }
     }
 
@@ -840,12 +858,13 @@ pub fn apply_runtime_event(snapshot: &mut KeyboardSnapshot, event: RuntimeEvent)
 
 fn should_apply_runtime_state_event(
     snapshot: &KeyboardSnapshot,
+    current_source_id: Option<&str>,
     incoming_source_id: Option<&str>,
 ) -> bool {
     let Some(incoming_source_id) = incoming_source_id else {
         return true;
     };
-    let Some(current_source_id) = snapshot.runtime_state.layer_stack_source_id.as_deref() else {
+    let Some(current_source_id) = current_source_id else {
         return true;
     };
     if incoming_source_id == current_source_id {
@@ -1810,6 +1829,48 @@ mod tests {
     }
 
     #[test]
+    fn runtime_state_source_precedence_rejects_lower_authority_pressed_key_events() {
+        let mut snapshot = crate::fake_backend::initial_snapshot();
+        snapshot.runtime_state.pressed_keys = vec!["k-q".to_string()];
+        snapshot.runtime_state.pressed_keys_source_id = Some("keypeek-live".to_string());
+
+        apply_runtime_event(
+            &mut snapshot,
+            RuntimeEvent::PressedKeysChanged {
+                pressed_keys: vec!["k-fn".to_string()],
+                source_id: Some("fake-backend".to_string()),
+            },
+        );
+
+        assert_eq!(snapshot.runtime_state.pressed_keys, vec!["k-q"]);
+        assert_eq!(
+            snapshot.runtime_state.pressed_keys_source_id.as_deref(),
+            Some("keypeek-live")
+        );
+    }
+
+    #[test]
+    fn runtime_state_source_precedence_accepts_higher_authority_pressed_key_events() {
+        let mut snapshot = crate::fake_backend::initial_snapshot();
+        snapshot.runtime_state.pressed_keys = vec!["k-fn".to_string()];
+        snapshot.runtime_state.pressed_keys_source_id = Some("fake-backend".to_string());
+
+        apply_runtime_event(
+            &mut snapshot,
+            RuntimeEvent::PressedKeysChanged {
+                pressed_keys: vec!["k-q".to_string()],
+                source_id: Some("keypeek-live".to_string()),
+            },
+        );
+
+        assert_eq!(snapshot.runtime_state.pressed_keys, vec!["k-q"]);
+        assert_eq!(
+            snapshot.runtime_state.pressed_keys_source_id.as_deref(),
+            Some("keypeek-live")
+        );
+    }
+
+    #[test]
     fn composed_snapshot_applies_selected_physical_layout_field_conflicts() {
         let mut profile = crate::fake_backend::fake_profile();
         profile.source_precedence = vec![precedence_rule(
@@ -2085,6 +2146,7 @@ mod tests {
             ],
             layer_stack_source_id: Some("fake-backend".to_string()),
             pressed_keys: Vec::new(),
+            pressed_keys_source_id: Some("fake-backend".to_string()),
             backend_health: Vec::new(),
         };
 

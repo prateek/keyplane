@@ -21,7 +21,13 @@ export function applyRuntimeEvent(
   const next: KeyboardSnapshot = structuredClone(snapshot);
 
   if (event.type === "layer-stack-changed") {
-    if (shouldApplyRuntimeStateEvent(next, event.source_id ?? null)) {
+    if (
+      shouldApplyRuntimeStateEvent(
+        next,
+        next.runtime_state.layer_stack_source_id,
+        event.source_id ?? null,
+      )
+    ) {
       next.runtime_state.layer_stack = event.layer_stack;
       next.runtime_state.layer_stack_source_id = event.source_id ?? null;
     }
@@ -41,7 +47,16 @@ export function applyRuntimeEvent(
   }
 
   if (event.type === "pressed-keys-changed") {
-    next.runtime_state.pressed_keys = event.pressed_keys;
+    if (
+      shouldApplyRuntimeStateEvent(
+        next,
+        next.runtime_state.pressed_keys_source_id,
+        event.source_id ?? null,
+      )
+    ) {
+      next.runtime_state.pressed_keys = event.pressed_keys;
+      next.runtime_state.pressed_keys_source_id = event.source_id ?? null;
+    }
   }
 
   next.effective_keys = resolveEffectiveKeys(next.keymap, next.runtime_state);
@@ -50,10 +65,10 @@ export function applyRuntimeEvent(
 
 function shouldApplyRuntimeStateEvent(
   snapshot: KeyboardSnapshot,
+  currentSourceId: string | null,
   incomingSourceId: string | null,
 ) {
   if (!incomingSourceId) return true;
-  const currentSourceId = snapshot.runtime_state.layer_stack_source_id;
   if (!currentSourceId || currentSourceId === incomingSourceId) return true;
 
   const incomingRank = runtimeStateSourceRank(snapshot, incomingSourceId);

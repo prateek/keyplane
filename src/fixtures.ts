@@ -178,6 +178,7 @@ const runtimeState: RuntimeState = {
   ],
   layer_stack_source_id: sourceId,
   pressed_keys: [],
+  pressed_keys_source_id: sourceId,
   backend_health: [
     backend.health,
     overlayWindowBackend.health,
