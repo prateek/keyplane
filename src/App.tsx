@@ -35,7 +35,7 @@ import type {
   StyleDensity,
   VisibilityPolicy,
 } from "./domain";
-import { navLayerEvent } from "./fixtures";
+import { fakeRuntimeEvents, navLayerEvent } from "./fixtures";
 import { promoteImportCandidateSource } from "./state";
 import {
   applyRuntimeEventSnapshot,
@@ -162,7 +162,7 @@ function App() {
   const [snapshot, setSnapshot] = useState<KeyboardSnapshot | null>(null);
   const snapshotRef = useRef<KeyboardSnapshot | null>(null);
   const fadeTimerRef = useRef<ReturnType<typeof window.setTimeout> | null>(null);
-  const [events, setEvents] = useState<RuntimeEvent[]>([]);
+  const [events, setEvents] = useState<RuntimeEvent[]>(fakeRuntimeEvents);
   const [eventIndex, setEventIndex] = useState(0);
   const [importCandidate, setImportCandidate] = useState<ImportCandidate | null>(null);
   const [importError, setImportError] = useState<string | null>(null);

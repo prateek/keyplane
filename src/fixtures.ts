@@ -304,6 +304,55 @@ export const navLayerEvent: RuntimeEvent = {
   ],
 };
 
+export const fakeRuntimeEvents: RuntimeEvent[] = [
+  {
+    type: "pressed-keys-changed",
+    source_id: sourceId,
+    pressed_keys: ["k-fn"],
+  },
+  navLayerEvent,
+  {
+    type: "backend-health-changed",
+    health: {
+      backend_id: sourceId,
+      state: "permission-missing",
+      message: "Input monitoring permission is missing for host input fallback",
+    },
+  },
+  {
+    type: "pressed-keys-changed",
+    source_id: sourceId,
+    pressed_keys: ["k-fn", "k-w"],
+  },
+  {
+    type: "layer-stack-changed",
+    source_id: sourceId,
+    layer_stack: [
+      {
+        layer_id: "layer-0",
+        kind: "default",
+        confidence: {
+          level: "high",
+          reason: "Default layer from fake backend",
+        },
+      },
+    ],
+  },
+  {
+    type: "backend-health-changed",
+    health: {
+      backend_id: sourceId,
+      state: "ok",
+      message: "Streaming deterministic layer stack events",
+    },
+  },
+  {
+    type: "pressed-keys-changed",
+    source_id: sourceId,
+    pressed_keys: [],
+  },
+];
+
 function key(
   id: string,
   row: number,

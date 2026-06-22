@@ -13,7 +13,7 @@ import type {
   StyleDensity,
   VisibilityPolicy,
 } from "./domain";
-import { fakeSnapshot } from "./fixtures";
+import { fakeRuntimeEvents, fakeSnapshot } from "./fixtures";
 import { applyRuntimeEvent, promoteSourceCandidate, resolveEffectiveKeys } from "./state";
 
 export const runtimeEventName = "runtime-event";
@@ -52,7 +52,7 @@ export async function loadFakeRuntimeEvents(): Promise<RuntimeEvent[]> {
   try {
     return await invoke<RuntimeEvent[]>("fake_runtime_events");
   } catch {
-    return [];
+    return fakeRuntimeEvents;
   }
 }
 

@@ -30,6 +30,7 @@ describe("Keyplane app", () => {
     render(<App />);
 
     await user.click(await screen.findByRole("button", { name: /fake event/i }));
+    await user.click(screen.getByRole("button", { name: /fake event/i }));
 
     expect(screen.getAllByText("inherited").length).toBeGreaterThan(0);
     expect(screen.getByText("Momentary layer from fake backend Runtime Event")).toBeInTheDocument();
@@ -38,11 +39,35 @@ describe("Keyplane app", () => {
     expect(screen.getByRole("button", { name: /k-q q/i })).not.toHaveClass("top-active-layer");
   });
 
+  it("renders pressed Physical Keys from fake pressed-key Runtime Events", async () => {
+    const user = userEvent.setup();
+    render(<App />);
+
+    await user.click(await screen.findByRole("button", { name: /fake event/i }));
+
+    expect(screen.getByRole("button", { name: /k-fn hold/i })).toHaveClass("pressed");
+    expect(screen.getByText("Base")).toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: /fake event/i }));
+    expect(screen.getByRole("button", { name: /k-fn hold/i })).toHaveClass("pressed");
+
+    await user.click(screen.getByRole("button", { name: /fake event/i }));
+    await user.click(screen.getByRole("button", { name: /fake event/i }));
+    expect(screen.getByRole("button", { name: /k-w up/i })).toHaveClass("pressed");
+
+    await user.click(screen.getByRole("button", { name: /fake event/i }));
+    await user.click(screen.getByRole("button", { name: /fake event/i }));
+    await user.click(screen.getByRole("button", { name: /fake event/i }));
+    expect(screen.getByRole("button", { name: /k-fn hold/i })).not.toHaveClass("pressed");
+    expect(screen.getByRole("button", { name: /k-w w/i })).not.toHaveClass("pressed");
+  });
+
   it("shows transparent Raw Actions and inherited sources in Source Inspector", async () => {
     const user = userEvent.setup();
     render(<App />);
 
     await user.click(await screen.findByRole("button", { name: /fake event/i }));
+    await user.click(screen.getByRole("button", { name: /fake event/i }));
     await user.click(screen.getByRole("button", { name: /source inspector/i }));
 
     expect(screen.getByText("Transparent Entries")).toBeInTheDocument();
@@ -56,6 +81,7 @@ describe("Keyplane app", () => {
     render(<App />);
 
     await user.click(await screen.findByRole("button", { name: /fake event/i }));
+    await user.click(screen.getByRole("button", { name: /fake event/i }));
     await user.click(screen.getByRole("button", { name: /source inspector/i }));
 
     expect(screen.getByText("Layer Stack")).toBeInTheDocument();
