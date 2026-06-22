@@ -12,6 +12,7 @@ Started the Tauri v2 implementation from the PRD.
 - Added NocFree/Vial `.vil` JSON import as a Best-Effort Preview Import Candidate.
 - Added frontend surfaces for the overlay, Source Inspector, Import Review, Backend Health, fake Runtime Events, and Positioning Mode.
 - Added a KeyPeek-derived packet adapter for layer-state packets, pressed-key packets, subscription keepalive messages, and Layer Stack conversion.
+- Added the Rust Protocol Backend trait boundary and routed the Fake Backend command path through it.
 
 Verification:
 

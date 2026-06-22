@@ -1,9 +1,11 @@
+pub mod backend;
 pub mod domain;
 pub mod fake_backend;
 pub mod importers;
 pub mod keypeek_backend;
 pub mod profile_codec;
 
+use crate::backend::{FakeProtocolBackend, ProtocolBackend};
 use crate::domain::{
     apply_runtime_event, ImportCandidate, KeyboardSnapshot, Profile, RuntimeEvent,
 };
@@ -11,12 +13,14 @@ use tauri::{Manager, WebviewUrl, WebviewWindowBuilder};
 
 #[tauri::command]
 fn initial_snapshot() -> KeyboardSnapshot {
-    fake_backend::initial_snapshot()
+    FakeProtocolBackend
+        .initial_snapshot()
+        .expect("fake backend always provides a snapshot")
 }
 
 #[tauri::command]
 fn fake_runtime_events() -> Vec<RuntimeEvent> {
-    fake_backend::demo_runtime_events()
+    FakeProtocolBackend.demo_events()
 }
 
 #[tauri::command]
