@@ -12,7 +12,9 @@ Files under `src/vendor/` are derived from KeyPeek:
   - `layout_key.rs`, `keycode_labels/` — QMK/VIA keycode-label tables + model;
   - `protocols/` — VIA, Vial, and ZMK HID/Studio protocol code, plus the
     KLE/QMK-JSON/geometry parsers;
-  - `zmk_keycode_labels/` — ZMK behavior/HID-usage label tables.
+  - `zmk_keycode_labels/` — ZMK behavior/HID-usage label tables;
+  - `device_discovery.rs` — HID/serial/BLE device discovery + classification,
+    with KeyPeek's own unit tests (the project's only test suite).
 
 They are reused and reshaped for Keyplane under the terms of the GPL-3.0.
 Modifications from upstream are noted in `src/vendor/mod.rs`:

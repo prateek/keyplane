@@ -32,6 +32,7 @@ pub fn run() {
             commands::import_preview,
             commands::commit_import,
             commands::connect_keypeek,
+            commands::discover_keypeek_devices,
             commands::connect_kanata,
             commands::connect_sentinel,
             commands::feed_host_event,

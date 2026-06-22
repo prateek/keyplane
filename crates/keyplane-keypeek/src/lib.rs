@@ -18,4 +18,5 @@ pub mod vendor;
 
 pub use backend::{KeyPeekBackend, KeyPeekConnection};
 pub use bridge::via_code_to_semantic;
+pub use vendor::device_discovery::{discover_devices, DeviceKind, DiscoveredDevice};
 pub use vendor::protocols::{ConnectionSpec, ZmkTransportConfig};

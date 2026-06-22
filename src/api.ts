@@ -37,6 +37,16 @@ export const connectKeypeek = (args: {
     serialPort: args.serialPort ?? null,
     bleId: args.bleId ?? null,
   });
+export interface DiscoveredDevice {
+  display_name: string;
+  vid: number;
+  pid: number;
+  kind: string;
+  serial_port?: string | null;
+  ble_id?: string | null;
+}
+export const discoverDevices = () =>
+  invoke<DiscoveredDevice[]>("discover_keypeek_devices");
 export const connectKanata = (port: number, host?: string) =>
   invoke<unknown>("connect_kanata", { host: host ?? null, port });
 export const connectSentinel = (

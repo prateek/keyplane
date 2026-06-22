@@ -11,6 +11,7 @@
 //!   the egui/eframe UI dependency (Keyplane renders in a web frontend);
 //! - the keycode-label data and parsing logic are otherwise unchanged.
 
+pub mod device_discovery;
 pub mod glyphs;
 pub mod keycode_labels;
 pub mod layout_key;

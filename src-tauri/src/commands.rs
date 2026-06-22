@@ -18,6 +18,34 @@ use keyplane_sentinel::{SentinelAction, SentinelBackend, SentinelKey};
 use serde::Deserialize;
 use tauri::{AppHandle, Emitter, Manager, State};
 
+/// A discovered keyboard, serialized for the frontend.
+#[derive(serde::Serialize)]
+pub struct DeviceDto {
+    pub display_name: String,
+    pub vid: u16,
+    pub pid: u16,
+    pub kind: String,
+    pub serial_port: Option<String>,
+    pub ble_id: Option<String>,
+}
+
+/// List KeyPeek-discoverable keyboards (VIA/Vial/ZMK), so the UI can offer a
+/// scan instead of requiring a VID/PID. Uses KeyPeek's discovery logic.
+#[tauri::command]
+pub fn discover_keypeek_devices() -> Vec<DeviceDto> {
+    keyplane_keypeek::discover_devices()
+        .into_iter()
+        .map(|d| DeviceDto {
+            display_name: d.display_name(),
+            vid: d.vid,
+            pid: d.pid,
+            kind: d.kind.label().to_string(),
+            serial_port: d.serial_port,
+            ble_id: d.ble_device_id,
+        })
+        .collect()
+}
+
 /// A sentinel-key config entry from the frontend.
 #[derive(Deserialize)]
 pub struct SentinelKeyDto {

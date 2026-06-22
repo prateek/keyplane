@@ -8,6 +8,7 @@ import {
   commitImport,
   connectKanata,
   connectKeypeek,
+  discoverDevices,
   getAutostart,
   getSnapshot,
   importPreview,
@@ -155,6 +156,23 @@ function DeviceConnect() {
     }
   };
 
+  const scan = async () => {
+    setStatus("scanning…");
+    try {
+      const devices = await discoverDevices();
+      if (devices.length === 0) {
+        setStatus("no devices found");
+        return;
+      }
+      const d = devices[0];
+      setVid(d.vid.toString(16));
+      setPid(d.pid.toString(16));
+      setStatus(`found ${devices.length}: ${d.display_name}`);
+    } catch (e) {
+      setStatus(String(e));
+    }
+  };
+
   return (
     <section className="panel">
       <h2>Connect device (KeyPeek)</h2>
@@ -163,6 +181,7 @@ function DeviceConnect() {
         backend. Requires a connected, supported device.
       </p>
       <div className="row">
+        <button onClick={scan}>Scan</button>
         <input
           className="hex-input"
           placeholder="VID (hex)"
