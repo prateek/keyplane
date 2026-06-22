@@ -59,8 +59,13 @@ After the first real signed run completes with Apple credentials, collect a
 sanitized evidence report from the GitHub Actions run:
 
 ```sh
-KEYPLANE_SIGNED_RELEASE_RUN_ID=123456789 npm run validate:signed-release
+npm run validate:signed-release
 ```
+
+By default, the collector looks up the latest completed `Signed Release` run in
+GitHub Actions. This works after the workflow file exists on the repository's
+default branch. To inspect a specific run instead, set
+`KEYPLANE_SIGNED_RELEASE_RUN_ID` or pass `--run-id`.
 
 The report is written to `target/keyplane-validation/signed-release.md`. It
 checks that the `Signed Release` workflow completed successfully, that the

@@ -43,6 +43,9 @@ def parse_options
     parser.on("--run-id RUN_ID", "GitHub Actions run id for the signed release") do |run_id|
       options[:run_id] = run_id
     end
+    parser.on("--runs-json PATH", "Read gh run list JSON from a file for latest-run discovery") do |path|
+      options[:runs_json_path] = path
+    end
     parser.on("--run-json PATH", "Read gh run JSON from a file instead of gh") do |path|
       options[:run_json_path] = path
     end
@@ -85,8 +88,51 @@ def github_run_json(repo, run_id)
   )
 end
 
+def github_runs_json(repo)
+  stdout, stderr, status = Open3.capture3(
+    "gh",
+    "run",
+    "list",
+    "--repo",
+    repo,
+    "--workflow",
+    WORKFLOW_NAME,
+    "--all",
+    "--limit",
+    "20",
+    "--json",
+    "conclusion,createdAt,databaseId,event,headSha,status,url,workflowName"
+  )
+  return JSON.parse(stdout) if status.success?
+
+  fail_with(
+    "could not discover the latest #{WORKFLOW_NAME.inspect} run: #{stderr.strip}. " \
+    "Pass --run-id or KEYPLANE_SIGNED_RELEASE_RUN_ID after the workflow exists on the repository default branch."
+  )
+rescue JSON::ParserError => e
+  fail_with("gh run list returned invalid JSON: #{e.message}")
+end
+
 def github_artifacts_json(repo, run_id)
   JSON.parse(run_command("gh", "api", "repos/#{repo}/actions/runs/#{run_id}/artifacts"))
+end
+
+def latest_signed_release_run_id(repo, runs_json_path)
+  runs = runs_json_path ? load_json_file(runs_json_path) : github_runs_json(repo)
+  fail_with("latest-run discovery expected a JSON array") unless runs.is_a?(Array)
+
+  completed_run = runs.find { |run| run["status"] == "completed" }
+  unless completed_run
+    fail_with(
+      "no completed #{WORKFLOW_NAME.inspect} run found. " \
+      "Run the signed-release workflow with real Apple credentials, or pass --run-id for the run to inspect."
+    )
+  end
+
+  run_id = completed_run["databaseId"].to_s
+  fail_with("latest #{WORKFLOW_NAME.inspect} run did not include a databaseId") if run_id.strip.empty?
+
+  run_id
 end
 
 def sample_run_json
@@ -240,12 +286,18 @@ if dry
   run_json = options[:run_json_path] ? load_json_file(options[:run_json_path]) : sample_run_json
   artifacts_json = options[:artifacts_json_path] ? load_json_file(options[:artifacts_json_path]) : sample_artifacts_json
 elsif options[:run_json_path] && options[:artifacts_json_path]
+  run_id = options[:run_id].to_s.strip
+  run_id = latest_signed_release_run_id(options[:repo], options[:runs_json_path]) if run_id.empty? && options[:runs_json_path]
   run_json = load_json_file(options[:run_json_path])
   artifacts_json = load_json_file(options[:artifacts_json_path])
+  if !run_id.empty? && run_json["databaseId"].to_s != run_id
+    fail_with("run JSON databaseId #{run_json["databaseId"].inspect} did not match discovered run id #{run_id}")
+  end
+elsif options[:run_json_path] || options[:artifacts_json_path]
+  fail_with("--run-json and --artifacts-json must be provided together")
 else
-  fail_with("missing --run-id or KEYPLANE_SIGNED_RELEASE_RUN_ID") if options[:run_id].to_s.strip.empty?
-
-  run_id = options[:run_id].to_s
+  run_id = options[:run_id].to_s.strip
+  run_id = latest_signed_release_run_id(options[:repo], options[:runs_json_path]) if run_id.empty?
   fail_with("run id must be numeric") unless run_id.match?(/\A\d+\z/)
 
   run_json = github_run_json(options[:repo], run_id)

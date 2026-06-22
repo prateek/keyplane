@@ -111,9 +111,12 @@ After the signed workflow has run with real Apple credentials, collect the
 sanitized release evidence report:
 
 ```sh
-KEYPLANE_SIGNED_RELEASE_RUN_ID=123456789 npm run validate:signed-release
+npm run validate:signed-release
 ```
 
+The collector finds the latest completed `Signed Release` run after the workflow
+exists on the repository's default branch. Set
+`KEYPLANE_SIGNED_RELEASE_RUN_ID` when you need to inspect a specific run.
 Use `npm run validate:signed-release:dry` only to check report generation
 without querying GitHub.
 
