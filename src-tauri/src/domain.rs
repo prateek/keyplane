@@ -1,0 +1,766 @@
+use serde::{Deserialize, Serialize};
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "kebab-case")]
+pub enum SourceAuthority {
+    Authoritative,
+    BestEffortPreview,
+    Inferred,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct Source {
+    pub id: String,
+    pub name: String,
+    pub kind: String,
+    pub authority: SourceAuthority,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct SourceRef {
+    pub source_id: String,
+    pub field_path: String,
+    pub raw: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct MatrixPosition {
+    pub row: u16,
+    pub col: u16,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct KeyGeometry {
+    pub x: f32,
+    pub y: f32,
+    pub width: f32,
+    pub height: f32,
+    pub rotation: f32,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct PhysicalKey {
+    pub id: String,
+    pub matrix: Option<MatrixPosition>,
+    pub geometry: KeyGeometry,
+    pub provenance: SourceRef,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct PhysicalLayout {
+    pub keys: Vec<PhysicalKey>,
+    pub fallback: bool,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct RawAction {
+    pub dialect: String,
+    pub value: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "kebab-case")]
+pub enum SemanticActionKind {
+    Key,
+    Modifier,
+    LayerMomentary,
+    LayerToggle,
+    LayerTap,
+    TapHold,
+    Macro,
+    Transparent,
+    None,
+    Mouse,
+    Unknown,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct SemanticAction {
+    pub kind: SemanticActionKind,
+    pub label: String,
+    pub target_layer: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "kebab-case")]
+pub enum LegendSlotKind {
+    Primary,
+    Shifted,
+    TapRole,
+    HoldRole,
+    LayerHint,
+    ActionHint,
+    Icon,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct LegendSlot {
+    pub slot: LegendSlotKind,
+    pub text: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct DisplayLegend {
+    pub slots: Vec<LegendSlot>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct KeyAction {
+    pub key_id: String,
+    pub raw: RawAction,
+    pub semantic: SemanticAction,
+    pub legend: DisplayLegend,
+    pub provenance: SourceRef,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct Layer {
+    pub id: String,
+    pub name: String,
+    pub actions: Vec<KeyAction>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct LogicalKeymap {
+    pub layers: Vec<Layer>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "kebab-case")]
+pub enum ActivationKind {
+    Default,
+    Momentary,
+    Toggle,
+    TapHold,
+    Lock,
+    RemapperState,
+    Unknown,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "kebab-case")]
+pub enum StateConfidenceLevel {
+    High,
+    Medium,
+    Low,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct StateConfidence {
+    pub level: StateConfidenceLevel,
+    pub reason: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct LayerActivation {
+    pub layer_id: String,
+    pub kind: ActivationKind,
+    pub confidence: StateConfidence,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "kebab-case")]
+pub enum CapabilityFlag {
+    DiscoverDevices,
+    ImportGeometry,
+    ImportKeymaps,
+    StreamLayerStack,
+    StreamPressedKeys,
+    PollState,
+    PreviewOnly,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "kebab-case")]
+pub enum HealthState {
+    Ok,
+    PermissionMissing,
+    Disconnected,
+    Stale,
+    Unsupported,
+    ParseError,
+    ProtocolError,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct BackendHealth {
+    pub backend_id: String,
+    pub state: HealthState,
+    pub message: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct BackendStatus {
+    pub id: String,
+    pub name: String,
+    pub capabilities: Vec<CapabilityFlag>,
+    pub health: BackendHealth,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct RuntimeState {
+    pub layer_stack: Vec<LayerActivation>,
+    pub pressed_keys: Vec<String>,
+    pub backend_health: Vec<BackendHealth>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct EffectiveKey {
+    pub key_id: String,
+    pub raw: RawAction,
+    pub semantic: SemanticAction,
+    pub legend: DisplayLegend,
+    pub source_layer_id: String,
+    pub inherited: bool,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct SourceCandidate {
+    pub source_id: String,
+    pub value: String,
+    pub selected: bool,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct SourceConflict {
+    pub field_path: String,
+    pub selected_source_id: String,
+    pub candidates: Vec<SourceCandidate>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "kebab-case")]
+pub enum VisibilityPolicy {
+    Pinned,
+    ManualToggle,
+    Fade,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct DisplayTargeting {
+    pub display_id: Option<String>,
+    pub x: f32,
+    pub y: f32,
+    pub width: f32,
+    pub height: f32,
+    pub opacity: f32,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct OverlayWindowConfig {
+    pub visibility: VisibilityPolicy,
+    pub click_through: bool,
+    pub positioning_mode: bool,
+    pub display_targeting: DisplayTargeting,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "kebab-case")]
+pub enum StyleDensity {
+    Compact,
+    Standard,
+    Rich,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct VisualStyle {
+    pub variant_id: String,
+    pub density: StyleDensity,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct SourcePrecedenceRule {
+    pub field_scope: String,
+    pub source_order: Vec<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct UserOverride {
+    pub field_path: String,
+    pub value: String,
+    pub reason: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct Profile {
+    pub schema_version: u32,
+    pub id: String,
+    pub name: String,
+    pub sources: Vec<Source>,
+    pub physical_layout: PhysicalLayout,
+    pub keymap: LogicalKeymap,
+    pub runtime_backends: Vec<BackendStatus>,
+    pub visual_style: VisualStyle,
+    pub overlay_window: OverlayWindowConfig,
+    pub source_precedence: Vec<SourcePrecedenceRule>,
+    pub user_overrides: Vec<UserOverride>,
+    pub source_provenance: Vec<SourceRef>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct KeyboardSnapshot {
+    pub profile_id: String,
+    pub profile_name: String,
+    pub physical_layout: PhysicalLayout,
+    pub keymap: LogicalKeymap,
+    pub runtime_state: RuntimeState,
+    pub effective_keys: Vec<EffectiveKey>,
+    pub backends: Vec<BackendStatus>,
+    pub source_conflicts: Vec<SourceConflict>,
+    pub visual_style: VisualStyle,
+    pub overlay_window: OverlayWindowConfig,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(tag = "type", rename_all = "kebab-case")]
+pub enum RuntimeEvent {
+    LayerStackChanged { layer_stack: Vec<LayerActivation> },
+    BackendHealthChanged { health: BackendHealth },
+    PressedKeysChanged { pressed_keys: Vec<String> },
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct ImportSummary {
+    pub imported_keys: usize,
+    pub imported_layers: usize,
+    pub preserved_sections: Vec<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct ImportCandidate {
+    pub id: String,
+    pub source: Source,
+    pub best_effort_preview: bool,
+    pub preview_profile: Profile,
+    pub conflicts: Vec<SourceConflict>,
+    pub summary: ImportSummary,
+}
+
+pub fn compose_snapshot(
+    profile: &Profile,
+    runtime_state: RuntimeState,
+    source_conflicts: Vec<SourceConflict>,
+) -> KeyboardSnapshot {
+    let effective_keys = resolve_effective_keys(&profile.keymap, &runtime_state);
+
+    KeyboardSnapshot {
+        profile_id: profile.id.clone(),
+        profile_name: profile.name.clone(),
+        physical_layout: profile.physical_layout.clone(),
+        keymap: profile.keymap.clone(),
+        runtime_state,
+        effective_keys,
+        backends: profile.runtime_backends.clone(),
+        source_conflicts,
+        visual_style: profile.visual_style.clone(),
+        overlay_window: profile.overlay_window.clone(),
+    }
+}
+
+pub fn apply_runtime_event(snapshot: &mut KeyboardSnapshot, event: RuntimeEvent) {
+    match event {
+        RuntimeEvent::LayerStackChanged { layer_stack } => {
+            snapshot.runtime_state.layer_stack = layer_stack;
+        }
+        RuntimeEvent::BackendHealthChanged { health } => {
+            if let Some(existing) = snapshot
+                .runtime_state
+                .backend_health
+                .iter_mut()
+                .find(|item| item.backend_id == health.backend_id)
+            {
+                *existing = health.clone();
+            } else {
+                snapshot.runtime_state.backend_health.push(health.clone());
+            }
+
+            if let Some(existing) = snapshot
+                .backends
+                .iter_mut()
+                .find(|backend| backend.id == health.backend_id)
+            {
+                existing.health = health;
+            }
+        }
+        RuntimeEvent::PressedKeysChanged { pressed_keys } => {
+            snapshot.runtime_state.pressed_keys = pressed_keys;
+        }
+    }
+
+    snapshot.effective_keys = resolve_effective_keys(&snapshot.keymap, &snapshot.runtime_state);
+}
+
+pub fn resolve_effective_keys(
+    keymap: &LogicalKeymap,
+    runtime_state: &RuntimeState,
+) -> Vec<EffectiveKey> {
+    let Some(base_layer) = keymap.layers.first() else {
+        return Vec::new();
+    };
+
+    base_layer
+        .actions
+        .iter()
+        .map(|base_action| {
+            resolve_effective_key(&base_action.key_id, keymap, runtime_state)
+                .unwrap_or_else(|| effective_from_action(base_action, &base_layer.id, false))
+        })
+        .collect()
+}
+
+fn resolve_effective_key(
+    key_id: &str,
+    keymap: &LogicalKeymap,
+    runtime_state: &RuntimeState,
+) -> Option<EffectiveKey> {
+    let mut inherited = false;
+
+    for activation in &runtime_state.layer_stack {
+        let Some(layer) = keymap
+            .layers
+            .iter()
+            .find(|candidate| candidate.id == activation.layer_id)
+        else {
+            continue;
+        };
+        let Some(action) = layer
+            .actions
+            .iter()
+            .find(|candidate| candidate.key_id == key_id)
+        else {
+            inherited = true;
+            continue;
+        };
+
+        if action.semantic.kind == SemanticActionKind::Transparent {
+            inherited = true;
+            continue;
+        }
+
+        return Some(effective_from_action(action, &layer.id, inherited));
+    }
+
+    None
+}
+
+fn effective_from_action(
+    action: &KeyAction,
+    source_layer_id: &str,
+    inherited: bool,
+) -> EffectiveKey {
+    EffectiveKey {
+        key_id: action.key_id.clone(),
+        raw: action.raw.clone(),
+        semantic: action.semantic.clone(),
+        legend: action.legend.clone(),
+        source_layer_id: source_layer_id.to_string(),
+        inherited,
+    }
+}
+
+pub fn derive_action(
+    dialect: &str,
+    raw_value: &str,
+    provenance: SourceRef,
+    key_id: &str,
+) -> KeyAction {
+    let semantic = derive_semantic_action(raw_value);
+    let legend = legend_for_semantic(&semantic);
+
+    KeyAction {
+        key_id: key_id.to_string(),
+        raw: RawAction {
+            dialect: dialect.to_string(),
+            value: raw_value.to_string(),
+        },
+        semantic,
+        legend,
+        provenance,
+    }
+}
+
+pub fn derive_semantic_action(raw_value: &str) -> SemanticAction {
+    let value = raw_value.trim();
+    let upper = value.to_ascii_uppercase();
+
+    if matches!(
+        upper.as_str(),
+        "KC_TRNS" | "_______" | "TRANSPARENT" | "&TRANS"
+    ) {
+        return SemanticAction {
+            kind: SemanticActionKind::Transparent,
+            label: "trans".to_string(),
+            target_layer: None,
+        };
+    }
+
+    if matches!(upper.as_str(), "KC_NO" | "XXXXXXX" | "NONE" | "&NONE") {
+        return SemanticAction {
+            kind: SemanticActionKind::None,
+            label: "none".to_string(),
+            target_layer: None,
+        };
+    }
+
+    if let Some(target) = parse_wrapped_arg(value, "MO") {
+        return layer_action(SemanticActionKind::LayerMomentary, "hold", target);
+    }
+
+    if let Some(target) = parse_wrapped_arg(value, "TG") {
+        return layer_action(SemanticActionKind::LayerToggle, "toggle", target);
+    }
+
+    if let Some((target, tap)) = parse_layer_tap(value) {
+        let tap_label = key_label(tap);
+        return SemanticAction {
+            kind: SemanticActionKind::LayerTap,
+            label: tap_label,
+            target_layer: Some(format!("layer-{}", target.trim())),
+        };
+    }
+
+    if upper.starts_with("MT(") || upper.starts_with("LGUI_T(") || upper.starts_with("LCTL_T(") {
+        return SemanticAction {
+            kind: SemanticActionKind::TapHold,
+            label: "tap-hold".to_string(),
+            target_layer: None,
+        };
+    }
+
+    if upper.starts_with("KC_MS_") || upper.starts_with("MS_") {
+        return SemanticAction {
+            kind: SemanticActionKind::Mouse,
+            label: mouse_label(value),
+            target_layer: None,
+        };
+    }
+
+    if upper.starts_with("MACRO") || upper.starts_with("DM_") {
+        return SemanticAction {
+            kind: SemanticActionKind::Macro,
+            label: "macro".to_string(),
+            target_layer: None,
+        };
+    }
+
+    if matches!(
+        upper.as_str(),
+        "KC_LCTL"
+            | "KC_RCTL"
+            | "KC_LSFT"
+            | "KC_RSFT"
+            | "KC_LALT"
+            | "KC_RALT"
+            | "KC_LGUI"
+            | "KC_RGUI"
+            | "KC_MEH"
+            | "KC_HYPR"
+    ) {
+        return SemanticAction {
+            kind: SemanticActionKind::Modifier,
+            label: key_label(value),
+            target_layer: None,
+        };
+    }
+
+    if upper.starts_with("KC_") || upper.starts_with("&KP ") {
+        return SemanticAction {
+            kind: SemanticActionKind::Key,
+            label: key_label(value),
+            target_layer: None,
+        };
+    }
+
+    SemanticAction {
+        kind: SemanticActionKind::Unknown,
+        label: value.to_string(),
+        target_layer: None,
+    }
+}
+
+fn layer_action(kind: SemanticActionKind, label: &str, target: &str) -> SemanticAction {
+    SemanticAction {
+        kind,
+        label: label.to_string(),
+        target_layer: Some(format!("layer-{}", target.trim())),
+    }
+}
+
+fn parse_wrapped_arg<'a>(value: &'a str, name: &str) -> Option<&'a str> {
+    let prefix = format!("{}(", name);
+    value
+        .strip_prefix(&prefix)
+        .and_then(|rest| rest.strip_suffix(')'))
+        .map(str::trim)
+}
+
+fn parse_layer_tap(value: &str) -> Option<(&str, &str)> {
+    let rest = value.strip_prefix("LT(")?.strip_suffix(')')?;
+    let (target, tap) = rest.split_once(',')?;
+    Some((target.trim(), tap.trim()))
+}
+
+fn key_label(value: &str) -> String {
+    let normalized = value
+        .trim()
+        .trim_start_matches("KC_")
+        .trim_start_matches("&kp ");
+    match normalized.to_ascii_uppercase().as_str() {
+        "ESC" => "Esc".to_string(),
+        "ENT" | "ENTER" => "Enter".to_string(),
+        "BSPC" => "Backspace".to_string(),
+        "SPC" | "SPACE" => "Space".to_string(),
+        "TAB" => "Tab".to_string(),
+        "DEL" => "Del".to_string(),
+        "LCTL" | "RCTL" => "Ctrl".to_string(),
+        "LSFT" | "RSFT" => "Shift".to_string(),
+        "LALT" | "RALT" => "Alt".to_string(),
+        "LGUI" | "RGUI" => "Cmd".to_string(),
+        "LEFT" => "Left".to_string(),
+        "RGHT" | "RIGHT" => "Right".to_string(),
+        "UP" => "Up".to_string(),
+        "DOWN" => "Down".to_string(),
+        other if other.len() == 1 => other.to_string(),
+        other => other.replace('_', " "),
+    }
+}
+
+fn mouse_label(value: &str) -> String {
+    key_label(value.trim_start_matches("KC_MS_").trim_start_matches("MS_"))
+}
+
+fn legend_for_semantic(semantic: &SemanticAction) -> DisplayLegend {
+    let mut slots = vec![LegendSlot {
+        slot: LegendSlotKind::Primary,
+        text: semantic.label.clone(),
+    }];
+
+    match semantic.kind {
+        SemanticActionKind::LayerMomentary
+        | SemanticActionKind::LayerToggle
+        | SemanticActionKind::LayerTap => {
+            if let Some(target_layer) = &semantic.target_layer {
+                slots.push(LegendSlot {
+                    slot: LegendSlotKind::LayerHint,
+                    text: target_layer.clone(),
+                });
+            }
+        }
+        SemanticActionKind::TapHold => {
+            slots.push(LegendSlot {
+                slot: LegendSlotKind::HoldRole,
+                text: "hold".to_string(),
+            });
+        }
+        SemanticActionKind::Transparent => {
+            slots.push(LegendSlot {
+                slot: LegendSlotKind::ActionHint,
+                text: "inherits".to_string(),
+            });
+        }
+        _ => {}
+    }
+
+    DisplayLegend { slots }
+}
+
+pub fn promote_conflict_to_override(
+    profile: &mut Profile,
+    conflict: &SourceConflict,
+    source_id: &str,
+) -> Option<UserOverride> {
+    let selected = conflict
+        .candidates
+        .iter()
+        .find(|candidate| candidate.source_id == source_id)?;
+
+    let user_override = UserOverride {
+        field_path: conflict.field_path.clone(),
+        value: selected.value.clone(),
+        reason: format!("Promoted from {}", source_id),
+    };
+    profile.user_overrides.push(user_override.clone());
+    Some(user_override)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn source_ref() -> SourceRef {
+        SourceRef {
+            source_id: "fake".to_string(),
+            field_path: ":keyboard/keymap".to_string(),
+            raw: None,
+        }
+    }
+
+    #[test]
+    fn transparent_entries_resolve_to_lower_layer_effective_actions() {
+        let base = Layer {
+            id: "layer-0".to_string(),
+            name: "Base".to_string(),
+            actions: vec![derive_action("qmk", "KC_A", source_ref(), "k-a")],
+        };
+        let nav = Layer {
+            id: "layer-1".to_string(),
+            name: "Nav".to_string(),
+            actions: vec![derive_action("qmk", "KC_TRNS", source_ref(), "k-a")],
+        };
+        let runtime = RuntimeState {
+            layer_stack: vec![
+                LayerActivation {
+                    layer_id: "layer-1".to_string(),
+                    kind: ActivationKind::Momentary,
+                    confidence: StateConfidence {
+                        level: StateConfidenceLevel::High,
+                        reason: "fake backend event".to_string(),
+                    },
+                },
+                LayerActivation {
+                    layer_id: "layer-0".to_string(),
+                    kind: ActivationKind::Default,
+                    confidence: StateConfidence {
+                        level: StateConfidenceLevel::High,
+                        reason: "default layer".to_string(),
+                    },
+                },
+            ],
+            pressed_keys: Vec::new(),
+            backend_health: Vec::new(),
+        };
+
+        let resolved = resolve_effective_keys(
+            &LogicalKeymap {
+                layers: vec![base, nav],
+            },
+            &runtime,
+        );
+
+        assert_eq!(resolved[0].semantic.label, "A");
+        assert_eq!(resolved[0].source_layer_id, "layer-0");
+        assert!(resolved[0].inherited);
+    }
+
+    #[test]
+    fn semantic_actions_keep_raw_actions_separate_from_display_labels() {
+        let action = derive_action("qmk", "MO(1)", source_ref(), "k-fn");
+
+        assert_eq!(action.raw.value, "MO(1)");
+        assert_eq!(action.semantic.kind, SemanticActionKind::LayerMomentary);
+        assert_eq!(action.semantic.target_layer, Some("layer-1".to_string()));
+        assert_eq!(
+            action.legend.slots,
+            vec![
+                LegendSlot {
+                    slot: LegendSlotKind::Primary,
+                    text: "hold".to_string()
+                },
+                LegendSlot {
+                    slot: LegendSlotKind::LayerHint,
+                    text: "layer-1".to_string()
+                }
+            ]
+        );
+    }
+}

@@ -1,0 +1,379 @@
+:root {
+  color: #17201f;
+  background: #eef3f0;
+  font-family:
+    Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  font-size: 16px;
+  font-synthesis: none;
+  line-height: 1.4;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  -webkit-text-size-adjust: 100%;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  min-width: 320px;
+  min-height: 100vh;
+  margin: 0;
+}
+
+button,
+input {
+  font: inherit;
+}
+
+button {
+  border: 1px solid #bdcbc5;
+  border-radius: 6px;
+  background: #f7faf8;
+  color: #17201f;
+  cursor: pointer;
+}
+
+button:hover {
+  border-color: #45877c;
+}
+
+.loading {
+  display: grid;
+  min-height: 100vh;
+  place-items: center;
+  color: #4f635d;
+}
+
+.app-shell {
+  display: grid;
+  grid-template-columns: 280px minmax(0, 1fr);
+  min-height: 100vh;
+  background: #eef3f0;
+}
+
+.sidebar {
+  display: flex;
+  flex-direction: column;
+  gap: 22px;
+  border-right: 1px solid #d2ddd8;
+  background: #f8fbf9;
+  padding: 20px;
+}
+
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.brand-mark {
+  display: grid;
+  width: 38px;
+  height: 38px;
+  place-items: center;
+  border-radius: 8px;
+  background: #12312d;
+  color: #f7faf8;
+  font-weight: 800;
+}
+
+.brand strong,
+.brand span {
+  display: block;
+}
+
+.brand span,
+.eyebrow,
+.health-block p,
+.list-row p {
+  color: #5e716b;
+  font-size: 0.86rem;
+}
+
+.nav-tabs {
+  display: grid;
+  gap: 8px;
+}
+
+.nav-tabs button,
+.toolbar-actions button,
+.file-button,
+.overlay-controls button {
+  display: inline-flex;
+  min-height: 38px;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 0 12px;
+}
+
+.nav-tabs button {
+  justify-content: flex-start;
+}
+
+.nav-tabs button.active,
+.toolbar-actions button:active,
+.file-button:active {
+  border-color: #2f6f67;
+  background: #dcefeb;
+}
+
+.health-block {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 10px;
+  margin-top: auto;
+  border: 1px solid #d2ddd8;
+  border-radius: 8px;
+  padding: 12px;
+  background: #ffffff;
+}
+
+.health-block span {
+  display: block;
+  color: #1f5d54;
+  font-weight: 700;
+  text-transform: capitalize;
+}
+
+.health-block p,
+.list-row p {
+  margin: 4px 0 0;
+}
+
+.workspace {
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+  gap: 18px;
+  min-width: 0;
+  padding: 22px;
+}
+
+.toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.toolbar h1 {
+  margin: 2px 0 0;
+  font-size: clamp(1.5rem, 1.2rem + 1vw, 2.2rem);
+  line-height: 1.05;
+}
+
+.toolbar-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.file-button {
+  position: relative;
+  overflow: hidden;
+  border: 1px solid #bdcbc5;
+  border-radius: 6px;
+  background: #f7faf8;
+  cursor: pointer;
+}
+
+.file-button input {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  cursor: pointer;
+}
+
+.overlay-surface {
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr) auto;
+  gap: 14px;
+  min-height: 0;
+  border: 1px solid rgba(22, 46, 43, 0.16);
+  border-radius: 8px;
+  background: rgba(246, 250, 248, 0.82);
+  padding: 16px;
+  backdrop-filter: blur(18px);
+}
+
+.overlay-status {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.overlay-status div {
+  display: grid;
+  gap: 2px;
+}
+
+.overlay-status span {
+  color: #60726d;
+  font-size: 0.82rem;
+  text-transform: uppercase;
+}
+
+.overlay-status strong {
+  color: #173b36;
+}
+
+.keyboard-plane {
+  position: relative;
+  width: min(100%, 980px);
+  max-height: 62vh;
+  margin: auto;
+  border: 1px solid #cad8d2;
+  border-radius: 8px;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.78), rgba(229, 239, 235, 0.9)),
+    #e4ede9;
+  box-shadow: inset 0 1px 0 #ffffff;
+}
+
+.keycap {
+  position: absolute;
+  display: grid;
+  grid-template-rows: minmax(0, 1fr) auto auto;
+  min-width: 0;
+  place-items: center;
+  padding: min(1.6vw, 12px) 6px 5px;
+  overflow: hidden;
+  border: 1px solid #9db4ad;
+  border-radius: 7px;
+  background: #fbfcfb;
+  box-shadow:
+    inset 0 -6px 0 rgba(37, 63, 58, 0.08),
+    0 6px 14px rgba(18, 49, 45, 0.08);
+  color: #17201f;
+}
+
+.keycap span {
+  max-width: 100%;
+  overflow: hidden;
+  font-size: clamp(0.72rem, 0.62rem + 0.4vw, 1.05rem);
+  font-weight: 750;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.keycap small,
+.keycap i {
+  max-width: 100%;
+  overflow: hidden;
+  color: #6e5a20;
+  font-size: clamp(0.55rem, 0.5rem + 0.22vw, 0.72rem);
+  font-style: normal;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.keycap.inherited {
+  border-color: #c8a650;
+  background: #fff9e7;
+}
+
+.keycap.pressed {
+  border-color: #317568;
+  background: #cce8e2;
+}
+
+.overlay-controls {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.inspector-view,
+.import-view,
+.empty-state {
+  min-height: 0;
+  border: 1px solid #d2ddd8;
+  border-radius: 8px;
+  background: #ffffff;
+  padding: 18px;
+}
+
+.inspector-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 18px;
+}
+
+.inspector-grid h2,
+.import-view h2 {
+  margin: 0 0 10px;
+  font-size: 1.05rem;
+}
+
+.list-row {
+  border-top: 1px solid #edf2ef;
+  padding: 12px 0;
+}
+
+.list-row strong,
+.list-row span {
+  display: block;
+}
+
+.list-row span,
+.badge {
+  width: fit-content;
+  margin-top: 3px;
+  border-radius: 999px;
+  background: #e9f2ff;
+  color: #22558c;
+  font-size: 0.78rem;
+  padding: 2px 8px;
+}
+
+.metric-strip,
+.preserved-sections {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 12px 0;
+}
+
+.metric-strip strong,
+.preserved-sections span {
+  border: 1px solid #d2ddd8;
+  border-radius: 6px;
+  background: #f8fbf9;
+  padding: 6px 9px;
+}
+
+.empty-state {
+  display: grid;
+  min-height: 260px;
+  place-items: center;
+  color: #5e716b;
+  text-align: center;
+}
+
+@media (max-width: 820px) {
+  .app-shell {
+    grid-template-columns: 1fr;
+  }
+
+  .sidebar {
+    border-right: 0;
+    border-bottom: 1px solid #d2ddd8;
+  }
+
+  .toolbar,
+  .inspector-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .toolbar {
+    display: grid;
+  }
+
+  .toolbar-actions {
+    justify-content: flex-start;
+  }
+}
