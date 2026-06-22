@@ -306,6 +306,11 @@ pub fn run() {
         .manage(KeyPeekLiveRuntime::new())
         .plugin(tauri_plugin_opener::init())
         .setup(|app| {
+            #[cfg(desktop)]
+            app.handle().plugin(tauri_plugin_autostart::init(
+                tauri_plugin_autostart::MacosLauncher::LaunchAgent,
+                None,
+            ))?;
             create_overlay_window(app.handle())?;
             Ok(())
         })

@@ -10,6 +10,7 @@ import {
   Palette,
   PanelLeft,
   RadioTower,
+  Settings,
   ShieldAlert,
   ShieldCheck,
   Upload,
@@ -32,19 +33,21 @@ import {
   importOverkeysCompanionFile,
   importVialFile,
   importZmkKeymapFile,
+  loadLaunchAtLogin,
   loadFakeRuntimeEvents,
   loadInitialSnapshot,
   listenToRuntimeEvents,
   loadActiveProfileEdn,
   promoteActiveSourceCandidate,
   saveActiveProfileEdn,
+  setLaunchAtLogin,
   startOverlayDrag,
   startOverlayResize,
   startKeyPeekLiveBackend,
   setOverlayPositioningMode,
 } from "./tauriClient";
 
-type View = "overlay" | "inspector" | "import";
+type View = "overlay" | "inspector" | "import" | "settings";
 
 function App() {
   const overlayOnly = window.location.hash === "#/overlay";
@@ -57,10 +60,12 @@ function App() {
   const [profileStatus, setProfileStatus] = useState<string | null>(null);
   const [keyPeekVid, setKeyPeekVid] = useState("");
   const [keyPeekPid, setKeyPeekPid] = useState("");
+  const [launchAtLogin, setLaunchAtLoginState] = useState<boolean | null>(null);
 
   useEffect(() => {
     void loadInitialSnapshot().then(setSnapshot);
     void loadFakeRuntimeEvents().then(setEvents);
+    void loadLaunchAtLogin().then(setLaunchAtLoginState);
   }, []);
 
   useEffect(() => {
@@ -138,6 +143,19 @@ function App() {
       (candidate) => candidate.backend_id === "keypeek-live",
     );
     setProfileStatus(health?.message ?? "KeyPeek live backend updated");
+  }
+
+  async function updateLaunchAtLogin(enabled: boolean) {
+    setProfileStatus(null);
+    const next = await setLaunchAtLogin(enabled);
+    setLaunchAtLoginState(next);
+    setProfileStatus(
+      next === null
+        ? "Launch at login unavailable"
+        : next
+          ? "Launch at login enabled"
+          : "Launch at login disabled",
+    );
   }
 
   async function handleImport(file: File | null) {
@@ -273,6 +291,10 @@ function App() {
             <Upload size={17} />
             Import Review
           </button>
+          <button className={view === "settings" ? "active" : ""} onClick={() => setView("settings")}>
+            <Settings size={17} />
+            Settings
+          </button>
         </nav>
         <section className="health-block" aria-label="Backend health">
           {topHealth?.state === "ok" ? <ShieldCheck size={18} /> : <ShieldAlert size={18} />}
@@ -393,6 +415,9 @@ function App() {
             error={importError}
             onCommit={commitImportPreview}
           />
+        ) : null}
+        {view === "settings" ? (
+          <SettingsView launchAtLogin={launchAtLogin} onLaunchAtLoginChange={updateLaunchAtLogin} />
         ) : null}
       </section>
     </main>
@@ -653,6 +678,34 @@ function ImportReview({
           ))}
         </section>
       ) : null}
+    </section>
+  );
+}
+
+function SettingsView({
+  launchAtLogin,
+  onLaunchAtLoginChange,
+}: {
+  launchAtLogin: boolean | null;
+  onLaunchAtLoginChange: (enabled: boolean) => void;
+}) {
+  return (
+    <section className="settings-view" aria-label="App settings">
+      <section>
+        <h2>Startup</h2>
+        <label className="setting-toggle">
+          <span>Launch at login</span>
+          <input
+            type="checkbox"
+            checked={launchAtLogin === true}
+            disabled={launchAtLogin === null}
+            onChange={(event) => onLaunchAtLoginChange(event.currentTarget.checked)}
+          />
+          <span className="badge">
+            {launchAtLogin === null ? "unavailable" : launchAtLogin ? "enabled" : "disabled"}
+          </span>
+        </label>
+      </section>
     </section>
   );
 }

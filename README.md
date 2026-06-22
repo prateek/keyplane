@@ -21,8 +21,9 @@ The current implementation includes:
 - Rust-owned Overlay Window drag and resize controls while Positioning Mode is active
 - Profile-owned Overlay Window placement, size, click-through, visibility, and renderer opacity application
 - Sentinel Key bindings in the public Profile contract, with lower-confidence Host Input Event ingestion through a Rust Protocol Backend
+- launch-at-login Settings backed by the Tauri autostart plugin and scoped autostart permissions
 
-The remaining PRD scope includes real KeyPeek-supported hardware validation, native host-input monitoring and permission prompts, launch-at-login settings, and release packaging work beyond local debug bundles.
+The remaining PRD scope includes real KeyPeek-supported hardware validation, native host-input monitoring and permission prompts, and release packaging work beyond local debug bundles.
 
 ## Decisions
 

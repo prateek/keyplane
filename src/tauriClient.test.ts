@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { ImportCandidate, Profile } from "./domain";
 import { fakeSnapshot } from "./fixtures";
-import { commitImportCandidate } from "./tauriClient";
+import { commitImportCandidate, loadLaunchAtLogin, setLaunchAtLogin } from "./tauriClient";
 
 describe("Tauri client fallbacks", () => {
   it("commits an Import Candidate into a Keyboard Snapshot when Tauri is unavailable", async () => {
@@ -95,5 +95,10 @@ describe("Tauri client fallbacks", () => {
     expect(snapshot.runtime_state.layer_stack[0].confidence.reason).toBe(
       "Best-Effort Preview default layer",
     );
+  });
+
+  it("reports launch-at-login as unavailable when the Tauri plugin is absent", async () => {
+    await expect(loadLaunchAtLogin()).resolves.toBeNull();
+    await expect(setLaunchAtLogin(true)).resolves.toBeNull();
   });
 });

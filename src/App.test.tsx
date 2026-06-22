@@ -42,6 +42,17 @@ describe("Keyplane app", () => {
     expect(screen.getByRole("button", { name: /connect/i })).toBeInTheDocument();
   });
 
+  it("exposes launch-at-login as an App Setting", async () => {
+    const user = userEvent.setup();
+    render(<App />);
+
+    await user.click(await screen.findByRole("button", { name: /settings/i }));
+
+    expect(screen.getByRole("region", { name: /app settings/i })).toBeInTheDocument();
+    expect(screen.getByLabelText(/launch at login/i)).toBeInTheDocument();
+    expect(screen.getByText(/unavailable|enabled|disabled/i)).toBeInTheDocument();
+  });
+
   it("shows overlay drag and resize affordances in Positioning Mode", async () => {
     const user = userEvent.setup();
     render(<App />);

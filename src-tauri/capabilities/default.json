@@ -4,6 +4,9 @@
   "description": "Capability for Keyplane app and overlay windows",
   "windows": ["main", "overlay"],
   "permissions": [
+    "autostart:allow-disable",
+    "autostart:allow-enable",
+    "autostart:allow-is-enabled",
     "core:default",
     "opener:default"
   ]

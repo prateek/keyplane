@@ -29,12 +29,13 @@ Started the Tauri v2 implementation from the PRD.
 - Applied profile-owned Overlay Window targeting to the Rust-owned Tauri Overlay Window on initial snapshot, profile load, and import commit, with Positioning Mode updates persisted in the active Rust Profile.
 - Added a Sentinel Keys Protocol Backend and public Profile binding section that maps Host Input Events to lower-confidence Layer Stack Runtime Events without requiring OS input monitoring in tests.
 - Added a KeyPeek Live Raw HID session using `qmk-via-api`, with subscription keepalive, layer and pressed-key packet mapping through the app-domain Runtime Event boundary, VID/PID connection controls, and Tauri event delivery to both App Window and Overlay Window renderers.
+- Added launch-at-login Settings backed by `tauri-plugin-autostart`, with explicit Tauri autostart permissions and browser-preview fallback state.
 
 Verification:
 
 - `cargo fmt --check`
 - `cargo test` (62 Rust tests passed, 1 private local `.vil` canary ignored by default)
 - `KEYPLANE_LOCAL_VIL_CANDIDATE=<private .vil path> cargo test local_vil_candidate_file_imports_when_env_is_set -- --ignored`
-- `npm test` (14 frontend tests)
+- `npm test` (16 frontend tests)
 - `npm run build`
 - `npm run tauri build -- --debug`

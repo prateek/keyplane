@@ -1,3 +1,4 @@
+import { disable, enable, isEnabled } from "@tauri-apps/plugin-autostart";
 import { invoke } from "@tauri-apps/api/core";
 import { listen, type UnlistenFn } from "@tauri-apps/api/event";
 import type {
@@ -28,6 +29,8 @@ export interface KeyPeekConnectionRequest {
   vid: string;
   pid: string;
 }
+
+export type LaunchAtLoginState = boolean | null;
 
 export async function loadInitialSnapshot(): Promise<KeyboardSnapshot> {
   try {
@@ -78,6 +81,27 @@ export async function listenToRuntimeEvents(
 ): Promise<UnlistenFn | null> {
   try {
     return await listen<RuntimeEvent>(runtimeEventName, (event) => onEvent(event.payload));
+  } catch {
+    return null;
+  }
+}
+
+export async function loadLaunchAtLogin(): Promise<LaunchAtLoginState> {
+  try {
+    return await isEnabled();
+  } catch {
+    return null;
+  }
+}
+
+export async function setLaunchAtLogin(enabled: boolean): Promise<LaunchAtLoginState> {
+  try {
+    if (enabled) {
+      await enable();
+    } else {
+      await disable();
+    }
+    return await isEnabled();
   } catch {
     return null;
   }
