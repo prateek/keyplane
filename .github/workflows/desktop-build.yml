@@ -1,0 +1,151 @@
+name: Desktop Build
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+jobs:
+  release-workflow-static-validation:
+    name: Release workflow static validation
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v5
+
+      - name: Validate release workflow, Tauri capabilities, and evidence scripts
+        run: |
+          ruby scripts/validate-release-workflow.rb
+          ruby scripts/validate-tauri-capabilities.rb
+          ruby scripts/validate-evidence-scripts.rb
+
+  macos-debug-bundle:
+    name: macOS unsigned debug bundle
+    runs-on: macos-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v5
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: "24"
+          cache: npm
+
+      - name: Set up Rust
+        run: |
+          rustup toolchain install stable --profile minimal
+          rustup default stable
+
+      - name: Install frontend dependencies
+        run: npm ci
+
+      - name: Verify Rust format and tests
+        working-directory: src-tauri
+        run: |
+          cargo fmt --check
+          cargo test
+
+      - name: Verify frontend tests
+        run: npm test
+
+      - name: Build web frontend
+        run: npm run build
+
+      - name: Build unsigned desktop bundle
+        run: npm run tauri build -- --debug
+
+      - name: Upload macOS app bundle
+        uses: actions/upload-artifact@v6
+        with:
+          name: keyplane-macos-debug-app
+          path: src-tauri/target/debug/bundle/macos/Keyplane.app
+          if-no-files-found: error
+
+      - name: Upload macOS dmg
+        uses: actions/upload-artifact@v6
+        with:
+          name: keyplane-macos-debug-dmg
+          path: src-tauri/target/debug/bundle/dmg/*.dmg
+          if-no-files-found: error
+
+  linux-debug-binary:
+    name: Linux debug binary
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v5
+
+      - name: Install Linux desktop dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            build-essential \
+            curl \
+            file \
+            libayatana-appindicator3-dev \
+            librsvg2-dev \
+            libssl-dev \
+            libudev-dev \
+            libwebkit2gtk-4.1-dev \
+            libxdo-dev \
+            patchelf \
+            wget
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: "24"
+          cache: npm
+
+      - name: Set up Rust
+        run: |
+          rustup toolchain install stable --profile minimal
+          rustup default stable
+
+      - name: Install frontend dependencies
+        run: npm ci
+
+      - name: Build Linux debug binary
+        run: npm run tauri build -- --debug --no-bundle
+
+      - name: Upload Linux binary
+        uses: actions/upload-artifact@v6
+        with:
+          name: keyplane-linux-debug-binary
+          path: src-tauri/target/debug/keyplane
+          if-no-files-found: error
+
+  windows-debug-binary:
+    name: Windows debug binary
+    runs-on: windows-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v5
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: "24"
+          cache: npm
+
+      - name: Set up Rust
+        shell: bash
+        run: |
+          rustup toolchain install stable --profile minimal
+          rustup default stable
+
+      - name: Install frontend dependencies
+        run: npm ci
+
+      - name: Build Windows debug binary
+        run: npm run tauri build -- --debug --no-bundle
+
+      - name: Upload Windows binary
+        uses: actions/upload-artifact@v6
+        with:
+          name: keyplane-windows-debug-binary
+          path: src-tauri/target/debug/keyplane.exe
+          if-no-files-found: error

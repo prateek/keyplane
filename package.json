@@ -1,0 +1,46 @@
+{
+  "name": "keyplane",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc && vite build",
+    "test": "vitest --run",
+    "check:release-workflow": "ruby scripts/validate-release-workflow.rb",
+    "check:capabilities": "ruby scripts/validate-tauri-capabilities.rb",
+    "check:mvp-acceptance-script": "ruby scripts/collect-mvp-acceptance-evidence.rb --dry-run",
+    "check:evidence-scripts": "ruby scripts/validate-evidence-scripts.rb",
+    "check:workflows": "npm run check:release-workflow && npm run check:capabilities && npm run check:evidence-scripts",
+    "validate:keypeek-live": "ruby scripts/validate-keypeek-live-hardware.rb",
+    "validate:keypeek-live:dry": "ruby scripts/validate-keypeek-live-hardware.rb --dry-run",
+    "validate:signed-release": "ruby scripts/collect-signed-release-evidence.rb",
+    "validate:signed-release:dry": "ruby scripts/collect-signed-release-evidence.rb --dry-run",
+    "validate:mvp": "ruby scripts/collect-mvp-acceptance-evidence.rb",
+    "validate:mvp:dry": "ruby scripts/collect-mvp-acceptance-evidence.rb --dry-run",
+    "preview": "vite preview",
+    "tauri": "tauri"
+  },
+  "dependencies": {
+    "@tauri-apps/api": "^2.11.1",
+    "@tauri-apps/plugin-autostart": "^2.5.1",
+    "lucide-react": "^1.21.0",
+    "react": "^19.2.7",
+    "react-dom": "^19.2.7"
+  },
+  "devDependencies": {
+    "@emnapi/core": "^1.11.1",
+    "@emnapi/runtime": "^1.11.1",
+    "@tauri-apps/cli": "^2.11.3",
+    "@testing-library/jest-dom": "^6.9.1",
+    "@testing-library/react": "^16.3.2",
+    "@testing-library/user-event": "^14.6.1",
+    "@types/react": "^19.1.8",
+    "@types/react-dom": "^19.1.6",
+    "@vitejs/plugin-react": "^6.0.2",
+    "jsdom": "^29.1.1",
+    "typescript": "~6.0.3",
+    "vite": "^8.0.16",
+    "vitest": "^4.1.9"
+  }
+}

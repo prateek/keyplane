@@ -1,0 +1,41 @@
+[package]
+name = "keypeek"
+license = "GPL-3.0-only"
+description = "Keyboard layer overlay for VIA, Vial, and ZMK"
+authors = ["Stephan Rumswinkel"]
+repository = "https://github.com/srwi/keypeek"
+readme = "README.md"
+version = "0.6.0"
+edition = "2021"
+
+[dependencies]
+rust-ini = "0.21.3"
+dirs = "6.0.0"
+tray-icon = "0.24.1"
+eframe = { version = "0.34.3", features = ["glow"] }
+egui_extras = { version = "0.34.3", features = ["all_loaders"] }
+qmk-via-api = { version = "0.8.0" }
+hidapi = "2.6.5"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1.0.150"
+egui-phosphor = "0.12.0"
+egui-file-dialog = "0.13.0"
+image = "0.25.10"
+lzma-rs = "0.3"
+serialport = "4.9.0"
+zmk-studio-api = { git = "https://github.com/srwi/zmk-studio-api", features = ["serial", "ble"] }
+
+[target.'cfg(target_os = "linux")'.dependencies]
+gtk = "0.18"
+
+[target.'cfg(target_os = "macos")'.dependencies]
+winit = "0.30.13"
+
+[target.'cfg(target_os = "windows")'.dependencies]
+windows = { version = "0.62.2", features = ["Devices_Bluetooth", "Devices_Radios", "Foundation"] }
+
+[package.metadata.bundle]
+name = "KeyPeek"
+identifier = "dev.srwi.keypeek"
+osx_info_plist_exts = ["resources/macos-info-plist-ext.xml"]
+
