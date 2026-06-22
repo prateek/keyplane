@@ -184,6 +184,26 @@ pub fn fake_profile() -> Profile {
                     "user-overrides".to_string(),
                     FAKE_SOURCE_ID.to_string(),
                     "vial-import".to_string(),
+                    "zmk-import".to_string(),
+                    "overkeys-import".to_string(),
+                ],
+            },
+            SourcePrecedenceRule {
+                field_scope: ":keyboard/keymap".to_string(),
+                source_order: vec![
+                    "user-overrides".to_string(),
+                    FAKE_SOURCE_ID.to_string(),
+                    "vial-import".to_string(),
+                    "zmk-import".to_string(),
+                    "overkeys-import".to_string(),
+                ],
+            },
+            SourcePrecedenceRule {
+                field_scope: ":visual/style".to_string(),
+                source_order: vec![
+                    "user-overrides".to_string(),
+                    FAKE_SOURCE_ID.to_string(),
+                    "keyviz-import".to_string(),
                 ],
             },
         ],
@@ -396,6 +416,25 @@ mod tests {
                 && rule.source_order[0] == "keypeek-live"
                 && rule.source_order[1] == kanata_backend::KANATA_BACKEND_ID
                 && rule.source_order[3] == sentinel_backend::SENTINEL_BACKEND_ID
+        }));
+        assert!(snapshot.source_precedence.iter().any(|rule| {
+            rule.field_scope == ":keyboard/physical-layout"
+                && rule.source_order.contains(&FAKE_SOURCE_ID.to_string())
+                && rule.source_order.contains(&"vial-import".to_string())
+                && rule.source_order.contains(&"zmk-import".to_string())
+                && rule.source_order.contains(&"overkeys-import".to_string())
+        }));
+        assert!(snapshot.source_precedence.iter().any(|rule| {
+            rule.field_scope == ":keyboard/keymap"
+                && rule.source_order.contains(&FAKE_SOURCE_ID.to_string())
+                && rule.source_order.contains(&"vial-import".to_string())
+                && rule.source_order.contains(&"zmk-import".to_string())
+                && rule.source_order.contains(&"overkeys-import".to_string())
+        }));
+        assert!(snapshot.source_precedence.iter().any(|rule| {
+            rule.field_scope == ":visual/style"
+                && rule.source_order.contains(&FAKE_SOURCE_ID.to_string())
+                && rule.source_order.contains(&"keyviz-import".to_string())
         }));
     }
 
