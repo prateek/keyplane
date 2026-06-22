@@ -273,6 +273,9 @@ describe("Keyplane app", () => {
     expect(screen.getAllByText("Overlay Window").length).toBeGreaterThanOrEqual(1);
     expect(screen.getByText(/render-overlay-window/)).toBeInTheDocument();
     expect(screen.getAllByText("KeyPeek Live").length).toBeGreaterThanOrEqual(2);
+    expect(
+      screen.getByText("discover-devices, stream-layer-stack, stream-pressed-keys"),
+    ).toBeInTheDocument();
     expect(screen.getAllByText("Kanata TCP").length).toBeGreaterThanOrEqual(2);
     expect(screen.getAllByText("disconnected").length).toBeGreaterThanOrEqual(2);
     expect(screen.getByText("No KeyPeek-compatible device is connected")).toBeInTheDocument();

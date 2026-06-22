@@ -393,9 +393,20 @@ mod tests {
                     .contains(&CapabilityFlag::ClickThroughOverlayWindow)
                 && backend.health.state == HealthState::Ok
         }));
-        assert!(snapshot.backends.iter().any(|backend| {
-            backend.id == "keypeek-live" && backend.health.state == HealthState::Disconnected
-        }));
+        let keypeek_backend = snapshot
+            .backends
+            .iter()
+            .find(|backend| backend.id == "keypeek-live")
+            .expect("KeyPeek Live backend status exists");
+        assert_eq!(keypeek_backend.health.state, HealthState::Disconnected);
+        assert_eq!(
+            keypeek_backend.capabilities,
+            vec![
+                CapabilityFlag::DiscoverDevices,
+                CapabilityFlag::StreamLayerStack,
+                CapabilityFlag::StreamPressedKeys,
+            ]
+        );
         assert!(snapshot.backends.iter().any(|backend| {
             backend.id == kanata_backend::KANATA_BACKEND_ID
                 && backend.health.state == HealthState::Disconnected

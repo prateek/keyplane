@@ -86,13 +86,7 @@ const backend: BackendStatus = {
 const keyPeekBackend: BackendStatus = {
   id: "keypeek-live",
   name: "KeyPeek Live",
-  capabilities: [
-    "discover-devices",
-    "import-geometry",
-    "import-keymaps",
-    "stream-layer-stack",
-    "stream-pressed-keys",
-  ],
+  capabilities: ["discover-devices", "stream-layer-stack", "stream-pressed-keys"],
   health: {
     backend_id: "keypeek-live",
     state: "disconnected",

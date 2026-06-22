@@ -14,8 +14,6 @@ pub fn keypeek_backend_status(health: HealthState, message: impl Into<String>) -
         name: "KeyPeek Live".to_string(),
         capabilities: vec![
             CapabilityFlag::DiscoverDevices,
-            CapabilityFlag::ImportGeometry,
-            CapabilityFlag::ImportKeymaps,
             CapabilityFlag::StreamLayerStack,
             CapabilityFlag::StreamPressedKeys,
         ],
@@ -179,5 +177,19 @@ mod tests {
         assert!(discovered
             .capabilities
             .contains(&CapabilityFlag::DiscoverDevices));
+    }
+
+    #[test]
+    fn live_backend_capabilities_only_advertise_discovery_and_runtime_streams() {
+        let status = keypeek_backend_status(HealthState::Disconnected, "not connected");
+
+        assert_eq!(
+            status.capabilities,
+            vec![
+                CapabilityFlag::DiscoverDevices,
+                CapabilityFlag::StreamLayerStack,
+                CapabilityFlag::StreamPressedKeys,
+            ]
+        );
     }
 }
