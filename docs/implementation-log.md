@@ -47,6 +47,7 @@ Started the Tauri v2 implementation from the PRD.
 - Added launch-at-login Settings backed by `tauri-plugin-autostart`, with explicit Tauri autostart permissions and browser-preview fallback state.
 - Added native Sentinel Key global shortcut registration through `tauri-plugin-global-shortcut`, with a Rust-owned shortcut registry, Runtime Event emission, registration rollback on partial failure, and a Settings toggle backed by typed Backend Health.
 - Fixed Vial layer import resolution so matrix-addressed layer cells map to Physical Keys by `MatrixPosition` even when KLE geometry order differs from row/column order.
+- Added a VIA JSON definition Import Candidate path with VIA-labeled Source Provenance, optional keymap layer import, geometry-only fallback behavior, and App Window Import Review wiring.
 - Added a Vial device HID import path using KeyPeek-derived Vial definition reads, XZ decompression, `qmk-via-api` layer matrix reads, and Import Review wiring as a Best-Effort Preview rather than live layer sync.
 - Added a KeyPeek/QMK `keyboard_info.json` Import Candidate path using KeyPeek-derived matrix geometry parsing, optional QMK layer matrices, Source Provenance, and Best-Effort Preview Backend Health.
 - Added a Kanata TCP runtime path with local host/port Settings controls, newline-delimited JSON protocol parsing, Layer Stack Runtime Events from `LayerChange` and `CurrentLayerName`, and typed Backend Health from `HelloOk`, errors, reloads, disconnects, and parse failures.
@@ -95,7 +96,7 @@ Started the Tauri v2 implementation from the PRD.
 Verification:
 
 - `cargo fmt --check`
-- `cargo test` (126 Rust tests passed, 3 private local hardware canaries ignored by default)
+- `cargo test` (128 Rust tests passed, 3 private local hardware canaries ignored by default)
 - `KEYPLANE_LOCAL_VIL_CANDIDATE=<private .vil path> cargo test local_vil_candidate_file_imports_when_env_is_set -- --ignored`
 - `npm ci`
 - `npm test` (47 frontend tests)

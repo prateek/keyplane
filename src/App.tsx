@@ -44,6 +44,7 @@ import {
   importKeyPeekQmkInfoFile,
   importKeyvizStyleFile,
   importOverkeysCompanionFile,
+  importViaJsonFile,
   importVialDevice,
   importVialFile,
   importZmkKeymapFile,
@@ -564,6 +565,19 @@ function App() {
     }
   }
 
+  async function handleViaImport(file: File | null) {
+    if (!file) return;
+    setImportError(null);
+    setProfileStatus(null);
+    try {
+      const contents = await file.text();
+      setImportCandidate(await importViaJsonFile(contents));
+      setView("import");
+    } catch (error) {
+      setImportError(error instanceof Error ? error.message : String(error));
+    }
+  }
+
   async function handleStyleImport(file: File | null) {
     if (!file) return;
     setImportError(null);
@@ -804,6 +818,15 @@ function App() {
                 type="file"
                 accept=".vil,application/json"
                 onChange={(event) => void handleImport(event.currentTarget.files?.[0] ?? null)}
+              />
+            </label>
+            <label className="file-button">
+              <FileJson size={17} />
+              VIA JSON
+              <input
+                type="file"
+                accept=".json,application/json"
+                onChange={(event) => void handleViaImport(event.currentTarget.files?.[0] ?? null)}
               />
             </label>
             <label className="file-button">

@@ -273,6 +273,10 @@ export async function importVialFile(contents: string): Promise<ImportCandidate>
   return invoke<ImportCandidate>("import_vial_file", { contents });
 }
 
+export async function importViaJsonFile(contents: string): Promise<ImportCandidate> {
+  return invoke<ImportCandidate>("import_via_json_file", { contents });
+}
+
 export async function importVialDevice(request: KeyPeekConnectionRequest): Promise<ImportCandidate> {
   return invoke<ImportCandidate>("import_vial_device", { request });
 }

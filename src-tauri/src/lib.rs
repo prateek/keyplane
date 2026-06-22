@@ -511,6 +511,11 @@ fn import_vial_file(contents: String) -> Result<ImportCandidate, String> {
 }
 
 #[tauri::command]
+fn import_via_json_file(contents: String) -> Result<ImportCandidate, String> {
+    importers::import_via_json(&contents).map_err(|err| err.to_string())
+}
+
+#[tauri::command]
 fn import_vial_device(request: KeyPeekConnectionRequest) -> Result<ImportCandidate, String> {
     let vid = keypeek_live::parse_usb_id(&request.vid)
         .map_err(|err| format!("Invalid Vial device VID: {err}"))?;
@@ -755,6 +760,7 @@ pub fn run() {
             save_active_profile_edn,
             load_active_profile_edn,
             import_vial_file,
+            import_via_json_file,
             import_vial_device,
             import_keypeek_qmk_info_file,
             import_keyviz_style_file,

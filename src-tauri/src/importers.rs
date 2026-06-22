@@ -284,6 +284,124 @@ pub fn import_vial_device_snapshot(
     })
 }
 
+pub fn import_via_json(contents: &str) -> Result<ImportCandidate, ImportError> {
+    let json: JsonValue =
+        serde_json::from_str(contents).map_err(|err| ImportError::Json(err.to_string()))?;
+    let definition_name = via_definition_name(&json);
+    let source_suffix = sanitize_id_or(&definition_name, "via-definition");
+    let source = Source {
+        id: format!("via-json-{}", source_suffix),
+        name: format!("VIA JSON {}", definition_name),
+        kind: "via-json-import".to_string(),
+        authority: SourceAuthority::BestEffortPreview,
+    };
+    let layer_values = import_qmk_layer_values(&json).or_else(|| import_vial_layer_values(&json));
+    let physical_keys = vial_geometry_rows(&json)
+        .map(|rows| import_kle_rows_as_layout(rows, &source.id, "via"))
+        .filter(|keys| !keys.is_empty())
+        .or_else(|| {
+            layer_values
+                .as_ref()
+                .map(|layers| import_matrix_rows_as_fallback_layout(layers, &source.id, "via"))
+                .filter(|keys| !keys.is_empty())
+        })
+        .ok_or(ImportError::Missing("layouts.keymap or keymap layers"))?;
+    let has_imported_keymap = layer_values.is_some();
+    let layers = layer_values
+        .as_deref()
+        .map(|values| import_layers(Some(values), &physical_keys, &source.id, "via"))
+        .unwrap_or_else(|| import_placeholder_layer(&physical_keys, &source.id, "via"));
+    let mut capabilities = vec![CapabilityFlag::ImportGeometry];
+    if has_imported_keymap {
+        capabilities.push(CapabilityFlag::ImportKeymaps);
+    }
+    capabilities.push(CapabilityFlag::PreviewOnly);
+    let preserved_sections = preserved_top_level_sections(&json);
+    let mut source_provenance: Vec<SourceRef> = physical_keys
+        .iter()
+        .map(|key| key.provenance.clone())
+        .collect();
+    source_provenance.extend(top_level_source_refs(
+        &json,
+        &source.id,
+        &preserved_sections,
+    ));
+    let backend_health = BackendHealth {
+        backend_id: source.id.clone(),
+        state: HealthState::Stale,
+        message:
+            "Imported VIA JSON as Best-Effort Preview; stock VIA definitions do not provide live layer changes"
+                .to_string(),
+    };
+    let profile = Profile {
+        schema_version: 1,
+        id: format!("profile-{}", source.id),
+        keyboard_id: format!("keyboard-{}", source.id),
+        name: format!("{} Preview", source.name),
+        sources: vec![source.clone()],
+        physical_layout: PhysicalLayout {
+            keys: physical_keys.clone(),
+            fallback: true,
+        },
+        keymap: LogicalKeymap {
+            layers: layers.clone(),
+        },
+        runtime_backends: vec![BackendStatus {
+            id: source.id.clone(),
+            name: source.name.clone(),
+            capabilities,
+            health: backend_health,
+            config: None,
+        }],
+        sentinel_keys: Vec::new(),
+        visual_style: VisualStyle {
+            id: "style-via-preview".to_string(),
+            variant_id: "via-preview".to_string(),
+            density: StyleDensity::Standard,
+            colors: VisualStyleColors::default(),
+        },
+        overlay_window: OverlayWindowConfig {
+            visibility: VisibilityPolicy::Pinned,
+            visible: true,
+            click_through: true,
+            positioning_mode: false,
+            display_targeting: DisplayTargeting {
+                display_id: None,
+                x: 80.0,
+                y: 80.0,
+                width: 920.0,
+                height: 320.0,
+                opacity: 0.9,
+            },
+        },
+        source_precedence: vec![
+            SourcePrecedenceRule {
+                field_scope: ":keyboard/physical-layout".to_string(),
+                source_order: vec!["user-overrides".to_string(), source.id.clone()],
+            },
+            SourcePrecedenceRule {
+                field_scope: ":keyboard/keymap".to_string(),
+                source_order: vec!["user-overrides".to_string(), source.id.clone()],
+            },
+        ],
+        user_overrides: Vec::new(),
+        source_provenance,
+    };
+
+    Ok(ImportCandidate {
+        id: format!("candidate-{}", source.id),
+        source,
+        best_effort_preview: true,
+        preview_profile: profile,
+        conflicts: Vec::<SourceConflict>::new(),
+        summary: ImportSummary {
+            imported_keys: physical_keys.len(),
+            imported_layers: layers.len(),
+            preserved_sections,
+        },
+    })
+}
+
 pub fn import_keypeek_qmk_info_json(contents: &str) -> Result<ImportCandidate, ImportError> {
     let json: JsonValue =
         serde_json::from_str(contents).map_err(|err| ImportError::Json(err.to_string()))?;
@@ -1036,6 +1154,14 @@ fn json_scalar_to_string(value: &JsonValue) -> Option<String> {
         JsonValue::Bool(value) => Some(value.to_string()),
         _ => None,
     }
+}
+
+fn via_definition_name(json: &JsonValue) -> String {
+    json.get("name")
+        .and_then(json_scalar_to_string)
+        .or_else(|| json.get("keyboard_name").and_then(json_scalar_to_string))
+        .or_else(|| json.get("id").and_then(json_scalar_to_string))
+        .unwrap_or_else(|| "via-definition".to_string())
 }
 
 fn parse_zmk_keymap_layers(contents: &str) -> Vec<ZmkParsedLayer> {
@@ -1796,6 +1922,10 @@ fn qmk_raw_action_from_json(value: &JsonValue) -> Option<String> {
 }
 
 fn import_placeholder_qmk_layer(keys: &[PhysicalKey], source_id: &str) -> Vec<Layer> {
+    import_placeholder_layer(keys, source_id, "qmk")
+}
+
+fn import_placeholder_layer(keys: &[PhysicalKey], source_id: &str, dialect: &str) -> Vec<Layer> {
     vec![Layer {
         id: "layer-0".to_string(),
         name: "Imported".to_string(),
@@ -1803,7 +1933,7 @@ fn import_placeholder_qmk_layer(keys: &[PhysicalKey], source_id: &str) -> Vec<La
             .iter()
             .map(|key| {
                 derive_action(
-                    "qmk",
+                    dialect,
                     "KC_NO",
                     SourceRef {
                         source_id: source_id.to_string(),
@@ -2030,6 +2160,14 @@ fn fallback_matrix_source_label(cell: &ImportedLayerCell, key_index: usize) -> S
 }
 
 fn import_kle_rows_as_fallback_layout(rows: &[JsonValue], source_id: &str) -> Vec<PhysicalKey> {
+    import_kle_rows_as_layout(rows, source_id, "vial")
+}
+
+fn import_kle_rows_as_layout(
+    rows: &[JsonValue],
+    source_id: &str,
+    key_prefix: &str,
+) -> Vec<PhysicalKey> {
     let mut keys = Vec::new();
     let mut cursor_y = 0.0_f32;
 
@@ -2068,8 +2206,8 @@ fn import_kle_rows_as_fallback_layout(rows: &[JsonValue], source_id: &str) -> Ve
             let matrix = parse_vial_matrix(label);
             let id = matrix
                 .as_ref()
-                .map(|matrix| format!("vial-r{}c{}", matrix.row, matrix.col))
-                .unwrap_or_else(|| format!("vial-key-{}", keys.len()));
+                .map(|matrix| format!("{}-r{}c{}", key_prefix, matrix.row, matrix.col))
+                .unwrap_or_else(|| format!("{}-key-{}", key_prefix, keys.len()));
             keys.push(PhysicalKey {
                 id: id.clone(),
                 matrix,
@@ -2266,6 +2404,36 @@ mod tests {
         [
           ["KC_A", "KC_B"]
         ]
+      ]
+    }
+    "#;
+
+    const VIA_DEFINITION_FIXTURE: &str = r#"
+    {
+      "name": "VIA Example",
+      "vendorId": "0xFEED",
+      "productId": "0xC0DE",
+      "matrix": {"rows": 2, "cols": 2},
+      "layouts": {
+        "keymap": [
+          ["0,0\nEsc", {"w": 1.25}, "0,1\nQ"],
+          ["1,0\nTab", "1,1\nA"]
+        ]
+      }
+    }
+    "#;
+
+    const VIA_KEYMAP_FIXTURE: &str = r#"
+    {
+      "name": "VIA Keymap Example",
+      "layouts": {
+        "keymap": [
+          ["0,1\nRight", "0,0\nLeft"]
+        ]
+      },
+      "layers": [
+        ["KC_Q", "KC_W"],
+        ["KC_TRNS", "MO(1)"]
       ]
     }
     "#;
@@ -2651,6 +2819,87 @@ mod tests {
 
         assert_eq!(right.raw.value, "KC_B");
         assert_eq!(left.raw.value, "KC_A");
+    }
+
+    #[test]
+    fn via_json_definition_imports_geometry_as_best_effort_preview() {
+        let candidate = import_via_json(VIA_DEFINITION_FIXTURE).expect("fixture imports");
+
+        assert_eq!(candidate.source.kind, "via-json-import");
+        assert_eq!(candidate.source.id, "via-json-via-example");
+        assert!(candidate.best_effort_preview);
+        assert!(candidate.preview_profile.physical_layout.fallback);
+        assert_eq!(candidate.summary.imported_keys, 4);
+        assert_eq!(candidate.summary.imported_layers, 1);
+
+        let q_key = candidate
+            .preview_profile
+            .physical_layout
+            .keys
+            .iter()
+            .find(|key| key.id == "via-r0c1")
+            .expect("VIA matrix key imported");
+        assert_eq!(q_key.geometry.width, 1.25);
+        assert_eq!(q_key.matrix, Some(MatrixPosition { row: 0, col: 1 }));
+
+        assert_eq!(
+            candidate.preview_profile.runtime_backends[0].capabilities,
+            vec![CapabilityFlag::ImportGeometry, CapabilityFlag::PreviewOnly]
+        );
+        assert_eq!(
+            candidate.preview_profile.keymap.layers[0].actions[0]
+                .raw
+                .value,
+            "KC_NO"
+        );
+        assert!(candidate
+            .summary
+            .preserved_sections
+            .contains(&"vendorId".to_string()));
+        assert!(candidate
+            .preview_profile
+            .source_provenance
+            .iter()
+            .any(|source_ref| source_ref.field_path == ":source/raw layouts"));
+    }
+
+    #[test]
+    fn via_json_imports_optional_keymap_layers_by_matrix_position() {
+        let candidate = import_via_json(VIA_KEYMAP_FIXTURE).expect("fixture imports");
+        let base = &candidate.preview_profile.keymap.layers[0];
+        let nav = &candidate.preview_profile.keymap.layers[1];
+
+        let right = base
+            .actions
+            .iter()
+            .find(|action| action.key_id == "via-r0c1")
+            .expect("right matrix key imported");
+        let left = base
+            .actions
+            .iter()
+            .find(|action| action.key_id == "via-r0c0")
+            .expect("left matrix key imported");
+        let nav_left = nav
+            .actions
+            .iter()
+            .find(|action| action.key_id == "via-r0c0")
+            .expect("left matrix key imported on nav layer");
+
+        assert_eq!(
+            candidate.preview_profile.runtime_backends[0].capabilities,
+            vec![
+                CapabilityFlag::ImportGeometry,
+                CapabilityFlag::ImportKeymaps,
+                CapabilityFlag::PreviewOnly,
+            ]
+        );
+        assert_eq!(right.raw.value, "KC_Q");
+        assert_eq!(left.raw.value, "KC_W");
+        assert_eq!(nav_left.raw.value, "MO(1)");
+        assert_eq!(
+            nav_left.semantic.kind,
+            crate::domain::SemanticActionKind::LayerMomentary
+        );
     }
 
     #[test]

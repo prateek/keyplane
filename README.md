@@ -11,6 +11,7 @@ The current implementation includes:
 - density-aware structured Display Legend rendering, including shifted symbol, action-hint, layer-tap, QMK mod-tap, and optional icon slots, plus Settings controls for compact, standard, and rich Visual Styles
 - EDN v1 Profile Codec save/load support with deterministic output, schema migration gating, stable style references, and toolbar import/export actions
 - NocFree/Vial `.vil` JSON import as a Best-Effort Preview Import Candidate, including backup-style layer matrices
+- VIA JSON definition import as a Best-Effort Preview Import Candidate, with optional keymap layer import when layers are present
 - Vial device HID import as a Best-Effort Preview Import Candidate, using KeyPeek-derived Vial definition and raw-matrix reads
 - KeyPeek/QMK `keyboard_info.json` import as a Best-Effort Preview Import Candidate, using KeyPeek-derived per-key matrix geometry parsing
 - ZMK `.keymap` import as a Best-Effort Preview Import Candidate with fallback geometry

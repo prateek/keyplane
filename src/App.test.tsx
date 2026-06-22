@@ -201,6 +201,7 @@ describe("Keyplane app", () => {
 
     expect(await screen.findByRole("button", { name: /save edn/i })).toBeInTheDocument();
     expect(screen.getByText(/load edn/i)).toBeInTheDocument();
+    expect(screen.getByText(/via json/i)).toBeInTheDocument();
     expect(screen.getByText(/style json/i)).toBeInTheDocument();
     expect(screen.getByText(/keypeek qmk info/i)).toBeInTheDocument();
     expect(screen.getByText(/overkeys json/i)).toBeInTheDocument();
