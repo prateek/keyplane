@@ -368,7 +368,8 @@ button:hover {
   font-size: 1.05rem;
 }
 
-.import-conflicts h3 {
+.import-conflicts h3,
+.import-diff h3 {
   margin: 14px 0 0;
   font-size: 0.95rem;
 }
@@ -506,6 +507,36 @@ button:hover {
   border-radius: 6px;
   background: #f8fbf9;
   padding: 6px 9px;
+}
+
+.diff-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 8px;
+  margin: 10px 0 14px;
+}
+
+.diff-row {
+  min-height: 62px;
+  border: 1px solid #d2ddd8;
+  border-radius: 6px;
+  background: #f8fbf9;
+  padding: 8px;
+}
+
+.diff-row.changed {
+  border-color: #7aa89f;
+  background: #edf8f5;
+}
+
+.diff-row span,
+.diff-row strong {
+  display: block;
+}
+
+.diff-row span {
+  color: #5e716b;
+  font-size: 0.78rem;
 }
 
 .empty-state {

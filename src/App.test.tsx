@@ -1,7 +1,9 @@
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it } from "vitest";
-import App from "./App";
+import App, { ImportReview } from "./App";
+import type { ImportCandidate } from "./domain";
+import { fakeSnapshot } from "./fixtures";
 
 describe("Keyplane app", () => {
   it("renders the full-keyboard overlay as the first surface", async () => {
@@ -98,5 +100,60 @@ describe("Keyplane app", () => {
     expect(screen.getAllByText("user-overrides").length).toBeGreaterThan(0);
     expect(screen.getAllByText("keyviz-minimal").length).toBeGreaterThan(0);
     expect(screen.getByText("Promoted from keyviz-import")).toBeInTheDocument();
+  });
+
+  it("shows an Active Profile diff before committing an Import Candidate", () => {
+    const previewProfile = {
+      schema_version: 1,
+      id: "profile-small-preview",
+      name: "Small Preview",
+      sources: fakeSnapshot.sources.slice(0, 1),
+      physical_layout: {
+        keys: fakeSnapshot.physical_layout.keys.slice(0, 1),
+        fallback: true,
+      },
+      keymap: {
+        layers: fakeSnapshot.keymap.layers.slice(0, 1),
+      },
+      runtime_backends: fakeSnapshot.backends.slice(0, 1),
+      sentinel_keys: [],
+      visual_style: {
+        variant_id: "vial-preview",
+        density: "standard" as const,
+      },
+      overlay_window: fakeSnapshot.overlay_window,
+      source_precedence: fakeSnapshot.source_precedence,
+      user_overrides: [],
+      source_provenance: fakeSnapshot.source_provenance.slice(0, 2),
+    };
+    const candidate: ImportCandidate = {
+      id: "candidate-small-preview",
+      source: previewProfile.sources[0],
+      best_effort_preview: true,
+      preview_profile: previewProfile,
+      conflicts: [],
+      summary: {
+        imported_keys: 1,
+        imported_layers: 1,
+        preserved_sections: [":keyboard/physical-layout"],
+      },
+    };
+
+    render(
+      <ImportReview
+        activeSnapshot={fakeSnapshot}
+        candidate={candidate}
+        error={null}
+        onCommit={() => undefined}
+      />,
+    );
+
+    expect(screen.getByText("Profile Diff")).toBeInTheDocument();
+    expect(screen.getByText("Physical Keys")).toBeInTheDocument();
+    expect(screen.getByText("12 -> 1")).toBeInTheDocument();
+    expect(screen.getByText("Visual Style")).toBeInTheDocument();
+    expect(screen.getByText("keyplane-default -> vial-preview")).toBeInTheDocument();
+    expect(screen.getByText("Fallback Layout")).toBeInTheDocument();
+    expect(screen.getByText("no -> yes")).toBeInTheDocument();
   });
 });

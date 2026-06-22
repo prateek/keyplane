@@ -35,12 +35,13 @@ Started the Tauri v2 implementation from the PRD.
 - Added a Vial device HID import path using KeyPeek-derived Vial definition reads, XZ decompression, `qmk-via-api` layer matrix reads, and Import Review wiring as a Best-Effort Preview rather than live layer sync.
 - Added a Kanata TCP runtime path with local host/port Settings controls, newline-delimited JSON protocol parsing, Layer Stack Runtime Events from `LayerChange` and `CurrentLayerName`, and typed Backend Health from `HelloOk`, errors, reloads, disconnects, and parse failures.
 - Added Source Provenance and Source records to the Keyboard Snapshot contract and surfaced them in the Source Inspector with raw preserved values.
+- Added an Active Profile diff summary to Import Review so Import Candidates show changed keys, layers, sources, provenance records, backends, style, and fallback-layout state before commit.
 
 Verification:
 
 - `cargo fmt --check`
 - `cargo test` (76 Rust tests passed, 1 private local `.vil` canary ignored by default)
 - `KEYPLANE_LOCAL_VIL_CANDIDATE=<private .vil path> cargo test local_vil_candidate_file_imports_when_env_is_set -- --ignored`
-- `npm test` (18 frontend tests)
+- `npm test` (19 frontend tests)
 - `npm run build`
 - `npm run tauri build -- --debug`

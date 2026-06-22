@@ -494,6 +494,7 @@ function App() {
         ) : null}
         {view === "import" ? (
           <ImportReview
+            activeSnapshot={snapshot}
             candidate={importCandidate}
             error={importError}
             onCommit={commitImportPreview}
@@ -742,11 +743,69 @@ function SourceInspector({
   );
 }
 
-function ImportReview({
+type ImportDiffRow = {
+  label: string;
+  current: string;
+  preview: string;
+  changed: boolean;
+};
+
+export function buildImportDiffRows(
+  activeSnapshot: KeyboardSnapshot,
+  candidate: ImportCandidate,
+): ImportDiffRow[] {
+  const profile = candidate.preview_profile;
+  const rows = [
+    {
+      label: "Physical Keys",
+      current: String(activeSnapshot.physical_layout.keys.length),
+      preview: String(profile.physical_layout.keys.length),
+    },
+    {
+      label: "Layers",
+      current: String(activeSnapshot.keymap.layers.length),
+      preview: String(profile.keymap.layers.length),
+    },
+    {
+      label: "Sources",
+      current: String(activeSnapshot.sources.length),
+      preview: String(profile.sources.length),
+    },
+    {
+      label: "Source Provenance",
+      current: String(activeSnapshot.source_provenance.length),
+      preview: String(profile.source_provenance.length),
+    },
+    {
+      label: "Backends",
+      current: String(activeSnapshot.backends.length),
+      preview: String(profile.runtime_backends.length),
+    },
+    {
+      label: "Visual Style",
+      current: activeSnapshot.visual_style.variant_id,
+      preview: profile.visual_style.variant_id,
+    },
+    {
+      label: "Fallback Layout",
+      current: activeSnapshot.physical_layout.fallback ? "yes" : "no",
+      preview: profile.physical_layout.fallback ? "yes" : "no",
+    },
+  ];
+
+  return rows.map((row) => ({
+    ...row,
+    changed: row.current !== row.preview,
+  }));
+}
+
+export function ImportReview({
+  activeSnapshot,
   candidate,
   error,
   onCommit,
 }: {
+  activeSnapshot: KeyboardSnapshot;
   candidate: ImportCandidate | null;
   error: string | null;
   onCommit: (candidate: ImportCandidate) => void;
@@ -777,6 +836,19 @@ function ImportReview({
         <strong>{candidate.summary.imported_layers} layers</strong>
         <strong>{candidate.summary.preserved_sections.length} preserved sections</strong>
       </div>
+      <section className="import-diff">
+        <h3>Profile Diff</h3>
+        <div className="diff-grid">
+          {buildImportDiffRows(activeSnapshot, candidate).map((row) => (
+            <article className={`diff-row ${row.changed ? "changed" : ""}`} key={row.label}>
+              <span>{row.label}</span>
+              <strong>
+                {row.current} -&gt; {row.preview}
+              </strong>
+            </article>
+          ))}
+        </div>
+      </section>
       <p>{candidate.preview_profile.runtime_backends[0]?.health.message}</p>
       <div className="preserved-sections">
         {candidate.summary.preserved_sections.map((section) => (
