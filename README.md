@@ -11,6 +11,7 @@ The current implementation includes:
 - EDN v1 Profile Codec save/load support with deterministic output and toolbar import/export actions
 - NocFree/Vial `.vil` JSON import as a Best-Effort Preview Import Candidate, including backup-style layer matrices
 - keyviz style JSON import as a style-only Import Candidate
+- OverKeys companion JSON import as a Best-Effort Preview Import Candidate with row-array fallback geometry
 - a Rust-owned Active Profile store with Import Review commit support
 - App Window surfaces for the overlay, Import Review, Source Inspector, Backend Health, and Positioning Mode
 - Rust-owned Overlay Window drag and resize controls while Positioning Mode is active

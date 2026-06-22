@@ -108,6 +108,11 @@ fn import_keyviz_style_file(
 }
 
 #[tauri::command]
+fn import_overkeys_companion_file(contents: String) -> Result<ImportCandidate, String> {
+    importers::import_overkeys_companion_json(&contents).map_err(|err| err.to_string())
+}
+
+#[tauri::command]
 fn commit_import_candidate(
     active_profile: State<'_, ActiveProfileStore>,
     candidate: ImportCandidate,
@@ -180,6 +185,7 @@ pub fn run() {
             load_active_profile_edn,
             import_vial_file,
             import_keyviz_style_file,
+            import_overkeys_companion_file,
             commit_import_candidate,
             promote_source_candidate,
             set_overlay_positioning_mode,

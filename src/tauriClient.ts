@@ -68,6 +68,10 @@ export async function importKeyvizStyleFile(contents: string): Promise<ImportCan
   return invoke<ImportCandidate>("import_keyviz_style_file", { contents });
 }
 
+export async function importOverkeysCompanionFile(contents: string): Promise<ImportCandidate> {
+  return invoke<ImportCandidate>("import_overkeys_companion_file", { contents });
+}
+
 export async function commitImportCandidate(candidate: ImportCandidate): Promise<KeyboardSnapshot> {
   try {
     return await invoke<KeyboardSnapshot>("commit_import_candidate", { candidate });

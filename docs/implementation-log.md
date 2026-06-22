@@ -20,11 +20,12 @@ Started the Tauri v2 implementation from the PRD.
 - Added toolbar actions to save and load the Active Profile as hand-editable EDN.
 - Added keyviz style JSON import as a style-only Import Candidate with visual-style Source Conflicts.
 - Hardened NocFree/Vial `.vil` import for backup files whose `layout` is a layer matrix, with generated fallback geometry, numeric UID handling, and raw top-level section preservation.
+- Added OverKeys companion JSON import as an import-only Best-Effort Preview path with row-array fallback geometry, raw labels, aliases, triggers, styles, and Kanata settings preserved as Source Provenance.
 
 Verification:
 
 - `cargo fmt --check`
-- `cargo test` (31 Rust tests passed, 1 private local `.vil` canary ignored by default)
+- `cargo test` (33 Rust tests passed, 1 private local `.vil` canary ignored by default)
 - `KEYPLANE_LOCAL_VIL_CANDIDATE=<private .vil path> cargo test local_vil_candidate_file_imports_when_env_is_set -- --ignored`
 - `npm test` (11 frontend tests)
 - `npm run build`

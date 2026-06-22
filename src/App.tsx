@@ -29,6 +29,7 @@ import { applyRuntimeEvent } from "./state";
 import {
   commitImportCandidate,
   importKeyvizStyleFile,
+  importOverkeysCompanionFile,
   importVialFile,
   loadFakeRuntimeEvents,
   loadInitialSnapshot,
@@ -115,6 +116,19 @@ function App() {
     try {
       const contents = await file.text();
       setImportCandidate(await importKeyvizStyleFile(contents));
+      setView("import");
+    } catch (error) {
+      setImportError(error instanceof Error ? error.message : String(error));
+    }
+  }
+
+  async function handleOverkeysImport(file: File | null) {
+    if (!file) return;
+    setImportError(null);
+    setProfileStatus(null);
+    try {
+      const contents = await file.text();
+      setImportCandidate(await importOverkeysCompanionFile(contents));
       setView("import");
     } catch (error) {
       setImportError(error instanceof Error ? error.message : String(error));
@@ -257,6 +271,15 @@ function App() {
                 type="file"
                 accept=".json,application/json"
                 onChange={(event) => void handleStyleImport(event.currentTarget.files?.[0] ?? null)}
+              />
+            </label>
+            <label className="file-button">
+              <FileJson size={17} />
+              OverKeys JSON
+              <input
+                type="file"
+                accept=".json,application/json"
+                onChange={(event) => void handleOverkeysImport(event.currentTarget.files?.[0] ?? null)}
               />
             </label>
           </div>
@@ -491,7 +514,7 @@ function ImportReview({
   if (!candidate) {
     return (
       <section className="empty-state">
-        Select a `.vil` JSON export to preview a Best-Effort Import Candidate.
+        Select a `.vil` or companion JSON export to preview a Best-Effort Import Candidate.
       </section>
     );
   }
