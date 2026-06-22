@@ -21,6 +21,7 @@ Started the Tauri v2 implementation from the PRD.
 - Added toolbar actions to save and load the Active Profile as hand-editable EDN.
 - Added a Profile Codec migration hook that migrates legacy v0 EDN Profiles to v1 and rejects unsupported future schema versions before typed Profile parsing.
 - Added keyviz style JSON import as a style-only Import Candidate with visual-style Source Conflicts.
+- Corrected Import Candidate Source Precedence order so displayed Vial, OverKeys, ZMK, and keyviz preview rules list User Overrides before imported source winners.
 - Hardened NocFree/Vial `.vil` import for backup files whose `layout` is a layer matrix, with generated fallback geometry, numeric UID handling, and raw top-level section preservation.
 - Added OverKeys companion JSON import as an import-only Best-Effort Preview path with row-array fallback geometry, raw labels, aliases, triggers, styles, and Kanata settings preserved as Source Provenance.
 - Added deterministic Backend Health Runtime Events for permission-missing and recovery states so permission health is visible through the same snapshot/event path as live backends.

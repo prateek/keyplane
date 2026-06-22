@@ -114,11 +114,11 @@ pub fn import_vial_json(contents: &str) -> Result<ImportCandidate, ImportError> 
         source_precedence: vec![
             SourcePrecedenceRule {
                 field_scope: ":keyboard/physical-layout".to_string(),
-                source_order: vec![source.id.clone(), "user-overrides".to_string()],
+                source_order: vec!["user-overrides".to_string(), source.id.clone()],
             },
             SourcePrecedenceRule {
                 field_scope: ":keyboard/keymap".to_string(),
-                source_order: vec![source.id.clone(), "user-overrides".to_string()],
+                source_order: vec!["user-overrides".to_string(), source.id.clone()],
             },
         ],
         user_overrides: Vec::new(),
@@ -251,11 +251,11 @@ pub fn import_vial_device_snapshot(
         source_precedence: vec![
             SourcePrecedenceRule {
                 field_scope: ":keyboard/physical-layout".to_string(),
-                source_order: vec![source.id.clone(), "user-overrides".to_string()],
+                source_order: vec!["user-overrides".to_string(), source.id.clone()],
             },
             SourcePrecedenceRule {
                 field_scope: ":keyboard/keymap".to_string(),
-                source_order: vec![source.id.clone(), "user-overrides".to_string()],
+                source_order: vec!["user-overrides".to_string(), source.id.clone()],
             },
         ],
         user_overrides: Vec::new(),
@@ -448,11 +448,11 @@ pub fn import_overkeys_companion_json(contents: &str) -> Result<ImportCandidate,
         source_precedence: vec![
             SourcePrecedenceRule {
                 field_scope: ":keyboard/physical-layout".to_string(),
-                source_order: vec![source.id.clone(), "user-overrides".to_string()],
+                source_order: vec!["user-overrides".to_string(), source.id.clone()],
             },
             SourcePrecedenceRule {
                 field_scope: ":keyboard/keymap".to_string(),
-                source_order: vec![source.id.clone(), "user-overrides".to_string()],
+                source_order: vec!["user-overrides".to_string(), source.id.clone()],
             },
         ],
         user_overrides: Vec::new(),
@@ -564,11 +564,11 @@ pub fn import_zmk_keymap(contents: &str) -> Result<ImportCandidate, ImportError>
         source_precedence: vec![
             SourcePrecedenceRule {
                 field_scope: ":keyboard/physical-layout".to_string(),
-                source_order: vec![source.id.clone(), "user-overrides".to_string()],
+                source_order: vec!["user-overrides".to_string(), source.id.clone()],
             },
             SourcePrecedenceRule {
                 field_scope: ":keyboard/keymap".to_string(),
-                source_order: vec![source.id.clone(), "user-overrides".to_string()],
+                source_order: vec!["user-overrides".to_string(), source.id.clone()],
             },
         ],
         user_overrides: Vec::new(),
@@ -652,17 +652,25 @@ fn promote_style_precedence(profile: &mut Profile, source_id: &str, active_style
         .iter_mut()
         .find(|rule| rule.field_scope == ":visual/style")
     {
-        rule.source_order
-            .retain(|candidate| candidate != source_id && candidate != active_style_source_id);
+        rule.source_order.retain(|candidate| {
+            candidate != "user-overrides"
+                && candidate != source_id
+                && candidate != active_style_source_id
+        });
         rule.source_order
             .insert(0, active_style_source_id.to_string());
         rule.source_order.insert(0, source_id.to_string());
+        rule.source_order.insert(0, "user-overrides".to_string());
         return;
     }
 
     profile.source_precedence.push(SourcePrecedenceRule {
         field_scope: ":visual/style".to_string(),
-        source_order: vec![source_id.to_string(), active_style_source_id.to_string()],
+        source_order: vec![
+            "user-overrides".to_string(),
+            source_id.to_string(),
+            active_style_source_id.to_string(),
+        ],
     });
 }
 
@@ -1567,7 +1575,8 @@ mod tests {
             .iter()
             .any(|rule| {
                 rule.field_scope == ":keyboard/keymap"
-                    && rule.source_order[0] == candidate.source.id
+                    && rule.source_order[0] == "user-overrides"
+                    && rule.source_order[1] == candidate.source.id
             }));
         assert!(candidate
             .summary
@@ -1792,7 +1801,8 @@ mod tests {
             .iter()
             .any(|rule| {
                 rule.field_scope == ":keyboard/keymap"
-                    && rule.source_order[0] == candidate.source.id
+                    && rule.source_order[0] == "user-overrides"
+                    && rule.source_order[1] == candidate.source.id
             }));
     }
 
@@ -1865,6 +1875,15 @@ mod tests {
                 .as_deref(),
             Some("layer-2")
         );
+        assert!(candidate
+            .preview_profile
+            .source_precedence
+            .iter()
+            .any(|rule| {
+                rule.field_scope == ":keyboard/keymap"
+                    && rule.source_order[0] == "user-overrides"
+                    && rule.source_order[1] == candidate.source.id
+            }));
     }
 
     #[test]
@@ -1972,6 +1991,16 @@ mod tests {
             candidate.conflicts[0].selected_source_id,
             "keyviz-style-lowprofile"
         );
+        assert!(candidate
+            .preview_profile
+            .source_precedence
+            .iter()
+            .any(|rule| {
+                rule.field_scope == ":visual/style"
+                    && rule.source_order[0] == "user-overrides"
+                    && rule.source_order[1] == "keyviz-style-lowprofile"
+                    && rule.source_order[2] == "fake-backend"
+            }));
         assert!(candidate.conflicts[0].candidates.iter().any(|candidate| {
             candidate.source_id == "fake-backend"
                 && candidate.value == "keyplane-default"
