@@ -2,7 +2,7 @@ use crate::domain::{
     compose_snapshot, promote_conflict_to_override, ActivationKind, BackendStatus, CapabilityFlag,
     HealthState, HostInputEvent, ImportCandidate, KeyboardSnapshot, LayerActivation, Profile,
     RuntimeEvent, RuntimeState, SourceConflict, StateConfidence, StateConfidenceLevel,
-    StyleDensity,
+    StyleDensity, VisibilityPolicy,
 };
 use crate::profile_codec;
 use crate::sentinel_backend;
@@ -65,6 +65,44 @@ impl ActiveProfileStore {
             let mut profile = self.profile()?;
             profile.overlay_window.positioning_mode = enabled;
             profile.overlay_window.click_through = !enabled;
+            profile.clone()
+        };
+        let source_conflicts = self.source_conflicts()?.clone();
+
+        Ok(snapshot_from_profile(&profile, source_conflicts))
+    }
+
+    pub fn set_overlay_visibility_policy(
+        &self,
+        visibility: VisibilityPolicy,
+    ) -> Result<KeyboardSnapshot, ActiveProfileError> {
+        let profile = {
+            let mut profile = self.profile()?;
+            profile.overlay_window.visibility = visibility.clone();
+            if matches!(
+                visibility,
+                VisibilityPolicy::Pinned | VisibilityPolicy::Fade
+            ) {
+                profile.overlay_window.visible = true;
+            }
+            profile.clone()
+        };
+        let source_conflicts = self.source_conflicts()?.clone();
+
+        Ok(snapshot_from_profile(&profile, source_conflicts))
+    }
+
+    pub fn set_overlay_visible(
+        &self,
+        visible: bool,
+    ) -> Result<KeyboardSnapshot, ActiveProfileError> {
+        let profile = {
+            let mut profile = self.profile()?;
+            profile.overlay_window.visible = visible;
+            if !visible {
+                profile.overlay_window.positioning_mode = false;
+                profile.overlay_window.click_through = true;
+            }
             profile.clone()
         };
         let source_conflicts = self.source_conflicts()?.clone();
@@ -396,6 +434,49 @@ mod tests {
         let saved = store.save_profile_edn().expect("profile saves");
         let loaded = profile_codec::load_profile(&saved).expect("saved profile loads");
         assert_eq!(loaded.visual_style.density, StyleDensity::Compact);
+    }
+
+    #[test]
+    fn overlay_visibility_policy_updates_the_active_profile() {
+        let store = ActiveProfileStore::new(crate::fake_backend::fake_profile());
+
+        let manual = store
+            .set_overlay_visibility_policy(VisibilityPolicy::ManualToggle)
+            .expect("visibility policy updates");
+
+        assert_eq!(
+            manual.overlay_window.visibility,
+            VisibilityPolicy::ManualToggle
+        );
+        assert!(manual.overlay_window.visible);
+
+        let saved = store.save_profile_edn().expect("profile saves");
+        let loaded = profile_codec::load_profile(&saved).expect("saved profile loads");
+        assert_eq!(
+            loaded.overlay_window.visibility,
+            VisibilityPolicy::ManualToggle
+        );
+        assert!(loaded.overlay_window.visible);
+    }
+
+    #[test]
+    fn overlay_visible_state_updates_the_active_profile() {
+        let store = ActiveProfileStore::new(crate::fake_backend::fake_profile());
+        store
+            .set_overlay_positioning_mode(true)
+            .expect("positioning mode enables");
+
+        let hidden = store
+            .set_overlay_visible(false)
+            .expect("overlay visible state updates");
+
+        assert!(!hidden.overlay_window.visible);
+        assert!(!hidden.overlay_window.positioning_mode);
+        assert!(hidden.overlay_window.click_through);
+
+        let saved = store.save_profile_edn().expect("profile saves");
+        let loaded = profile_codec::load_profile(&saved).expect("saved profile loads");
+        assert!(!loaded.overlay_window.visible);
     }
 
     #[test]

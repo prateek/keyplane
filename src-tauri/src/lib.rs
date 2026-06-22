@@ -554,6 +554,44 @@ fn set_overlay_positioning_mode(
 }
 
 #[tauri::command]
+fn set_overlay_visibility_policy(
+    app: tauri::AppHandle,
+    active_profile: State<'_, ActiveProfileStore>,
+    visibility: VisibilityPolicy,
+) -> Result<KeyboardSnapshot, String> {
+    let snapshot = active_profile
+        .set_overlay_visibility_policy(visibility.clone())
+        .map_err(|err| err.to_string())?;
+    overlay_window_snapshot_from_result(
+        &active_profile,
+        apply_overlay_window_config_to_app(&app, &snapshot.overlay_window),
+        format!("Overlay Visibility Policy set to {visibility:?}"),
+        "Could not update Overlay Visibility Policy",
+    )
+}
+
+#[tauri::command]
+fn set_overlay_visible(
+    app: tauri::AppHandle,
+    active_profile: State<'_, ActiveProfileStore>,
+    visible: bool,
+) -> Result<KeyboardSnapshot, String> {
+    let snapshot = active_profile
+        .set_overlay_visible(visible)
+        .map_err(|err| err.to_string())?;
+    overlay_window_snapshot_from_result(
+        &active_profile,
+        apply_overlay_window_config_to_app(&app, &snapshot.overlay_window),
+        if visible {
+            "Overlay Window shown"
+        } else {
+            "Overlay Window hidden"
+        },
+        "Could not update Overlay Window visibility",
+    )
+}
+
+#[tauri::command]
 fn set_visual_style_density(
     active_profile: State<'_, ActiveProfileStore>,
     density: StyleDensity,
@@ -670,6 +708,8 @@ pub fn run() {
             promote_source_candidate,
             apply_overlay_window_config,
             set_overlay_positioning_mode,
+            set_overlay_visibility_policy,
+            set_overlay_visible,
             set_visual_style_density,
             start_overlay_drag,
             start_overlay_resize,
@@ -837,7 +877,7 @@ fn overlay_window_plan(config: &OverlayWindowConfig) -> OverlayWindowPlan {
         y: finite_or_default(target.y, 72.0),
         width: clamp_window_dimension(target.width, 320.0),
         height: clamp_window_dimension(target.height, 180.0),
-        visible: config.visibility == VisibilityPolicy::Pinned,
+        visible: config.visible,
         ignore_cursor_events: config.click_through && !config.positioning_mode,
         resizable: config.positioning_mode,
         focusable: config.positioning_mode,
@@ -935,13 +975,27 @@ mod tests {
         let mut config = crate::fake_backend::fake_profile().overlay_window;
         config.display_targeting.width = 0.0;
         config.display_targeting.height = f32::NAN;
-        config.visibility = VisibilityPolicy::ManualToggle;
+        config.visible = false;
 
         let plan = overlay_window_plan(&config);
 
         assert_eq!(plan.width, 320.0);
         assert_eq!(plan.height, 180.0);
         assert!(!plan.visible);
+    }
+
+    #[test]
+    fn overlay_window_plan_does_not_hide_non_pinned_policies_by_default() {
+        let mut config = crate::fake_backend::fake_profile().overlay_window;
+        config.visibility = VisibilityPolicy::ManualToggle;
+        config.visible = true;
+
+        let manual_plan = overlay_window_plan(&config);
+        assert!(manual_plan.visible);
+
+        config.visibility = VisibilityPolicy::Fade;
+        let fade_plan = overlay_window_plan(&config);
+        assert!(fade_plan.visible);
     }
 
     #[test]

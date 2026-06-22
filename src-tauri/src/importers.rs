@@ -96,6 +96,7 @@ pub fn import_vial_json(contents: &str) -> Result<ImportCandidate, ImportError> 
         },
         overlay_window: OverlayWindowConfig {
             visibility: VisibilityPolicy::Pinned,
+            visible: true,
             click_through: true,
             positioning_mode: false,
             display_targeting: DisplayTargeting {
@@ -230,6 +231,7 @@ pub fn import_vial_device_snapshot(
         },
         overlay_window: OverlayWindowConfig {
             visibility: VisibilityPolicy::Pinned,
+            visible: true,
             click_through: true,
             positioning_mode: false,
             display_targeting: DisplayTargeting {
@@ -423,6 +425,7 @@ pub fn import_overkeys_companion_json(contents: &str) -> Result<ImportCandidate,
         },
         overlay_window: OverlayWindowConfig {
             visibility: VisibilityPolicy::Pinned,
+            visible: true,
             click_through: true,
             positioning_mode: false,
             display_targeting: DisplayTargeting {
@@ -536,6 +539,7 @@ pub fn import_zmk_keymap(contents: &str) -> Result<ImportCandidate, ImportError>
         },
         overlay_window: OverlayWindowConfig {
             visibility: VisibilityPolicy::Pinned,
+            visible: true,
             click_through: true,
             positioning_mode: false,
             display_targeting: DisplayTargeting {

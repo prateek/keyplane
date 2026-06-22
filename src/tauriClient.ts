@@ -10,6 +10,7 @@ import type {
   RuntimeState,
   SourceConflict,
   StyleDensity,
+  VisibilityPolicy,
 } from "./domain";
 import { fakeSnapshot } from "./fixtures";
 import { promoteSourceCandidate, resolveEffectiveKeys } from "./state";
@@ -168,6 +169,24 @@ export async function setOverlayPositioningMode(
 ): Promise<KeyboardSnapshot | null> {
   try {
     return await invoke<KeyboardSnapshot>("set_overlay_positioning_mode", { enabled });
+  } catch {
+    return null;
+  }
+}
+
+export async function setOverlayVisibilityPolicy(
+  visibility: VisibilityPolicy,
+): Promise<KeyboardSnapshot | null> {
+  try {
+    return await invoke<KeyboardSnapshot>("set_overlay_visibility_policy", { visibility });
+  } catch {
+    return null;
+  }
+}
+
+export async function setOverlayVisible(visible: boolean): Promise<KeyboardSnapshot | null> {
+  try {
+    return await invoke<KeyboardSnapshot>("set_overlay_visible", { visible });
   } catch {
     return null;
   }

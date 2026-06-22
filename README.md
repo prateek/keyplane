@@ -22,7 +22,7 @@ The current implementation includes:
 - visible Backend Health for fake, Overlay Window, KeyPeek Live, Kanata TCP, and Sentinel Keys runtime backends
 - App Window surfaces for the overlay, Import Review with Active Profile diffs, Source Inspector, Source Provenance, Backend Health, and Positioning Mode
 - Rust-owned Overlay Window drag and resize controls while Positioning Mode is active, with unsupported window behavior surfaced as typed Backend Health
-- Profile-owned Overlay Window placement, size, click-through, visibility, and renderer opacity application with a Global Display Fallback for profiles without saved targeting
+- Profile-owned Overlay Window placement, size, click-through, visibility policy, visible state, and renderer opacity application with a Global Display Fallback for profiles without saved targeting
 - Sentinel Key bindings in the public Profile contract, with lower-confidence Host Input Event ingestion through a Rust Protocol Backend
 - native Sentinel Key global shortcut registration through a Rust-owned Tauri backend and Settings toggle
 - macOS Accessibility and Input Monitoring permission checks and prompts surfaced as persistent Sentinel Keys Backend Health

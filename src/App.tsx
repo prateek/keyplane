@@ -4,6 +4,8 @@ import {
   Download,
   FileJson,
   FileUp,
+  Eye,
+  EyeOff,
   Keyboard,
   Layers3,
   Maximize2,
@@ -26,6 +28,7 @@ import type {
   RuntimeEvent,
   SourceConflict,
   StyleDensity,
+  VisibilityPolicy,
 } from "./domain";
 import { navLayerEvent } from "./fixtures";
 import { applyRuntimeEvent } from "./state";
@@ -52,6 +55,8 @@ import {
   startOverlayResize,
   startKeyPeekLiveBackend,
   setOverlayPositioningMode,
+  setOverlayVisibilityPolicy,
+  setOverlayVisible,
   setVisualStyleDensity,
   stopKanataTcpBackend,
   unregisterSentinelKeyShortcuts,
@@ -154,6 +159,58 @@ function App() {
         : current,
     );
     setProfileStatus(`Visual style density set to ${density}`);
+  }
+
+  async function updateOverlayVisibilityPolicy(visibility: VisibilityPolicy) {
+    setProfileStatus(null);
+    const nextSnapshot = await setOverlayVisibilityPolicy(visibility);
+    if (nextSnapshot) {
+      setSnapshot(nextSnapshot);
+      setProfileStatus(`Overlay Visibility Policy set to ${visibility}`);
+      return;
+    }
+
+    setSnapshot((current) =>
+      current
+        ? {
+            ...current,
+            overlay_window: {
+              ...current.overlay_window,
+              visibility,
+              visible:
+                visibility === "pinned" || visibility === "fade"
+                  ? true
+                  : current.overlay_window.visible,
+            },
+          }
+        : current,
+    );
+    setProfileStatus(`Overlay Visibility Policy set to ${visibility}`);
+  }
+
+  async function updateOverlayVisible(visible: boolean) {
+    setProfileStatus(null);
+    const nextSnapshot = await setOverlayVisible(visible);
+    if (nextSnapshot) {
+      setSnapshot(nextSnapshot);
+      setProfileStatus(visible ? "Overlay Window shown" : "Overlay Window hidden");
+      return;
+    }
+
+    setSnapshot((current) =>
+      current
+        ? {
+            ...current,
+            overlay_window: {
+              ...current.overlay_window,
+              visible,
+              positioning_mode: visible ? current.overlay_window.positioning_mode : false,
+              click_through: visible ? current.overlay_window.click_through : true,
+            },
+          }
+        : current,
+    );
+    setProfileStatus(visible ? "Overlay Window shown" : "Overlay Window hidden");
   }
 
   function advanceFakeEvent() {
@@ -566,6 +623,8 @@ function App() {
             kanataHealthState={kanataHealth?.state ?? null}
             kanataHost={kanataHost}
             kanataPort={kanataPort}
+            overlayVisible={snapshot.overlay_window.visible}
+            overlayVisibility={snapshot.overlay_window.visibility}
             sentinelKeysEnabled={sentinelKeysEnabled}
             onDensityChange={updateVisualStyleDensity}
             onHostPermissionRefresh={() => updateHostPermissionHealth(false)}
@@ -575,6 +634,8 @@ function App() {
             onKanataDisconnect={disconnectKanataTcp}
             onKanataHostChange={setKanataHost}
             onKanataPortChange={setKanataPort}
+            onOverlayVisibilityChange={updateOverlayVisibilityPolicy}
+            onOverlayVisibleChange={updateOverlayVisible}
             onSentinelKeysChange={updateSentinelKeyShortcuts}
           />
         ) : null}
@@ -618,6 +679,10 @@ export function OverlaySurface({
         <div>
           <span>{health?.state ?? "unknown"}</span>
           <strong>{snapshot.overlay_window.click_through ? "click-through" : "positioning"}</strong>
+        </div>
+        <div>
+          <span>{snapshot.overlay_window.visibility}</span>
+          <strong>{snapshot.overlay_window.visible ? "visible" : "hidden"}</strong>
         </div>
       </div>
 
@@ -969,6 +1034,8 @@ function SettingsView({
   kanataHealthState,
   kanataHost,
   kanataPort,
+  overlayVisible,
+  overlayVisibility,
   sentinelKeysEnabled,
   onDensityChange,
   onHostPermissionRefresh,
@@ -978,6 +1045,8 @@ function SettingsView({
   onKanataDisconnect,
   onKanataHostChange,
   onKanataPortChange,
+  onOverlayVisibilityChange,
+  onOverlayVisibleChange,
   onSentinelKeysChange,
 }: {
   density: StyleDensity;
@@ -987,6 +1056,8 @@ function SettingsView({
   kanataHealthState: string | null;
   kanataHost: string;
   kanataPort: string;
+  overlayVisible: boolean;
+  overlayVisibility: VisibilityPolicy;
   sentinelKeysEnabled: boolean | null;
   onDensityChange: (density: StyleDensity) => void;
   onHostPermissionRefresh: () => void;
@@ -996,6 +1067,8 @@ function SettingsView({
   onKanataDisconnect: () => void;
   onKanataHostChange: (host: string) => void;
   onKanataPortChange: (port: string) => void;
+  onOverlayVisibilityChange: (visibility: VisibilityPolicy) => void;
+  onOverlayVisibleChange: (visible: boolean) => void;
   onSentinelKeysChange: (enabled: boolean) => void;
 }) {
   return (
@@ -1029,6 +1102,31 @@ function SettingsView({
             </button>
           ))}
         </div>
+      </section>
+      <section>
+        <h2>Overlay Window</h2>
+        <div className="density-options" aria-label="Overlay visibility policy">
+          {(["pinned", "manual-toggle", "fade"] as const).map((option) => (
+            <button
+              className={overlayVisibility === option ? "active" : ""}
+              key={option}
+              onClick={() => onOverlayVisibilityChange(option)}
+              type="button"
+            >
+              {option}
+            </button>
+          ))}
+        </div>
+        <label className="setting-toggle">
+          <span>Overlay visible</span>
+          <input
+            type="checkbox"
+            checked={overlayVisible}
+            onChange={(event) => onOverlayVisibleChange(event.currentTarget.checked)}
+          />
+          <span className="badge">{overlayVisible ? "visible" : "hidden"}</span>
+          {overlayVisible ? <Eye size={17} /> : <EyeOff size={17} />}
+        </label>
       </section>
       <section>
         <h2>Protocol Backends</h2>

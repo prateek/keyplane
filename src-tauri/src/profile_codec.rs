@@ -329,6 +329,7 @@ fn overlay_window_to_value(overlay: &OverlayWindowConfig) -> Value {
             kw("overlay", "positioning-mode?"),
             Value::from(overlay.positioning_mode),
         ),
+        (kw("overlay", "visible?"), Value::from(overlay.visible)),
         (
             kw("overlay", "visibility"),
             visibility_policy_to_value(&overlay.visibility),
@@ -599,6 +600,10 @@ fn parse_overlay_window(value: &Value) -> Result<OverlayWindowConfig, ProfileCod
     let map = as_map(value, ":overlay/window")?;
     Ok(OverlayWindowConfig {
         visibility: parse_visibility_policy(get(map, "overlay", "visibility")?)?,
+        visible: match get_optional(map, "overlay", "visible?") {
+            Some(value) => as_bool(value, ":overlay/visible?")?,
+            None => true,
+        },
         click_through: as_bool(
             get(map, "overlay", "click-through?")?,
             ":overlay/click-through?",
@@ -1093,6 +1098,26 @@ mod tests {
             loaded.overlay_window.display_targeting,
             global_display_fallback()
         );
+    }
+
+    #[test]
+    fn profile_codec_defaults_missing_overlay_visible_state_to_visible() {
+        let profile = fake_profile();
+        let Value::Map(mut map) = profile_to_value(&profile) else {
+            panic!("profile should serialize as map");
+        };
+        let overlay = map
+            .get_mut(&kw("overlay", "window"))
+            .expect("overlay section exists");
+        let Value::Map(overlay_map) = overlay else {
+            panic!("overlay section should be a map");
+        };
+        overlay_map.remove(&kw("overlay", "visible?"));
+        let saved_without_visible_state = emit_str(&Value::Map(map));
+
+        let loaded = load_profile(&saved_without_visible_state).expect("profile should load");
+
+        assert!(loaded.overlay_window.visible);
     }
 
     #[test]

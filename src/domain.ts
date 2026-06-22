@@ -206,6 +206,7 @@ export interface DisplayTargeting {
 
 export interface OverlayWindowConfig {
   visibility: VisibilityPolicy;
+  visible: boolean;
   click_through: boolean;
   positioning_mode: boolean;
   display_targeting: DisplayTargeting;

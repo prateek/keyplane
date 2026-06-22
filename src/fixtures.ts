@@ -231,6 +231,7 @@ export const fakeSnapshot: KeyboardSnapshot = {
   },
   overlay_window: {
     visibility: "pinned",
+    visible: true,
     click_through: true,
     positioning_mode: false,
     display_targeting: {

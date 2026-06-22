@@ -279,6 +279,7 @@ pub fn global_display_fallback() -> DisplayTargeting {
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct OverlayWindowConfig {
     pub visibility: VisibilityPolicy,
+    pub visible: bool,
     pub click_through: bool,
     pub positioning_mode: bool,
     pub display_targeting: DisplayTargeting,

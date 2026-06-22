@@ -160,6 +160,7 @@ pub fn fake_profile() -> Profile {
         },
         overlay_window: OverlayWindowConfig {
             visibility: VisibilityPolicy::Pinned,
+            visible: true,
             click_through: true,
             positioning_mode: false,
             display_targeting: global_display_fallback(),

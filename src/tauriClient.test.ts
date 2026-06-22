@@ -8,6 +8,8 @@ import {
   registerSentinelKeyShortcuts,
   requestHostInputPermissions,
   setLaunchAtLogin,
+  setOverlayVisibilityPolicy,
+  setOverlayVisible,
   setVisualStyleDensity,
   startOverlayDrag,
   startOverlayResize,
@@ -134,6 +136,11 @@ describe("Tauri client fallbacks", () => {
 
   it("reports Visual Style density updates as unavailable when Tauri is absent", async () => {
     await expect(setVisualStyleDensity("compact")).resolves.toBeNull();
+  });
+
+  it("reports Overlay Visibility controls as unavailable when Tauri is absent", async () => {
+    await expect(setOverlayVisibilityPolicy("manual-toggle")).resolves.toBeNull();
+    await expect(setOverlayVisible(false)).resolves.toBeNull();
   });
 
   it("reports Overlay Window placement controls as unavailable when Tauri is absent", async () => {

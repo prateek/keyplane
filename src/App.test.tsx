@@ -88,6 +88,10 @@ describe("Keyplane app", () => {
     expect(screen.getByRole("button", { name: /compact/i })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /standard/i })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /rich/i })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /pinned/i })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /manual-toggle/i })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /fade/i })).toBeInTheDocument();
+    expect(screen.getByLabelText(/overlay visible/i)).toBeInTheDocument();
     expect(screen.getByLabelText(/sentinel keys/i)).toBeInTheDocument();
     expect(screen.getByText(/host input permissions/i)).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /check/i })).toBeInTheDocument();
@@ -116,6 +120,24 @@ describe("Keyplane app", () => {
     await user.click(screen.getByRole("button", { name: /overlay/i }));
 
     expect((await screen.findAllByText("layer-1")).length).toBeGreaterThan(0);
+  });
+
+  it("updates Overlay Visibility Policy and visible state from Settings", async () => {
+    const user = userEvent.setup();
+    render(<App />);
+
+    await user.click(await screen.findByRole("button", { name: /settings/i }));
+    await user.click(screen.getByRole("button", { name: /manual-toggle/i }));
+    await screen.findByText("Overlay Visibility Policy set to manual-toggle");
+    await user.click(screen.getByLabelText(/overlay visible/i));
+    await screen.findByText("Overlay Window hidden");
+
+    expect(screen.getByText("hidden")).toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: /overlay/i }));
+
+    expect(screen.getByText("manual-toggle")).toBeInTheDocument();
+    expect(screen.getByText("hidden")).toBeInTheDocument();
   });
 
   it("shows overlay drag and resize affordances in Positioning Mode", async () => {

@@ -29,6 +29,7 @@ Started the Tauri v2 implementation from the PRD.
 - Vendored a narrow GPL-3.0-only KeyPeek source slice at `third_party/keypeek` and moved KeyPeek firmware packet parsing into a named Rust contract module adapted from that source.
 - Applied profile-owned Overlay Window targeting to the Rust-owned Tauri Overlay Window on initial snapshot, profile load, and import commit, with Positioning Mode updates persisted in the active Rust Profile.
 - Added a Global Display Fallback for Profiles that omit Overlay Window Display Targeting, while preserving Profile-owned targeting when it is present.
+- Added Active Profile controls for Overlay Visibility Policy and current Overlay Window visible state, with EDN persistence and backward-compatible loading for Profiles that predate `:overlay/visible?`.
 - Added a Sentinel Keys Protocol Backend and public Profile binding section that maps Host Input Events to lower-confidence Layer Stack Runtime Events without requiring OS input monitoring in tests.
 - Added a KeyPeek Live Raw HID session using `qmk-via-api`, with subscription keepalive, layer and pressed-key packet mapping through the app-domain Runtime Event boundary, VID/PID connection controls, and Tauri event delivery to both App Window and Overlay Window renderers.
 - Added launch-at-login Settings backed by `tauri-plugin-autostart`, with explicit Tauri autostart permissions and browser-preview fallback state.
@@ -51,10 +52,10 @@ Started the Tauri v2 implementation from the PRD.
 Verification:
 
 - `cargo fmt --check`
-- `cargo test` (85 Rust tests passed, 3 private local hardware canaries ignored by default)
+- `cargo test` (89 Rust tests passed, 3 private local hardware canaries ignored by default)
 - `KEYPLANE_LOCAL_VIL_CANDIDATE=<private .vil path> cargo test local_vil_candidate_file_imports_when_env_is_set -- --ignored`
 - `npm ci`
-- `npm test` (24 frontend tests)
+- `npm test` (26 frontend tests)
 - `npm run build`
 - `actionlint .github/workflows/signed-release.yml .github/workflows/desktop-build.yml`
 - `ruby -e 'require "yaml"; %w[.github/workflows/signed-release.yml .github/workflows/desktop-build.yml].each { |path| YAML.load_file(path) }'`

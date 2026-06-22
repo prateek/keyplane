@@ -461,7 +461,7 @@ button:hover {
 
 .setting-toggle {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) auto auto;
+  grid-template-columns: minmax(0, 1fr) auto auto auto;
   gap: 12px;
   align-items: center;
   min-height: 48px;
