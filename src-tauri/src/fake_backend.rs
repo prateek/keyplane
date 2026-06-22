@@ -86,11 +86,7 @@ pub fn fake_profile() -> Profile {
         },
     ];
 
-    let health = BackendHealth {
-        backend_id: FAKE_SOURCE_ID.to_string(),
-        state: HealthState::Ok,
-        message: "Streaming deterministic layer stack events".to_string(),
-    };
+    let health = ok_backend_health();
 
     Profile {
         schema_version: 1,
@@ -178,11 +174,17 @@ pub fn demo_runtime_events() -> Vec<RuntimeEvent> {
         RuntimeEvent::LayerStackChanged {
             layer_stack: vec![nav_layer_activation(), default_layer_activation()],
         },
+        RuntimeEvent::BackendHealthChanged {
+            health: permission_missing_backend_health(),
+        },
         RuntimeEvent::PressedKeysChanged {
             pressed_keys: vec!["k-fn".to_string(), "k-w".to_string()],
         },
         RuntimeEvent::LayerStackChanged {
             layer_stack: vec![default_layer_activation()],
+        },
+        RuntimeEvent::BackendHealthChanged {
+            health: ok_backend_health(),
         },
         RuntimeEvent::PressedKeysChanged {
             pressed_keys: Vec::new(),
@@ -253,6 +255,22 @@ fn fake_keys() -> Vec<PhysicalKey> {
         .collect()
 }
 
+fn ok_backend_health() -> BackendHealth {
+    BackendHealth {
+        backend_id: FAKE_SOURCE_ID.to_string(),
+        state: HealthState::Ok,
+        message: "Streaming deterministic layer stack events".to_string(),
+    }
+}
+
+fn permission_missing_backend_health() -> BackendHealth {
+    BackendHealth {
+        backend_id: FAKE_SOURCE_ID.to_string(),
+        state: HealthState::PermissionMissing,
+        message: "Input monitoring permission is missing for host input fallback".to_string(),
+    }
+}
+
 fn default_layer_activation() -> LayerActivation {
     LayerActivation {
         layer_id: "layer-0".to_string(),
@@ -317,5 +335,26 @@ mod tests {
         assert_eq!(key_q.semantic.label, "Q");
         assert_eq!(key_q.source_layer_id, "layer-0");
         assert!(key_q.inherited);
+    }
+
+    #[test]
+    fn demo_runtime_events_include_permission_health_and_recovery() {
+        let health_states: Vec<HealthState> = demo_runtime_events()
+            .into_iter()
+            .filter_map(|event| match event {
+                RuntimeEvent::BackendHealthChanged { health } => Some(health.state),
+                _ => None,
+            })
+            .collect();
+
+        assert!(health_states.contains(&HealthState::PermissionMissing));
+        assert!(health_states.contains(&HealthState::Ok));
+
+        let snapshot = snapshot_after_demo_events();
+        assert_eq!(
+            snapshot.runtime_state.backend_health[0].state,
+            HealthState::Ok
+        );
+        assert_eq!(snapshot.backends[0].health.state, HealthState::Ok);
     }
 }

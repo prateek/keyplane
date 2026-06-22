@@ -26,6 +26,24 @@ describe("frontend runtime state", () => {
     expect(next.backends[0].health.message).toBe("Fake backend disconnected");
   });
 
+  it("adds permission health for newly discovered backends", () => {
+    const next = applyRuntimeEvent(fakeSnapshot, {
+      type: "backend-health-changed",
+      health: {
+        backend_id: "sentinel-keys",
+        state: "permission-missing",
+        message: "Input monitoring permission is missing",
+      },
+    });
+
+    expect(next.runtime_state.backend_health).toContainEqual({
+      backend_id: "sentinel-keys",
+      state: "permission-missing",
+      message: "Input monitoring permission is missing",
+    });
+    expect(next.backends.find((backend) => backend.id === "sentinel-keys")).toBeUndefined();
+  });
+
   it("promotes a source conflict candidate to a User Override", () => {
     const conflict = fakeSnapshot.source_conflicts[0];
     const next = promoteSourceCandidate(fakeSnapshot, conflict, "keyviz-import");

@@ -9,6 +9,7 @@ describe("Keyplane app", () => {
 
     expect(await screen.findByRole("region", { name: "Keyboard overlay" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /k-q q/i })).toBeInTheDocument();
+    expect(screen.getAllByText("ok").length).toBeGreaterThan(0);
     expect(screen.getByText("click-through")).toBeInTheDocument();
   });
 
