@@ -66,15 +66,20 @@ function App() {
   async function togglePositioningMode() {
     if (!snapshot) return;
     const enabled = !snapshot.overlay_window.positioning_mode;
-    await setOverlayPositioningMode(enabled);
-    setSnapshot({
+    const nextSnapshot = await setOverlayPositioningMode(enabled);
+    if (nextSnapshot) {
+      setSnapshot(nextSnapshot);
+      return;
+    }
+    const fallbackSnapshot: KeyboardSnapshot = {
       ...snapshot,
       overlay_window: {
         ...snapshot.overlay_window,
         positioning_mode: enabled,
         click_through: !enabled,
       },
-    });
+    };
+    setSnapshot(fallbackSnapshot);
   }
 
   function advanceFakeEvent() {
@@ -351,9 +356,14 @@ function OverlaySurface({
     )?.name ?? "Unknown";
   const health = snapshot.runtime_state.backend_health[0];
   const bounds = useMemo(() => layoutBounds(snapshot), [snapshot]);
+  const overlayOpacity = clampOpacity(snapshot.overlay_window.display_targeting.opacity);
 
   return (
-    <section className="overlay-surface" aria-label="Keyboard overlay">
+    <section
+      className="overlay-surface"
+      style={{ opacity: overlayOpacity }}
+      aria-label="Keyboard overlay"
+    >
       <div className="overlay-status">
         <div>
           <span>{layerName}</span>
@@ -601,6 +611,11 @@ function layoutBounds(snapshot: KeyboardSnapshot) {
     width: right - left,
     height: bottom - top,
   };
+}
+
+function clampOpacity(value: number) {
+  if (!Number.isFinite(value)) return 1;
+  return Math.min(Math.max(value, 0), 1);
 }
 
 function downloadTextFile(filename: string, contents: string) {

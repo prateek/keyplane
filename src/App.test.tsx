@@ -7,7 +7,9 @@ describe("Keyplane app", () => {
   it("renders the full-keyboard overlay as the first surface", async () => {
     render(<App />);
 
-    expect(await screen.findByRole("region", { name: "Keyboard overlay" })).toBeInTheDocument();
+    const overlay = await screen.findByRole("region", { name: "Keyboard overlay" });
+    expect(overlay).toBeInTheDocument();
+    expect(overlay).toHaveStyle({ opacity: "0.92" });
     expect(screen.getByRole("button", { name: /k-q q/i })).toBeInTheDocument();
     expect(screen.getAllByText("ok").length).toBeGreaterThan(0);
     expect(screen.getByText("click-through")).toBeInTheDocument();

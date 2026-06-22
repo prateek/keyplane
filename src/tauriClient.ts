@@ -36,11 +36,13 @@ export async function loadFakeRuntimeEvents(): Promise<RuntimeEvent[]> {
   }
 }
 
-export async function setOverlayPositioningMode(enabled: boolean): Promise<void> {
+export async function setOverlayPositioningMode(
+  enabled: boolean,
+): Promise<KeyboardSnapshot | null> {
   try {
-    await invoke("set_overlay_positioning_mode", { enabled });
+    return await invoke<KeyboardSnapshot>("set_overlay_positioning_mode", { enabled });
   } catch {
-    return;
+    return null;
   }
 }
 

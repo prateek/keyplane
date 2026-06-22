@@ -53,6 +53,21 @@ impl ActiveProfileStore {
         self.replace_profile(profile, Vec::new())
     }
 
+    pub fn set_overlay_positioning_mode(
+        &self,
+        enabled: bool,
+    ) -> Result<KeyboardSnapshot, ActiveProfileError> {
+        let profile = {
+            let mut profile = self.profile()?;
+            profile.overlay_window.positioning_mode = enabled;
+            profile.overlay_window.click_through = !enabled;
+            profile.clone()
+        };
+        let source_conflicts = self.source_conflicts()?.clone();
+
+        Ok(snapshot_from_profile(&profile, source_conflicts))
+    }
+
     pub fn save_profile_edn(&self) -> Result<String, ActiveProfileError> {
         let profile = self.profile()?.clone();
         Ok(profile_codec::save_profile(&profile))
@@ -268,6 +283,29 @@ mod tests {
             "user-overrides"
         );
         assert_eq!(snapshot.visual_style.variant_id, "keyviz-minimal");
+    }
+
+    #[test]
+    fn positioning_mode_updates_the_active_profile_overlay_state() {
+        let store = ActiveProfileStore::new(crate::fake_backend::fake_profile());
+
+        let positioned = store
+            .set_overlay_positioning_mode(true)
+            .expect("positioning mode enables");
+
+        assert!(positioned.overlay_window.positioning_mode);
+        assert!(!positioned.overlay_window.click_through);
+
+        let saved = store.save_profile_edn().expect("profile saves");
+        let loaded = profile_codec::load_profile(&saved).expect("saved profile loads");
+        assert!(loaded.overlay_window.positioning_mode);
+        assert!(!loaded.overlay_window.click_through);
+
+        let locked = store
+            .set_overlay_positioning_mode(false)
+            .expect("positioning mode disables");
+        assert!(!locked.overlay_window.positioning_mode);
+        assert!(locked.overlay_window.click_through);
     }
 
     #[test]
