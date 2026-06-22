@@ -1,7 +1,9 @@
 import {
   Check,
   Crosshair,
+  Download,
   FileJson,
+  FileUp,
   Layers3,
   Maximize2,
   Move,
@@ -28,7 +30,9 @@ import {
   importVialFile,
   loadFakeRuntimeEvents,
   loadInitialSnapshot,
+  loadActiveProfileEdn,
   promoteActiveSourceCandidate,
+  saveActiveProfileEdn,
   startOverlayDrag,
   startOverlayResize,
   setOverlayPositioningMode,
@@ -44,6 +48,7 @@ function App() {
   const [eventIndex, setEventIndex] = useState(0);
   const [importCandidate, setImportCandidate] = useState<ImportCandidate | null>(null);
   const [importError, setImportError] = useState<string | null>(null);
+  const [profileStatus, setProfileStatus] = useState<string | null>(null);
 
   useEffect(() => {
     void loadInitialSnapshot().then(setSnapshot);
@@ -91,6 +96,7 @@ function App() {
   async function handleImport(file: File | null) {
     if (!file) return;
     setImportError(null);
+    setProfileStatus(null);
     try {
       const contents = await file.text();
       setImportCandidate(await importVialFile(contents));
@@ -100,8 +106,36 @@ function App() {
     }
   }
 
+  async function exportActiveProfile() {
+    if (!snapshot) return;
+    setProfileStatus(null);
+    try {
+      const contents = await saveActiveProfileEdn();
+      downloadTextFile(`${snapshot.profile_id}.keyplane.edn`, contents);
+      setProfileStatus("Exported active profile EDN");
+    } catch (error) {
+      setProfileStatus(error instanceof Error ? error.message : String(error));
+    }
+  }
+
+  async function handleProfileLoad(file: File | null) {
+    if (!file) return;
+    setProfileStatus(null);
+    try {
+      const contents = await file.text();
+      const next = await loadActiveProfileEdn(contents);
+      setSnapshot(next);
+      setImportCandidate(null);
+      setView("overlay");
+      setProfileStatus(`Loaded ${next.profile_name}`);
+    } catch (error) {
+      setProfileStatus(error instanceof Error ? error.message : String(error));
+    }
+  }
+
   async function commitImportPreview(candidate: ImportCandidate) {
     setImportError(null);
+    setProfileStatus(null);
     try {
       setSnapshot(await commitImportCandidate(candidate));
       setImportCandidate(null);
@@ -168,6 +202,7 @@ function App() {
           <div>
             <span className="eyebrow">Active layer</span>
             <h1>{activeLayer?.layer_id ?? "none"}</h1>
+            {profileStatus ? <p className="toolbar-status">{profileStatus}</p> : null}
           </div>
           <div className="toolbar-actions">
             <button onClick={advanceFakeEvent}>
@@ -178,6 +213,19 @@ function App() {
               {snapshot.overlay_window.positioning_mode ? <Crosshair size={17} /> : <Move size={17} />}
               {snapshot.overlay_window.positioning_mode ? "Done" : "Position"}
             </button>
+            <button onClick={() => void exportActiveProfile()}>
+              <Download size={17} />
+              Save EDN
+            </button>
+            <label className="file-button">
+              <FileUp size={17} />
+              Load EDN
+              <input
+                type="file"
+                accept=".edn,text/plain"
+                onChange={(event) => void handleProfileLoad(event.currentTarget.files?.[0] ?? null)}
+              />
+            </label>
             <label className="file-button">
               <FileJson size={17} />
               Vial file
@@ -467,6 +515,15 @@ function layoutBounds(snapshot: KeyboardSnapshot) {
     width: right - left,
     height: bottom - top,
   };
+}
+
+function downloadTextFile(filename: string, contents: string) {
+  const url = URL.createObjectURL(new Blob([contents], { type: "text/plain;charset=utf-8" }));
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = filename;
+  link.click();
+  URL.revokeObjectURL(url);
 }
 
 export default App;

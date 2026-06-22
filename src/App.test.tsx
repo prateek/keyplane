@@ -21,6 +21,13 @@ describe("Keyplane app", () => {
     expect(screen.getAllByText("inherited").length).toBeGreaterThan(0);
   });
 
+  it("exposes active Profile EDN save and load actions", async () => {
+    render(<App />);
+
+    expect(await screen.findByRole("button", { name: /save edn/i })).toBeInTheDocument();
+    expect(screen.getByText(/load edn/i)).toBeInTheDocument();
+  });
+
   it("shows overlay drag and resize affordances in Positioning Mode", async () => {
     const user = userEvent.setup();
     render(<App />);

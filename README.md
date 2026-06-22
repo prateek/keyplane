@@ -8,7 +8,7 @@ The current implementation includes:
 - a Fake Backend that emits Keyboard Snapshots and Layer Stack Runtime Events
 - a transparent, frameless, always-on-top Tauri Overlay Window owned by Rust
 - Effective Action resolution for transparent keys and inherited legends
-- EDN v1 Profile Codec save/load support with deterministic output
+- EDN v1 Profile Codec save/load support with deterministic output and toolbar import/export actions
 - NocFree/Vial `.vil` JSON import as a Best-Effort Preview Import Candidate
 - a Rust-owned Active Profile store with Import Review commit support
 - App Window surfaces for the overlay, Import Review, Source Inspector, Backend Health, and Positioning Mode

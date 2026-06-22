@@ -164,6 +164,12 @@ button:hover {
   line-height: 1.05;
 }
 
+.toolbar-status {
+  margin: 5px 0 0;
+  color: #5e716b;
+  font-size: 0.84rem;
+}
+
 .toolbar-actions {
   display: flex;
   flex-wrap: wrap;
