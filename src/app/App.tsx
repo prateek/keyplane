@@ -8,11 +8,13 @@ import {
   commitImport,
   connectKanata,
   connectKeypeek,
+  getAutostart,
   getSnapshot,
   importPreview,
   onRuntimeEvent,
   onSnapshot,
   promoteOverride,
+  setAutostart,
   setOverlayVisible,
   setPositioningMode,
 } from "../api";
@@ -93,6 +95,14 @@ export function App() {
 function OverlayControls() {
   const [positioning, setPositioning] = useState(false);
   const [visible, setVisible] = useState(true);
+  const [autostart, setAutostartState] = useState(false);
+
+  useEffect(() => {
+    getAutostart()
+      .then(setAutostartState)
+      .catch(() => undefined);
+  }, []);
+
   return (
     <div className="overlay-controls">
       <button
@@ -112,6 +122,15 @@ function OverlayControls() {
         }}
       >
         {visible ? "Hide overlay" : "Show overlay"}
+      </button>
+      <button
+        onClick={() => {
+          const next = !autostart;
+          setAutostartState(next);
+          setAutostart(next).catch(() => undefined);
+        }}
+      >
+        {autostart ? "✓ Launch at login" : "Launch at login"}
       </button>
     </div>
   );

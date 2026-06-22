@@ -61,6 +61,9 @@ export const setPositioningMode = (enabled: boolean) =>
   invoke<void>("set_positioning_mode", { enabled });
 export const setOverlayVisible = (visible: boolean) =>
   invoke<void>("set_overlay_visible", { visible });
+export const setAutostart = (enabled: boolean) =>
+  invoke<void>("set_autostart", { enabled });
+export const getAutostart = () => invoke<boolean>("get_autostart");
 
 /** Subscribe to streamed Runtime Events; returns an unlisten function. */
 export const onRuntimeEvent = (handler: (event: RuntimeEvent) => void) =>

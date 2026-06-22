@@ -16,6 +16,12 @@ use state::AppState;
 /// Build and run the Keyplane application.
 pub fn run() {
     tauri::Builder::default()
+        // Launch-at-login designed in from day one (ADR 0039, story 59). Off
+        // until the user enables it via `set_autostart`.
+        .plugin(tauri_plugin_autostart::init(
+            tauri_plugin_autostart::MacosLauncher::LaunchAgent,
+            None,
+        ))
         .manage(AppState::new())
         .invoke_handler(tauri::generate_handler![
             commands::get_snapshot,
@@ -32,6 +38,8 @@ pub fn run() {
             commands::set_positioning_mode,
             commands::set_overlay_visible,
             commands::set_display_targeting,
+            commands::set_autostart,
+            commands::get_autostart,
         ])
         .setup(|app| {
             driver::spawn(app.handle().clone());

@@ -332,6 +332,25 @@ pub fn set_display_targeting(
     Ok(profile)
 }
 
+/// Enable or disable launch-at-login (ADR 0039, story 59).
+#[tauri::command]
+pub fn set_autostart(app: AppHandle, enabled: bool) -> Result<(), String> {
+    use tauri_plugin_autostart::ManagerExt;
+    let manager = app.autolaunch();
+    if enabled {
+        manager.enable().map_err(|e| e.to_string())
+    } else {
+        manager.disable().map_err(|e| e.to_string())
+    }
+}
+
+/// Whether launch-at-login is currently enabled.
+#[tauri::command]
+pub fn get_autostart(app: AppHandle) -> Result<bool, String> {
+    use tauri_plugin_autostart::ManagerExt;
+    app.autolaunch().is_enabled().map_err(|e| e.to_string())
+}
+
 /// Show or hide the Overlay Window.
 #[tauri::command]
 pub fn set_overlay_visible(app: AppHandle, visible: bool) -> Result<(), String> {

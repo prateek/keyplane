@@ -20,6 +20,7 @@ keyplane-kanata = { path = "../crates/keyplane-kanata" }
 keyplane-keypeek = { path = "../crates/keyplane-keypeek" }
 keyplane-sentinel = { path = "../crates/keyplane-sentinel" }
 tauri = { version = "2", features = ["macos-private-api"] }
+tauri-plugin-autostart = "2"
 rdev = "0.5"
 serde = { workspace = true }
 serde_json = { workspace = true }
