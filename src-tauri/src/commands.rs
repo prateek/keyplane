@@ -1,0 +1,136 @@
+//! The Tauri command boundary (ADR 0015, 0036).
+//!
+//! Commands are thin: they serialize `keyplane-core` DTOs to the frontend and
+//! translate UI intents (import, hand edit, positioning) into core calls. No
+//! keyboard logic lives here.
+
+use crate::state::{AppState, EVENT_SNAPSHOT};
+use keyplane_core::import::{
+    ImportCandidate, ImportReview, Importer, KeyvizStyleImporter, OverKeysImporter, VialFileImporter,
+};
+use keyplane_core::profile::Profile;
+use keyplane_core::snapshot::KeyboardSnapshot;
+use tauri::{AppHandle, Emitter, Manager, State};
+
+/// The current fully-resolved snapshot for first paint.
+#[tauri::command]
+pub fn get_snapshot(state: State<AppState>) -> KeyboardSnapshot {
+    state.inner.lock().expect("state").composer.snapshot()
+}
+
+/// The active Profile as structured data.
+#[tauri::command]
+pub fn get_profile(state: State<AppState>) -> Profile {
+    state.inner.lock().expect("state").profile.clone()
+}
+
+/// The active Profile as hand-editable EDN text (ADR 0020).
+#[tauri::command]
+pub fn active_profile_edn(state: State<AppState>) -> String {
+    state.inner.lock().expect("state").profile.to_edn_str()
+}
+
+/// Apply hand-edited EDN, replacing the active profile and re-resolving.
+#[tauri::command]
+pub fn apply_profile_edn(
+    app: AppHandle,
+    state: State<AppState>,
+    edn: String,
+) -> Result<Profile, String> {
+    let profile = Profile::from_edn_str(&edn).map_err(|e| e.to_string())?;
+    let mut inner = state.inner.lock().expect("state");
+    inner.replace_model(profile.model.clone());
+    inner.profile = profile.clone();
+    let snapshot = inner.composer.snapshot();
+    drop(inner);
+    let _ = app.emit(EVENT_SNAPSHOT, &snapshot);
+    Ok(profile)
+}
+
+/// Preview an import against the active profile, surfacing Source Conflicts.
+/// Never mutates the profile (ADR 0034).
+#[tauri::command]
+pub fn import_preview(
+    state: State<AppState>,
+    format: String,
+    contents: String,
+) -> Result<ImportReview, String> {
+    let candidate = run_importer(&format, &contents)?;
+    let inner = state.inner.lock().expect("state");
+    Ok(ImportReview::build(Some(&inner.profile), &candidate))
+}
+
+/// Commit an import as a new active profile and re-resolve the overlay.
+#[tauri::command]
+pub fn commit_import(
+    app: AppHandle,
+    state: State<AppState>,
+    format: String,
+    contents: String,
+) -> Result<Profile, String> {
+    let candidate = run_importer(&format, &contents)?;
+    let profile = candidate.into_new_profile("imported-profile");
+    let mut inner = state.inner.lock().expect("state");
+    inner.replace_model(profile.model.clone());
+    inner.profile = profile.clone();
+    let snapshot = inner.composer.snapshot();
+    drop(inner);
+    let _ = app.emit(EVENT_SNAPSHOT, &snapshot);
+    Ok(profile)
+}
+
+/// Promote a value to a User Override so future imports cannot replace it
+/// (ADR 0018). Recorded in the profile and persisted in EDN; applying overrides
+/// to live resolution is tracked as follow-up work.
+#[tauri::command]
+pub fn promote_override(
+    state: State<AppState>,
+    field: String,
+    value: serde_json::Value,
+    note: Option<String>,
+) -> Profile {
+    let mut inner = state.inner.lock().expect("state");
+    keyplane_core::import::promote_override(&mut inner.profile, field, value, note);
+    inner.profile.clone()
+}
+
+/// Toggle Positioning Mode: disable click-through and allow resize so the user
+/// can move/size the overlay, or re-enable click-through when done (ADR 0025).
+#[tauri::command]
+pub fn set_positioning_mode(app: AppHandle, enabled: bool) -> Result<(), String> {
+    let overlay = app
+        .get_webview_window("overlay")
+        .ok_or("overlay window not found")?;
+    overlay
+        .set_ignore_cursor_events(!enabled)
+        .map_err(|e| e.to_string())?;
+    let _ = overlay.set_resizable(enabled);
+    if enabled {
+        let _ = overlay.set_focus();
+    }
+    Ok(())
+}
+
+/// Show or hide the Overlay Window.
+#[tauri::command]
+pub fn set_overlay_visible(app: AppHandle, visible: bool) -> Result<(), String> {
+    let overlay = app
+        .get_webview_window("overlay")
+        .ok_or("overlay window not found")?;
+    if visible {
+        overlay.show().map_err(|e| e.to_string())
+    } else {
+        overlay.hide().map_err(|e| e.to_string())
+    }
+}
+
+/// Dispatch an import by format string to the matching Importer.
+fn run_importer(format: &str, contents: &str) -> Result<ImportCandidate, String> {
+    let result = match format {
+        "vial" | "vil" => VialFileImporter::new().import(contents),
+        "overkeys" => OverKeysImporter::new().import(contents),
+        "keyviz" => KeyvizStyleImporter::new().import(contents),
+        other => return Err(format!("unknown import format: {other}")),
+    };
+    result.map_err(|e| e.to_string())
+}

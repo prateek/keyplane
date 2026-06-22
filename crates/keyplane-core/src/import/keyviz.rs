@@ -67,8 +67,10 @@ impl Importer for KeyvizStyleImporter {
             }
         }
 
-        let mut model = KeyboardModel::default();
-        model.style = style;
+        let model = KeyboardModel {
+            style,
+            ..KeyboardModel::default()
+        };
 
         Ok(ImportCandidate {
             source: SourceRef {

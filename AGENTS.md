@@ -26,7 +26,13 @@ This repo uses a single-context domain-doc layout. See `docs/agents/domain.md`.
 
 ## Current State
 
-The repo is intentionally docs-first. Do not assume a Tauri scaffold, KeyPeek fork, or Rust module layout exists until it has been created in this repo.
+The MVP is implemented. Layout:
+
+- `crates/keyplane-core/` — domain core (model, resolution, EDN Profile Codec, backends, importers), fully unit-tested.
+- `src-tauri/` — Tauri v2 shell: App + Overlay windows, command/event boundary, Fake Backend driver.
+- `src/` — React/TypeScript/Vite frontend (overlay + App Window).
+
+Real KeyPeek/HID hardware paths are structured but hardware-gated; the Fake Backend is the automated/dev source (ADR 0045). See `docs/implementation-log.md` for architecture and decisions.
 
 ## Source Boundaries
 

@@ -57,21 +57,16 @@ pub struct BackendConfig {
 }
 
 /// Overlay Visibility Policy (ADR 0026).
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "kebab-case")]
 pub enum VisibilityPolicy {
     /// Visible until explicitly hidden — the MVP default.
+    #[default]
     Pinned,
     /// Shown/hidden by a manual toggle.
     ManualToggle,
     /// Appears on activity, fades after inactivity.
     Fade,
-}
-
-impl Default for VisibilityPolicy {
-    fn default() -> Self {
-        VisibilityPolicy::Pinned
-    }
 }
 
 /// Profile-owned Display Targeting (ADR 0027) with a Global Display Fallback:

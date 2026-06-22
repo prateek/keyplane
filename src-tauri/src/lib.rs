@@ -1,0 +1,36 @@
+//! Keyplane Tauri shell.
+//!
+//! This crate owns the desktop runtime: the App and Overlay windows, the
+//! command/event boundary the frontend talks to, and the driver loop that
+//! advances the Fake Backend and emits Runtime Events. All keyboard meaning —
+//! resolution, health, EDN persistence — lives in `keyplane-core`; this layer
+//! only does windows, scheduling, and serialization (ADR 0015, 0036, 0044).
+
+mod commands;
+mod driver;
+mod state;
+
+use state::AppState;
+
+/// Build and run the Keyplane application.
+pub fn run() {
+    tauri::Builder::default()
+        .manage(AppState::new())
+        .invoke_handler(tauri::generate_handler![
+            commands::get_snapshot,
+            commands::get_profile,
+            commands::active_profile_edn,
+            commands::apply_profile_edn,
+            commands::import_preview,
+            commands::commit_import,
+            commands::promote_override,
+            commands::set_positioning_mode,
+            commands::set_overlay_visible,
+        ])
+        .setup(|app| {
+            driver::spawn(app.handle().clone());
+            Ok(())
+        })
+        .run(tauri::generate_context!())
+        .expect("error while running Keyplane");
+}

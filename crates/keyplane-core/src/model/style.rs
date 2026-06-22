@@ -7,19 +7,14 @@
 use serde::{Deserialize, Serialize};
 
 /// A reusable visual treatment for the overlay surface.
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "kebab-case")]
 pub enum StyleVariant {
     /// Rich keycaps preserving structured Legend Slots.
+    #[default]
     Detailed,
     /// Compact keycaps that collapse legends into a single label.
     Minimal,
-}
-
-impl Default for StyleVariant {
-    fn default() -> Self {
-        StyleVariant::Detailed
-    }
 }
 
 /// The Visual Style configuration for the overlay.
