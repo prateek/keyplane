@@ -31,6 +31,7 @@ import {
   importKeyvizStyleFile,
   importOverkeysCompanionFile,
   importVialFile,
+  importZmkKeymapFile,
   loadFakeRuntimeEvents,
   loadInitialSnapshot,
   loadActiveProfileEdn,
@@ -129,6 +130,19 @@ function App() {
     try {
       const contents = await file.text();
       setImportCandidate(await importOverkeysCompanionFile(contents));
+      setView("import");
+    } catch (error) {
+      setImportError(error instanceof Error ? error.message : String(error));
+    }
+  }
+
+  async function handleZmkImport(file: File | null) {
+    if (!file) return;
+    setImportError(null);
+    setProfileStatus(null);
+    try {
+      const contents = await file.text();
+      setImportCandidate(await importZmkKeymapFile(contents));
       setView("import");
     } catch (error) {
       setImportError(error instanceof Error ? error.message : String(error));
@@ -280,6 +294,15 @@ function App() {
                 type="file"
                 accept=".json,application/json"
                 onChange={(event) => void handleOverkeysImport(event.currentTarget.files?.[0] ?? null)}
+              />
+            </label>
+            <label className="file-button">
+              <FileUp size={17} />
+              ZMK keymap
+              <input
+                type="file"
+                accept=".keymap,text/plain"
+                onChange={(event) => void handleZmkImport(event.currentTarget.files?.[0] ?? null)}
               />
             </label>
           </div>
@@ -514,7 +537,7 @@ function ImportReview({
   if (!candidate) {
     return (
       <section className="empty-state">
-        Select a `.vil` or companion JSON export to preview a Best-Effort Import Candidate.
+        Select a `.vil`, `.keymap`, or companion JSON export to preview a Best-Effort Import Candidate.
       </section>
     );
   }

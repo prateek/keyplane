@@ -652,6 +652,22 @@ pub fn derive_semantic_action(raw_value: &str) -> SemanticAction {
         };
     }
 
+    if let Some(target) = parse_space_separated_arg(value, "&mo") {
+        return layer_action(SemanticActionKind::LayerMomentary, "hold", target);
+    }
+
+    if let Some(target) = parse_space_separated_arg(value, "&tog") {
+        return layer_action(SemanticActionKind::LayerToggle, "toggle", target);
+    }
+
+    if let Some((target, tap)) = parse_zmk_layer_tap(value) {
+        return SemanticAction {
+            kind: SemanticActionKind::LayerTap,
+            label: key_label(tap),
+            target_layer: Some(format!("layer-{}", target.trim())),
+        };
+    }
+
     if upper.starts_with("MT(") || upper.starts_with("LGUI_T(") || upper.starts_with("LCTL_T(") {
         return SemanticAction {
             kind: SemanticActionKind::TapHold,
@@ -731,6 +747,26 @@ fn parse_layer_tap(value: &str) -> Option<(&str, &str)> {
     let rest = value.strip_prefix("LT(")?.strip_suffix(')')?;
     let (target, tap) = rest.split_once(',')?;
     Some((target.trim(), tap.trim()))
+}
+
+fn parse_space_separated_arg<'a>(value: &'a str, behavior: &str) -> Option<&'a str> {
+    let mut parts = value.split_whitespace();
+    let candidate = parts.next()?;
+    if !candidate.eq_ignore_ascii_case(behavior) {
+        return None;
+    }
+    parts.next()
+}
+
+fn parse_zmk_layer_tap(value: &str) -> Option<(&str, &str)> {
+    let mut parts = value.split_whitespace();
+    let behavior = parts.next()?;
+    if !behavior.eq_ignore_ascii_case("&lt") {
+        return None;
+    }
+    let target = parts.next()?;
+    let tap = parts.next()?;
+    Some((target, tap))
 }
 
 fn key_label(value: &str) -> String {
@@ -1063,5 +1099,21 @@ mod tests {
                 }
             ]
         );
+    }
+
+    #[test]
+    fn zmk_layer_behaviors_derive_visual_layer_semantics() {
+        let momentary = derive_action("zmk", "&mo 2", source_ref(), "k-fn");
+        let toggle = derive_action("zmk", "&tog 3", source_ref(), "k-toggle");
+        let layer_tap = derive_action("zmk", "&lt 1 SPACE", source_ref(), "k-space");
+
+        assert_eq!(momentary.raw.value, "&mo 2");
+        assert_eq!(momentary.semantic.kind, SemanticActionKind::LayerMomentary);
+        assert_eq!(momentary.semantic.target_layer.as_deref(), Some("layer-2"));
+        assert_eq!(toggle.semantic.kind, SemanticActionKind::LayerToggle);
+        assert_eq!(toggle.semantic.target_layer.as_deref(), Some("layer-3"));
+        assert_eq!(layer_tap.semantic.kind, SemanticActionKind::LayerTap);
+        assert_eq!(layer_tap.semantic.label, "Space");
+        assert_eq!(layer_tap.semantic.target_layer.as_deref(), Some("layer-1"));
     }
 }

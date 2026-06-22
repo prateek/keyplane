@@ -72,6 +72,10 @@ export async function importOverkeysCompanionFile(contents: string): Promise<Imp
   return invoke<ImportCandidate>("import_overkeys_companion_file", { contents });
 }
 
+export async function importZmkKeymapFile(contents: string): Promise<ImportCandidate> {
+  return invoke<ImportCandidate>("import_zmk_keymap_file", { contents });
+}
+
 export async function commitImportCandidate(candidate: ImportCandidate): Promise<KeyboardSnapshot> {
   try {
     return await invoke<KeyboardSnapshot>("commit_import_candidate", { candidate });

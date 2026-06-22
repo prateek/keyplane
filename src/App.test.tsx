@@ -29,6 +29,7 @@ describe("Keyplane app", () => {
     expect(screen.getByText(/load edn/i)).toBeInTheDocument();
     expect(screen.getByText(/style json/i)).toBeInTheDocument();
     expect(screen.getByText(/overkeys json/i)).toBeInTheDocument();
+    expect(screen.getByText(/zmk keymap/i)).toBeInTheDocument();
   });
 
   it("shows overlay drag and resize affordances in Positioning Mode", async () => {

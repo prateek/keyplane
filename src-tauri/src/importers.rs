@@ -315,6 +315,118 @@ pub fn import_overkeys_companion_json(contents: &str) -> Result<ImportCandidate,
     })
 }
 
+pub fn import_zmk_keymap(contents: &str) -> Result<ImportCandidate, ImportError> {
+    let parsed_layers = parse_zmk_keymap_layers(contents);
+
+    if parsed_layers.is_empty() {
+        return Err(ImportError::Missing("keymap bindings"));
+    }
+
+    let source = Source {
+        id: "zmk-keymap".to_string(),
+        name: "ZMK keymap".to_string(),
+        kind: "zmk-keymap-import".to_string(),
+        authority: SourceAuthority::BestEffortPreview,
+    };
+    let layer_values: Vec<Vec<ImportedLayerCell>> = parsed_layers
+        .iter()
+        .map(|layer| layer.cells.clone())
+        .collect();
+    let physical_keys = import_matrix_rows_as_fallback_layout(&layer_values, &source.id, "zmk");
+    let mut layers = import_layers(
+        Some(layer_values.as_slice()),
+        &physical_keys,
+        &source.id,
+        "zmk",
+    );
+
+    for (layer, parsed_layer) in layers.iter_mut().zip(parsed_layers.iter()) {
+        layer.name = parsed_layer.name.clone();
+    }
+
+    let preserved_sections = vec!["zmk-keymap".to_string()];
+    let mut source_provenance: Vec<SourceRef> = physical_keys
+        .iter()
+        .map(|key| key.provenance.clone())
+        .collect();
+    source_provenance.push(SourceRef {
+        source_id: source.id.clone(),
+        field_path: ":source/raw zmk-keymap".to_string(),
+        raw: Some(contents.trim().to_string()),
+    });
+    let backend_health = BackendHealth {
+        backend_id: source.id.clone(),
+        state: HealthState::Stale,
+        message: "Imported ZMK keymap is Best-Effort Preview; no live ZMK or KeyPeek connection"
+            .to_string(),
+    };
+    let profile = Profile {
+        schema_version: 1,
+        id: format!("profile-{}", source.id),
+        name: format!("{} Preview", source.name),
+        sources: vec![source.clone()],
+        physical_layout: PhysicalLayout {
+            keys: physical_keys.clone(),
+            fallback: true,
+        },
+        keymap: LogicalKeymap {
+            layers: layers.clone(),
+        },
+        runtime_backends: vec![BackendStatus {
+            id: source.id.clone(),
+            name: source.name.clone(),
+            capabilities: vec![
+                CapabilityFlag::ImportGeometry,
+                CapabilityFlag::ImportKeymaps,
+                CapabilityFlag::PreviewOnly,
+            ],
+            health: backend_health,
+        }],
+        visual_style: VisualStyle {
+            variant_id: "zmk-preview".to_string(),
+            density: StyleDensity::Standard,
+        },
+        overlay_window: OverlayWindowConfig {
+            visibility: VisibilityPolicy::Pinned,
+            click_through: true,
+            positioning_mode: false,
+            display_targeting: DisplayTargeting {
+                display_id: None,
+                x: 80.0,
+                y: 80.0,
+                width: 920.0,
+                height: 320.0,
+                opacity: 0.9,
+            },
+        },
+        source_precedence: vec![
+            SourcePrecedenceRule {
+                field_scope: ":keyboard/physical-layout".to_string(),
+                source_order: vec![source.id.clone(), "user-overrides".to_string()],
+            },
+            SourcePrecedenceRule {
+                field_scope: ":keyboard/keymap".to_string(),
+                source_order: vec![source.id.clone(), "user-overrides".to_string()],
+            },
+        ],
+        user_overrides: Vec::new(),
+        source_provenance,
+    };
+
+    Ok(ImportCandidate {
+        id: format!("candidate-{}", source.id),
+        source,
+        best_effort_preview: true,
+        preview_profile: profile,
+        conflicts: Vec::<SourceConflict>::new(),
+        summary: ImportSummary {
+            imported_keys: physical_keys.len(),
+            imported_layers: layers.len(),
+            preserved_sections,
+        },
+    })
+}
+
 fn preserved_keyviz_style_sections(json: &JsonValue) -> Result<Vec<String>, ImportError> {
     let required_sections = [
         "appearance",
@@ -379,6 +491,12 @@ struct OverkeysLayout<'a> {
     rows: &'a [JsonValue],
 }
 
+#[derive(Debug, Clone)]
+struct ZmkParsedLayer {
+    name: String,
+    cells: Vec<ImportedLayerCell>,
+}
+
 fn json_scalar_to_string(value: &JsonValue) -> Option<String> {
     match value {
         JsonValue::String(value) => Some(value.clone()),
@@ -386,6 +504,165 @@ fn json_scalar_to_string(value: &JsonValue) -> Option<String> {
         JsonValue::Bool(value) => Some(value.to_string()),
         _ => None,
     }
+}
+
+fn parse_zmk_keymap_layers(contents: &str) -> Vec<ZmkParsedLayer> {
+    let mut layers = Vec::new();
+    let mut current_layer_name: Option<String> = None;
+    let mut collecting_bindings = false;
+    let mut collected_layer_name = String::new();
+    let mut row_index = 0_usize;
+    let mut cells = Vec::new();
+
+    for raw_line in contents.lines() {
+        let line = strip_zmk_line_comment(raw_line).trim();
+        if line.is_empty() {
+            continue;
+        }
+
+        if !collecting_bindings {
+            if let Some(layer_name) = zmk_layer_name_from_line(line) {
+                current_layer_name = Some(layer_name);
+            }
+
+            if let Some((_, after_open)) = line.split_once('<') {
+                if line.contains("bindings") {
+                    collecting_bindings = true;
+                    collected_layer_name = current_layer_name
+                        .clone()
+                        .unwrap_or_else(|| format!("layer-{}", layers.len()));
+                    cells.clear();
+                    row_index = 0;
+                    let (row, done) = zmk_binding_row_segment(after_open);
+                    row_index += push_zmk_binding_row(&row, row_index, &mut cells);
+                    if done {
+                        finish_zmk_layer(&mut layers, &mut cells, &collected_layer_name);
+                        collecting_bindings = false;
+                    }
+                }
+            }
+        } else {
+            let (row, done) = zmk_binding_row_segment(line);
+            row_index += push_zmk_binding_row(&row, row_index, &mut cells);
+            if done {
+                finish_zmk_layer(&mut layers, &mut cells, &collected_layer_name);
+                collecting_bindings = false;
+            }
+        }
+
+        if line.contains("};") {
+            current_layer_name = None;
+        }
+    }
+
+    layers
+}
+
+fn strip_zmk_line_comment(line: &str) -> &str {
+    line.split_once("//")
+        .map(|(before, _)| before)
+        .unwrap_or(line)
+}
+
+fn zmk_layer_name_from_line(line: &str) -> Option<String> {
+    let before_open = line.strip_suffix('{')?.trim();
+    if before_open.is_empty()
+        || before_open == "/"
+        || before_open == "keymap"
+        || before_open.contains("compatible")
+    {
+        return None;
+    }
+
+    let candidate = before_open
+        .split(':')
+        .next_back()
+        .unwrap_or(before_open)
+        .split_whitespace()
+        .next()?;
+
+    if candidate == "keymap" || candidate == "/" {
+        None
+    } else {
+        Some(candidate.to_string())
+    }
+}
+
+fn zmk_binding_row_segment(line: &str) -> (String, bool) {
+    let end_index = line
+        .find(">;")
+        .or_else(|| line.find('>'))
+        .unwrap_or(line.len());
+    let done = end_index < line.len();
+    let row = line[..end_index]
+        .replace("bindings", "")
+        .replace('=', "")
+        .replace('<', "")
+        .replace(';', "");
+
+    (row.trim().to_string(), done)
+}
+
+fn push_zmk_binding_row(row: &str, row_index: usize, cells: &mut Vec<ImportedLayerCell>) -> usize {
+    let bindings = parse_zmk_binding_row(row);
+    if bindings.is_empty() {
+        return 0;
+    }
+
+    for (col_index, raw) in bindings.into_iter().enumerate() {
+        cells.push(ImportedLayerCell {
+            raw,
+            row: Some(row_index),
+            col: Some(col_index),
+        });
+    }
+
+    1
+}
+
+fn parse_zmk_binding_row(row: &str) -> Vec<String> {
+    let tokens: Vec<&str> = row.split_whitespace().collect();
+    let mut bindings = Vec::new();
+    let mut index = 0_usize;
+
+    while index < tokens.len() {
+        let token = tokens[index];
+        if !token.starts_with('&') {
+            index += 1;
+            continue;
+        }
+
+        let arity = zmk_binding_arity(token);
+        let end = (index + 1 + arity).min(tokens.len());
+        bindings.push(tokens[index..end].join(" "));
+        index = end;
+    }
+
+    bindings
+}
+
+fn zmk_binding_arity(behavior: &str) -> usize {
+    match behavior.to_ascii_lowercase().as_str() {
+        "&trans" | "&none" => 0,
+        "&kp" | "&mo" | "&tog" | "&to" => 1,
+        "&lt" | "&mt" => 2,
+        _ => 1,
+    }
+}
+
+fn finish_zmk_layer(
+    layers: &mut Vec<ZmkParsedLayer>,
+    cells: &mut Vec<ImportedLayerCell>,
+    layer_name: &str,
+) {
+    if cells.is_empty() {
+        return;
+    }
+
+    layers.push(ZmkParsedLayer {
+        name: layer_name.to_string(),
+        cells: std::mem::take(cells),
+    });
 }
 
 fn selected_overkeys_layout(json: &JsonValue) -> Option<OverkeysLayout<'_>> {
@@ -908,6 +1185,28 @@ mod tests {
     }
     "#;
 
+    const ZMK_KEYMAP_FIXTURE: &str = r#"
+    / {
+      keymap {
+        compatible = "zmk,keymap";
+
+        default_layer {
+          bindings = <
+            &kp Q &kp W &lt 1 SPACE
+            &kp A &mo 1 &kp S
+          >;
+        };
+
+        nav_layer {
+          bindings = <
+            &trans &kp UP &tog 2
+            &kp LEFT &none &kp RIGHT
+          >;
+        };
+      };
+    };
+    "#;
+
     const KEYVIZ_STYLE_FIXTURE: &str = r##"
     {
       "appearance": {
@@ -1155,6 +1454,69 @@ mod tests {
                         && source_ref.raw.is_some()
                 }));
         }
+    }
+
+    #[test]
+    fn zmk_keymap_imports_binding_rows_as_best_effort_preview() {
+        let candidate = import_zmk_keymap(ZMK_KEYMAP_FIXTURE).expect("fixture imports");
+
+        assert_eq!(candidate.source.kind, "zmk-keymap-import");
+        assert!(candidate.best_effort_preview);
+        assert!(candidate.preview_profile.physical_layout.fallback);
+        assert_eq!(candidate.summary.imported_keys, 6);
+        assert_eq!(candidate.summary.imported_layers, 2);
+        assert_eq!(
+            candidate.preview_profile.physical_layout.keys[0].id,
+            "zmk-r0c0"
+        );
+        assert_eq!(
+            candidate.preview_profile.physical_layout.keys[5].matrix,
+            Some(MatrixPosition { row: 1, col: 2 })
+        );
+        assert_eq!(
+            candidate.preview_profile.keymap.layers[0].name,
+            "default_layer"
+        );
+        assert_eq!(
+            candidate.preview_profile.keymap.layers[0].actions[2]
+                .raw
+                .value,
+            "&lt 1 SPACE"
+        );
+        assert_eq!(
+            candidate.preview_profile.keymap.layers[0].actions[2]
+                .semantic
+                .kind,
+            crate::domain::SemanticActionKind::LayerTap
+        );
+        assert_eq!(
+            candidate.preview_profile.keymap.layers[1].actions[2]
+                .semantic
+                .target_layer
+                .as_deref(),
+            Some("layer-2")
+        );
+    }
+
+    #[test]
+    fn zmk_keymap_preserves_raw_source_text() {
+        let candidate = import_zmk_keymap(ZMK_KEYMAP_FIXTURE).expect("fixture imports");
+
+        assert_eq!(
+            candidate.summary.preserved_sections,
+            vec!["zmk-keymap".to_string()]
+        );
+        assert!(candidate
+            .preview_profile
+            .source_provenance
+            .iter()
+            .any(|source_ref| {
+                source_ref.field_path == ":source/raw zmk-keymap"
+                    && source_ref
+                        .raw
+                        .as_deref()
+                        .is_some_and(|raw| raw.contains("zmk,keymap"))
+            }));
     }
 
     #[test]
