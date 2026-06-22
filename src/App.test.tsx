@@ -32,6 +32,19 @@ describe("Keyplane app", () => {
     expect(screen.getByRole("button", { name: /k-q q/i })).not.toHaveClass("top-active-layer");
   });
 
+  it("shows transparent Raw Actions and inherited sources in Source Inspector", async () => {
+    const user = userEvent.setup();
+    render(<App />);
+
+    await user.click(await screen.findByRole("button", { name: /fake event/i }));
+    await user.click(screen.getByRole("button", { name: /source inspector/i }));
+
+    expect(screen.getByText("Transparent Entries")).toBeInTheDocument();
+    expect(screen.getAllByText("KC_TRNS").length).toBeGreaterThan(0);
+    expect(screen.getByText("inherits Q from layer-0")).toBeInTheDocument();
+    expect(screen.getByText(":keyboard/keymap k-q")).toBeInTheDocument();
+  });
+
   it("uses Visual Style density to collapse or preserve structured Legend Slots", () => {
     const renderOverlay = (density: "compact" | "standard" | "rich") =>
       render(

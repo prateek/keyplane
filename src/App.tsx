@@ -931,6 +931,7 @@ function SourceInspector({
 }) {
   const sourceName = (sourceId: string) =>
     snapshot.sources.find((source) => source.id === sourceId)?.name ?? sourceId;
+  const transparentRows = transparentEntryRows(snapshot);
 
   return (
     <section className="inspector-view">
@@ -1009,6 +1010,25 @@ function SourceInspector({
           </section>
 
           <section>
+            <h2>Transparent Entries</h2>
+            {transparentRows.length === 0 ? <p>No active transparent entries.</p> : null}
+            {transparentRows.map((row) => (
+              <article
+                className="list-row"
+                key={`${row.transparentLayerId}-${row.keyId}-${row.rawValue}`}
+              >
+                <strong>{row.keyId}</strong>
+                <span className="badge">{row.transparentLayerId}</span>
+                <p>{row.rawValue}</p>
+                <p>
+                  inherits {row.effectiveLabel} from {row.inheritedLayerId}
+                </p>
+                <p>{row.provenanceFieldPath}</p>
+              </article>
+            ))}
+          </section>
+
+          <section>
             <h2>User Overrides</h2>
             {snapshot.user_overrides.length === 0 ? <p>No active overrides.</p> : null}
             {snapshot.user_overrides.map((override) => (
@@ -1023,6 +1043,47 @@ function SourceInspector({
       </div>
     </section>
   );
+}
+
+type TransparentEntryRow = {
+  keyId: string;
+  transparentLayerId: string;
+  rawValue: string;
+  inheritedLayerId: string;
+  effectiveLabel: string;
+  provenanceFieldPath: string;
+};
+
+function transparentEntryRows(snapshot: KeyboardSnapshot): TransparentEntryRow[] {
+  const layersById = new Map(snapshot.keymap.layers.map((layer) => [layer.id, layer]));
+
+  return snapshot.effective_keys.flatMap((effective) => {
+    if (!effective.inherited) return [];
+
+    const rows: TransparentEntryRow[] = [];
+    for (const activation of snapshot.runtime_state.layer_stack) {
+      if (activation.layer_id === effective.source_layer_id) break;
+
+      const layer = layersById.get(activation.layer_id);
+      if (!layer) continue;
+      const action = layer.actions.find((candidate) => candidate.key_id === effective.key_id);
+      if (action?.semantic.kind !== "transparent") continue;
+
+      rows.push({
+        keyId: effective.key_id,
+        transparentLayerId: layer.id,
+        rawValue: action.raw.value,
+        inheritedLayerId: effective.source_layer_id,
+        effectiveLabel:
+          effective.legend.slots.find((slot) => slot.slot === "primary")?.text ??
+          effective.semantic.label ??
+          effective.raw.value,
+        provenanceFieldPath: action.provenance.field_path,
+      });
+    }
+
+    return rows;
+  });
 }
 
 function ConflictCandidateRows({
