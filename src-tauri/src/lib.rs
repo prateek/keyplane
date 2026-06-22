@@ -894,7 +894,9 @@ fn apply_overlay_window_config_to_app(
     config: &OverlayWindowConfig,
 ) -> Result<(), String> {
     let window = overlay_window(app)?;
-    let plan = overlay_window_plan(config);
+    let displays =
+        overlay_displays_for_window(&window, config.display_targeting.display_id.as_deref())?;
+    let plan = overlay_window_plan(config, &displays);
 
     window
         .set_position(LogicalPosition::new(plan.x, plan.y))
@@ -925,6 +927,14 @@ fn apply_overlay_window_config_to_app(
 }
 
 #[derive(Debug, Clone, PartialEq)]
+struct OverlayDisplayTarget {
+    index: usize,
+    id: Option<String>,
+    x: f64,
+    y: f64,
+}
+
+#[derive(Debug, Clone, PartialEq)]
 struct OverlayWindowPlan {
     x: f64,
     y: f64,
@@ -937,11 +947,54 @@ struct OverlayWindowPlan {
     visible_on_all_workspaces: bool,
 }
 
-fn overlay_window_plan(config: &OverlayWindowConfig) -> OverlayWindowPlan {
+fn overlay_displays_for_window(
+    window: &tauri::Window,
+    requested_display_id: Option<&str>,
+) -> Result<Vec<OverlayDisplayTarget>, String> {
+    if requested_display_id.is_none() {
+        return Ok(Vec::new());
+    }
+
+    window
+        .available_monitors()
+        .map_err(|err| format!("Could not resolve Overlay Window display target: {err}"))
+        .map(|monitors| {
+            monitors
+                .iter()
+                .enumerate()
+                .map(overlay_display_target_from_monitor)
+                .collect()
+        })
+}
+
+fn overlay_display_target_from_monitor(
+    (index, monitor): (usize, &tauri::Monitor),
+) -> OverlayDisplayTarget {
+    let scale_factor = monitor.scale_factor();
+    let position = monitor.position();
+    OverlayDisplayTarget {
+        index,
+        id: monitor.name().cloned(),
+        x: f64::from(position.x) / scale_factor,
+        y: f64::from(position.y) / scale_factor,
+    }
+}
+
+fn overlay_window_plan(
+    config: &OverlayWindowConfig,
+    displays: &[OverlayDisplayTarget],
+) -> OverlayWindowPlan {
     let target = &config.display_targeting;
+    let (display_x, display_y) = target
+        .display_id
+        .as_deref()
+        .and_then(|display_id| matching_overlay_display(display_id, displays))
+        .map(|display| (display.x, display.y))
+        .unwrap_or((0.0, 0.0));
+
     OverlayWindowPlan {
-        x: finite_or_default(target.x, 72.0),
-        y: finite_or_default(target.y, 72.0),
+        x: display_x + finite_or_default(target.x, 72.0),
+        y: display_y + finite_or_default(target.y, 72.0),
         width: clamp_window_dimension(target.width, 320.0),
         height: clamp_window_dimension(target.height, 180.0),
         visible: config.visible,
@@ -950,6 +1003,17 @@ fn overlay_window_plan(config: &OverlayWindowConfig) -> OverlayWindowPlan {
         focusable: config.positioning_mode,
         visible_on_all_workspaces: true,
     }
+}
+
+fn matching_overlay_display<'a>(
+    display_id: &str,
+    displays: &'a [OverlayDisplayTarget],
+) -> Option<&'a OverlayDisplayTarget> {
+    displays.iter().find(|display| {
+        display.id.as_deref() == Some(display_id)
+            || display_id == display.index.to_string()
+            || display_id == format!("display-{}", display.index)
+    })
 }
 
 fn overlay_window_snapshot_from_result(
@@ -1071,7 +1135,7 @@ mod tests {
         config.click_through = true;
         config.positioning_mode = false;
 
-        let plan = overlay_window_plan(&config);
+        let plan = overlay_window_plan(&config, &[]);
 
         assert_eq!(plan.x, 140.0);
         assert_eq!(plan.y, 92.0);
@@ -1085,12 +1149,64 @@ mod tests {
     }
 
     #[test]
+    fn overlay_window_plan_offsets_profile_position_by_matching_display_target() {
+        let mut config = crate::fake_backend::fake_profile().overlay_window;
+        config.display_targeting.display_id = Some("Studio Display".to_string());
+        config.display_targeting.x = 24.0;
+        config.display_targeting.y = 36.0;
+
+        let plan = overlay_window_plan(
+            &config,
+            &[
+                OverlayDisplayTarget {
+                    index: 0,
+                    id: Some("Built-in Display".to_string()),
+                    x: 0.0,
+                    y: 0.0,
+                },
+                OverlayDisplayTarget {
+                    index: 1,
+                    id: Some("Studio Display".to_string()),
+                    x: 1728.0,
+                    y: -120.0,
+                },
+            ],
+        );
+
+        assert_eq!(plan.x, 1752.0);
+        assert_eq!(plan.y, -84.0);
+    }
+
+    #[test]
+    fn overlay_window_plan_supports_display_ordinal_targets_and_stale_target_fallback() {
+        let mut config = crate::fake_backend::fake_profile().overlay_window;
+        config.display_targeting.display_id = Some("display-1".to_string());
+        config.display_targeting.x = 10.0;
+        config.display_targeting.y = 20.0;
+        let displays = [OverlayDisplayTarget {
+            index: 1,
+            id: None,
+            x: -1280.0,
+            y: 0.0,
+        }];
+
+        let matched = overlay_window_plan(&config, &displays);
+        assert_eq!(matched.x, -1270.0);
+        assert_eq!(matched.y, 20.0);
+
+        config.display_targeting.display_id = Some("missing-display".to_string());
+        let fallback = overlay_window_plan(&config, &displays);
+        assert_eq!(fallback.x, 10.0);
+        assert_eq!(fallback.y, 20.0);
+    }
+
+    #[test]
     fn overlay_window_plan_switches_to_interactive_positioning_mode() {
         let mut config = crate::fake_backend::fake_profile().overlay_window;
         config.positioning_mode = true;
         config.click_through = false;
 
-        let plan = overlay_window_plan(&config);
+        let plan = overlay_window_plan(&config, &[]);
 
         assert!(!plan.ignore_cursor_events);
         assert!(plan.resizable);
@@ -1104,7 +1220,7 @@ mod tests {
         config.display_targeting.height = f32::NAN;
         config.visible = false;
 
-        let plan = overlay_window_plan(&config);
+        let plan = overlay_window_plan(&config, &[]);
 
         assert_eq!(plan.width, 320.0);
         assert_eq!(plan.height, 180.0);
@@ -1117,11 +1233,11 @@ mod tests {
         config.visibility = VisibilityPolicy::ManualToggle;
         config.visible = true;
 
-        let manual_plan = overlay_window_plan(&config);
+        let manual_plan = overlay_window_plan(&config, &[]);
         assert!(manual_plan.visible);
 
         config.visibility = VisibilityPolicy::Fade;
-        let fade_plan = overlay_window_plan(&config);
+        let fade_plan = overlay_window_plan(&config, &[]);
         assert!(fade_plan.visible);
     }
 

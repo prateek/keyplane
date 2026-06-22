@@ -38,6 +38,7 @@ Started the Tauri v2 implementation from the PRD.
 - Vendored a narrow GPL-3.0-only KeyPeek source slice at `third_party/keypeek` and moved KeyPeek firmware packet parsing into a named Rust contract module adapted from that source.
 - Applied profile-owned Overlay Window targeting to the Rust-owned Tauri Overlay Window on initial snapshot, profile load, and import commit, with Positioning Mode updates persisted in the active Rust Profile.
 - Added a Global Display Fallback for Profiles that omit Overlay Window Display Targeting, while preserving Profile-owned targeting when it is present.
+- Applied Profile-owned Overlay Window `display_id` values to monitor-aware placement, with monitor-name and ordinal matching plus stale-target fallback to profile-local coordinates.
 - Added Active Profile controls for Overlay Visibility Policy and current Overlay Window visible state, with EDN persistence and backward-compatible loading for Profiles that predate `:overlay/visible?`.
 - Added Fade Visibility runtime behavior that shows the Overlay Window on Runtime Events, hides it after an inactivity interval, and leaves Pinned Visibility and manual toggle behavior unchanged.
 - Added a Sentinel Keys Protocol Backend and public Profile binding section that maps Host Input Events to lower-confidence Layer Stack Runtime Events without requiring OS input monitoring in tests.
@@ -96,7 +97,7 @@ Started the Tauri v2 implementation from the PRD.
 Verification:
 
 - `cargo fmt --check`
-- `cargo test` (128 Rust tests passed, 3 private local hardware canaries ignored by default)
+- `cargo test` (130 Rust tests passed, 3 private local hardware canaries ignored by default)
 - `KEYPLANE_LOCAL_VIL_CANDIDATE=<private .vil path> cargo test local_vil_candidate_file_imports_when_env_is_set -- --ignored`
 - `npm ci`
 - `npm test` (47 frontend tests)
