@@ -65,6 +65,19 @@ impl KeyPeekBackend {
     ) -> Result<(Self, KeyboardModel), String> {
         let is_zmk = matches!(spec, ConnectionSpec::Zmk { .. });
         let protocol = connect_protocol(&spec).map_err(|e| e.to_string())?;
+        Self::from_protocol(protocol, layout_name, is_zmk)
+    }
+
+    /// Build the backend over an already-opened protocol. This is the body of
+    /// [`connect`](Self::connect) with the transport injected, so the full
+    /// pipeline — model build, the reader thread decoding live `0xff` packets,
+    /// and streamed Layer Stack updates — can be integration-tested with a fake
+    /// [`KeyboardProtocol`] and no real hardware.
+    pub fn from_protocol(
+        protocol: Box<dyn KeyboardProtocol>,
+        layout_name: Option<&str>,
+        is_zmk: bool,
+    ) -> Result<(Self, KeyboardModel), String> {
         let definition = protocol.get_layout_definition().clone();
         let layout = match layout_name {
             Some(name) => definition.get_layout(name)?,
