@@ -349,6 +349,7 @@ function snapshotFromProfile(
           },
         ]
       : [],
+    layer_stack_source_id: null,
     pressed_keys: [],
     backend_health: profile.runtime_backends.map((backend) => backend.health),
   };

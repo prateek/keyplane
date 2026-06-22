@@ -21,7 +21,10 @@ export function applyRuntimeEvent(
   const next: KeyboardSnapshot = structuredClone(snapshot);
 
   if (event.type === "layer-stack-changed") {
-    next.runtime_state.layer_stack = event.layer_stack;
+    if (shouldApplyRuntimeStateEvent(next, event.source_id ?? null)) {
+      next.runtime_state.layer_stack = event.layer_stack;
+      next.runtime_state.layer_stack_source_id = event.source_id ?? null;
+    }
   }
 
   if (event.type === "backend-health-changed") {
@@ -43,6 +46,37 @@ export function applyRuntimeEvent(
 
   next.effective_keys = resolveEffectiveKeys(next.keymap, next.runtime_state);
   return next;
+}
+
+function shouldApplyRuntimeStateEvent(
+  snapshot: KeyboardSnapshot,
+  incomingSourceId: string | null,
+) {
+  if (!incomingSourceId) return true;
+  const currentSourceId = snapshot.runtime_state.layer_stack_source_id;
+  if (!currentSourceId || currentSourceId === incomingSourceId) return true;
+
+  const incomingRank = runtimeStateSourceRank(snapshot, incomingSourceId);
+  const currentRank = runtimeStateSourceRank(snapshot, currentSourceId);
+
+  if (incomingRank !== null && currentRank !== null) return incomingRank <= currentRank;
+  if (incomingRank !== null && currentRank === null) return true;
+  if (incomingRank === null && currentRank !== null) return false;
+  return true;
+}
+
+function runtimeStateSourceRank(snapshot: KeyboardSnapshot, sourceId: string): number | null {
+  const rule = snapshot.source_precedence
+    .filter((candidate) => fieldPathMatchesScope(":runtime/state", candidate.field_scope))
+    .sort((left, right) => right.field_scope.length - left.field_scope.length)[0];
+  if (!rule) return null;
+
+  const rank = rule.source_order.findIndex((candidate) => candidate === sourceId);
+  return rank >= 0 ? rank : null;
+}
+
+function fieldPathMatchesScope(fieldPath: string, fieldScope: string) {
+  return fieldPath === fieldScope || fieldPath.startsWith(`${fieldScope} `);
 }
 
 export function promoteSourceCandidate(

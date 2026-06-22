@@ -252,6 +252,8 @@ pub struct KeyPeekDeviceDiscovery {
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct RuntimeState {
     pub layer_stack: Vec<LayerActivation>,
+    #[serde(default)]
+    pub layer_stack_source_id: Option<String>,
     pub pressed_keys: Vec<String>,
     pub backend_health: Vec<BackendHealth>,
 }
@@ -397,9 +399,17 @@ pub struct KeyboardSnapshot {
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(tag = "type", rename_all = "kebab-case")]
 pub enum RuntimeEvent {
-    LayerStackChanged { layer_stack: Vec<LayerActivation> },
-    BackendHealthChanged { health: BackendHealth },
-    PressedKeysChanged { pressed_keys: Vec<String> },
+    LayerStackChanged {
+        layer_stack: Vec<LayerActivation>,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        source_id: Option<String>,
+    },
+    BackendHealthChanged {
+        health: BackendHealth,
+    },
+    PressedKeysChanged {
+        pressed_keys: Vec<String>,
+    },
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
@@ -791,8 +801,14 @@ fn source_conflict_optional_value(value: &str) -> Option<String> {
 
 pub fn apply_runtime_event(snapshot: &mut KeyboardSnapshot, event: RuntimeEvent) {
     match event {
-        RuntimeEvent::LayerStackChanged { layer_stack } => {
-            snapshot.runtime_state.layer_stack = layer_stack;
+        RuntimeEvent::LayerStackChanged {
+            layer_stack,
+            source_id,
+        } => {
+            if should_apply_runtime_state_event(snapshot, source_id.as_deref()) {
+                snapshot.runtime_state.layer_stack = layer_stack;
+                snapshot.runtime_state.layer_stack_source_id = source_id;
+            }
         }
         RuntimeEvent::BackendHealthChanged { health } => {
             if let Some(existing) = snapshot
@@ -820,6 +836,44 @@ pub fn apply_runtime_event(snapshot: &mut KeyboardSnapshot, event: RuntimeEvent)
     }
 
     snapshot.effective_keys = resolve_effective_keys(&snapshot.keymap, &snapshot.runtime_state);
+}
+
+fn should_apply_runtime_state_event(
+    snapshot: &KeyboardSnapshot,
+    incoming_source_id: Option<&str>,
+) -> bool {
+    let Some(incoming_source_id) = incoming_source_id else {
+        return true;
+    };
+    let Some(current_source_id) = snapshot.runtime_state.layer_stack_source_id.as_deref() else {
+        return true;
+    };
+    if incoming_source_id == current_source_id {
+        return true;
+    }
+
+    match (
+        runtime_state_source_rank(snapshot, incoming_source_id),
+        runtime_state_source_rank(snapshot, current_source_id),
+    ) {
+        (Some(incoming_rank), Some(current_rank)) => incoming_rank <= current_rank,
+        (Some(_), None) => true,
+        (None, Some(_)) => false,
+        (None, None) => true,
+    }
+}
+
+fn runtime_state_source_rank(snapshot: &KeyboardSnapshot, source_id: &str) -> Option<usize> {
+    snapshot
+        .source_precedence
+        .iter()
+        .filter(|rule| field_path_matches_scope(":runtime/state", &rule.field_scope))
+        .max_by_key(|rule| rule.field_scope.len())
+        .and_then(|rule| {
+            rule.source_order
+                .iter()
+                .position(|candidate| candidate == source_id)
+        })
 }
 
 pub fn resolve_effective_keys(
@@ -1516,6 +1570,22 @@ mod tests {
         }
     }
 
+    fn layer_activation(
+        layer_id: &str,
+        kind: ActivationKind,
+        level: StateConfidenceLevel,
+        reason: &str,
+    ) -> LayerActivation {
+        LayerActivation {
+            layer_id: layer_id.to_string(),
+            kind,
+            confidence: StateConfidence {
+                level,
+                reason: reason.to_string(),
+            },
+        }
+    }
+
     #[test]
     fn source_precedence_selects_the_first_matching_source_for_a_field() {
         let conflict = visual_style_conflict("fake-backend");
@@ -1643,6 +1713,100 @@ mod tests {
         );
         assert_eq!(snapshot.source_precedence, profile.source_precedence);
         assert!(snapshot.user_overrides.is_empty());
+    }
+
+    #[test]
+    fn runtime_state_source_precedence_rejects_lower_authority_layer_stack_events() {
+        let mut snapshot = crate::fake_backend::initial_snapshot();
+        snapshot.runtime_state.layer_stack = vec![
+            layer_activation(
+                "layer-2",
+                ActivationKind::Momentary,
+                StateConfidenceLevel::High,
+                "KeyPeek firmware-module layer packet",
+            ),
+            layer_activation(
+                "layer-0",
+                ActivationKind::Default,
+                StateConfidenceLevel::High,
+                "Base layer retained below KeyPeek active layers",
+            ),
+        ];
+        snapshot.runtime_state.layer_stack_source_id = Some("keypeek-live".to_string());
+
+        apply_runtime_event(
+            &mut snapshot,
+            RuntimeEvent::LayerStackChanged {
+                layer_stack: vec![
+                    layer_activation(
+                        "layer-1",
+                        ActivationKind::Momentary,
+                        StateConfidenceLevel::Low,
+                        "Sentinel Key inferred from Host Input Event",
+                    ),
+                    layer_activation(
+                        "layer-0",
+                        ActivationKind::Default,
+                        StateConfidenceLevel::Low,
+                        "Sentinel Key inferred from Host Input Event",
+                    ),
+                ],
+                source_id: Some("sentinel-keys".to_string()),
+            },
+        );
+
+        assert_eq!(snapshot.runtime_state.layer_stack[0].layer_id, "layer-2");
+        assert_eq!(
+            snapshot.runtime_state.layer_stack_source_id.as_deref(),
+            Some("keypeek-live")
+        );
+    }
+
+    #[test]
+    fn runtime_state_source_precedence_accepts_higher_authority_layer_stack_events() {
+        let mut snapshot = crate::fake_backend::initial_snapshot();
+        snapshot.runtime_state.layer_stack = vec![
+            layer_activation(
+                "layer-1",
+                ActivationKind::Momentary,
+                StateConfidenceLevel::Low,
+                "Sentinel Key inferred from Host Input Event",
+            ),
+            layer_activation(
+                "layer-0",
+                ActivationKind::Default,
+                StateConfidenceLevel::Low,
+                "Sentinel Key inferred from Host Input Event",
+            ),
+        ];
+        snapshot.runtime_state.layer_stack_source_id = Some("sentinel-keys".to_string());
+
+        apply_runtime_event(
+            &mut snapshot,
+            RuntimeEvent::LayerStackChanged {
+                layer_stack: vec![
+                    layer_activation(
+                        "layer-2",
+                        ActivationKind::Momentary,
+                        StateConfidenceLevel::High,
+                        "KeyPeek firmware-module layer packet",
+                    ),
+                    layer_activation(
+                        "layer-0",
+                        ActivationKind::Default,
+                        StateConfidenceLevel::High,
+                        "Base layer retained below KeyPeek active layers",
+                    ),
+                ],
+                source_id: Some("keypeek-live".to_string()),
+            },
+        );
+
+        assert_eq!(snapshot.runtime_state.layer_stack[0].layer_id, "layer-2");
+        assert_eq!(
+            snapshot.runtime_state.layer_stack_source_id.as_deref(),
+            Some("keypeek-live")
+        );
     }
 
     #[test]
@@ -1919,6 +2083,7 @@ mod tests {
                     },
                 },
             ],
+            layer_stack_source_id: Some("fake-backend".to_string()),
             pressed_keys: Vec::new(),
             backend_health: Vec::new(),
         };

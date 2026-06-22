@@ -8,9 +8,11 @@ pub use crate::keypeek_contract::{
     PRESSED_KEY_PACKET_MARKER, SUBSCRIBE_ACTIVE, SUBSCRIBE_INACTIVE, SUBSCRIBE_MARKER,
 };
 
+pub const KEYPEEK_BACKEND_ID: &str = "keypeek-live";
+
 pub fn keypeek_backend_status(health: HealthState, message: impl Into<String>) -> BackendStatus {
     BackendStatus {
-        id: "keypeek-live".to_string(),
+        id: KEYPEEK_BACKEND_ID.to_string(),
         name: "KeyPeek Live".to_string(),
         capabilities: vec![
             CapabilityFlag::DiscoverDevices,
@@ -18,7 +20,7 @@ pub fn keypeek_backend_status(health: HealthState, message: impl Into<String>) -
             CapabilityFlag::StreamPressedKeys,
         ],
         health: BackendHealth {
-            backend_id: "keypeek-live".to_string(),
+            backend_id: KEYPEEK_BACKEND_ID.to_string(),
             state: health,
             message: message.into(),
         },
@@ -92,6 +94,7 @@ pub fn runtime_event_from_keypeek_layer_packet(
             packet.layer_state,
             layer_count,
         ),
+        source_id: Some(KEYPEEK_BACKEND_ID.to_string()),
     })
 }
 

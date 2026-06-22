@@ -220,6 +220,7 @@ pub fn fake_profile() -> Profile {
 pub fn initial_runtime_state(profile: &Profile) -> RuntimeState {
     RuntimeState {
         layer_stack: vec![default_layer_activation()],
+        layer_stack_source_id: None,
         pressed_keys: Vec::new(),
         backend_health: profile
             .runtime_backends
@@ -245,6 +246,7 @@ pub fn demo_runtime_events() -> Vec<RuntimeEvent> {
         },
         RuntimeEvent::LayerStackChanged {
             layer_stack: vec![nav_layer_activation(), default_layer_activation()],
+            source_id: Some(FAKE_SOURCE_ID.to_string()),
         },
         RuntimeEvent::BackendHealthChanged {
             health: permission_missing_backend_health(),
@@ -254,6 +256,7 @@ pub fn demo_runtime_events() -> Vec<RuntimeEvent> {
         },
         RuntimeEvent::LayerStackChanged {
             layer_stack: vec![default_layer_activation()],
+            source_id: Some(FAKE_SOURCE_ID.to_string()),
         },
         RuntimeEvent::BackendHealthChanged {
             health: ok_backend_health(),
@@ -469,6 +472,7 @@ mod tests {
             &mut snapshot,
             RuntimeEvent::LayerStackChanged {
                 layer_stack: vec![nav_layer_activation(), default_layer_activation()],
+                source_id: Some(FAKE_SOURCE_ID.to_string()),
             },
         );
 

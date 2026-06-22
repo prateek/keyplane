@@ -405,7 +405,14 @@ mod tests {
             .expect("layer event");
 
         match event {
-            RuntimeEvent::LayerStackChanged { layer_stack } => {
+            RuntimeEvent::LayerStackChanged {
+                layer_stack,
+                source_id,
+            } => {
+                assert_eq!(
+                    source_id.as_deref(),
+                    Some(crate::keypeek_backend::KEYPEEK_BACKEND_ID)
+                );
                 assert_eq!(layer_stack[0].layer_id, "layer-2");
                 assert_eq!(layer_stack[1].layer_id, "layer-0");
             }
@@ -525,7 +532,7 @@ mod tests {
         let mut read_error = None;
         while Instant::now() < deadline {
             match session.poll_next_event() {
-                Ok(Some(RuntimeEvent::LayerStackChanged { layer_stack })) => {
+                Ok(Some(RuntimeEvent::LayerStackChanged { layer_stack, .. })) => {
                     observed_layer_event = Some(layer_stack);
                     break;
                 }

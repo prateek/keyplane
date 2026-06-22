@@ -176,6 +176,7 @@ const runtimeState: RuntimeState = {
       },
     },
   ],
+  layer_stack_source_id: sourceId,
   pressed_keys: [],
   backend_health: [
     backend.health,
@@ -281,6 +282,7 @@ export const fakeSnapshot: KeyboardSnapshot = {
 
 export const navLayerEvent: RuntimeEvent = {
   type: "layer-stack-changed",
+  source_id: sourceId,
   layer_stack: [
     {
       layer_id: "layer-1",

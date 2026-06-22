@@ -44,6 +44,7 @@ pub fn runtime_event_from_host_input_event(
 
     Some(RuntimeEvent::LayerStackChanged {
         layer_stack: sentinel_layer_stack(active_layers, bindings, base_layer_id),
+        source_id: Some(SENTINEL_BACKEND_ID.to_string()),
     })
 }
 
@@ -133,7 +134,11 @@ mod tests {
         .expect("sentinel event");
 
         match pressed {
-            RuntimeEvent::LayerStackChanged { layer_stack } => {
+            RuntimeEvent::LayerStackChanged {
+                layer_stack,
+                source_id,
+            } => {
+                assert_eq!(source_id.as_deref(), Some(SENTINEL_BACKEND_ID));
                 assert_eq!(layer_stack[0].layer_id, "layer-1");
                 assert_eq!(layer_stack[0].kind, ActivationKind::Momentary);
                 assert_eq!(layer_stack[0].confidence.level, StateConfidenceLevel::Low);
@@ -154,7 +159,7 @@ mod tests {
         .expect("sentinel release event");
 
         match released {
-            RuntimeEvent::LayerStackChanged { layer_stack } => {
+            RuntimeEvent::LayerStackChanged { layer_stack, .. } => {
                 assert_eq!(layer_stack.len(), 1);
                 assert_eq!(layer_stack[0].layer_id, "layer-0");
             }

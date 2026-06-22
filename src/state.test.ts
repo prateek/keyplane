@@ -13,6 +13,65 @@ describe("frontend runtime state", () => {
     expect(q?.inherited).toBe(true);
   });
 
+  it("ignores lower-priority layer-stack Runtime Events", () => {
+    const next = applyRuntimeEvent(fakeSnapshot, {
+      type: "layer-stack-changed",
+      source_id: "sentinel-keys",
+      layer_stack: [
+        {
+          layer_id: "layer-1",
+          kind: "momentary",
+          confidence: {
+            level: "low",
+            reason: "Sentinel Key inferred from Host Input Event",
+          },
+        },
+        {
+          layer_id: "layer-0",
+          kind: "default",
+          confidence: {
+            level: "low",
+            reason: "Sentinel Key inferred from Host Input Event",
+          },
+        },
+      ],
+    });
+
+    expect(next.runtime_state.layer_stack[0].layer_id).toBe("layer-0");
+    expect(next.runtime_state.layer_stack_source_id).toBe("fake-backend");
+  });
+
+  it("accepts higher-priority layer-stack Runtime Events", () => {
+    const snapshot = structuredClone(fakeSnapshot);
+    snapshot.runtime_state.layer_stack_source_id = "sentinel-keys";
+
+    const next = applyRuntimeEvent(snapshot, {
+      type: "layer-stack-changed",
+      source_id: "keypeek-live",
+      layer_stack: [
+        {
+          layer_id: "layer-1",
+          kind: "momentary",
+          confidence: {
+            level: "high",
+            reason: "KeyPeek firmware-module layer packet",
+          },
+        },
+        {
+          layer_id: "layer-0",
+          kind: "default",
+          confidence: {
+            level: "high",
+            reason: "Base layer retained below KeyPeek active layers",
+          },
+        },
+      ],
+    });
+
+    expect(next.runtime_state.layer_stack[0].layer_id).toBe("layer-1");
+    expect(next.runtime_state.layer_stack_source_id).toBe("keypeek-live");
+  });
+
   it("keeps Backend Health as observable runtime state", () => {
     const next = applyRuntimeEvent(fakeSnapshot, {
       type: "backend-health-changed",

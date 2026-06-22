@@ -189,6 +189,7 @@ pub fn kanata_event_from_line(
     {
         return Ok(Some(RuntimeEvent::LayerStackChanged {
             layer_stack: layer_stack_for_kanata_layer(name, layer_map),
+            source_id: Some(kanata_backend::KANATA_BACKEND_ID.to_string()),
         }));
     }
 
@@ -413,7 +414,14 @@ mod tests {
             .expect("event is emitted");
 
         match event {
-            RuntimeEvent::LayerStackChanged { layer_stack } => {
+            RuntimeEvent::LayerStackChanged {
+                layer_stack,
+                source_id,
+            } => {
+                assert_eq!(
+                    source_id.as_deref(),
+                    Some(kanata_backend::KANATA_BACKEND_ID)
+                );
                 assert_eq!(layer_stack[0].layer_id, "layer-1");
                 assert_eq!(layer_stack[0].kind, ActivationKind::RemapperState);
                 assert_eq!(layer_stack[0].confidence.level, StateConfidenceLevel::High);
@@ -430,7 +438,7 @@ mod tests {
             .expect("event is emitted");
 
         match event {
-            RuntimeEvent::LayerStackChanged { layer_stack } => {
+            RuntimeEvent::LayerStackChanged { layer_stack, .. } => {
                 assert_eq!(layer_stack.len(), 1);
                 assert_eq!(layer_stack[0].layer_id, "layer-0");
                 assert_eq!(layer_stack[0].kind, ActivationKind::Default);
@@ -446,7 +454,7 @@ mod tests {
             .expect("event is emitted");
 
         match event {
-            RuntimeEvent::LayerStackChanged { layer_stack } => {
+            RuntimeEvent::LayerStackChanged { layer_stack, .. } => {
                 assert_eq!(layer_stack[0].layer_id, "media");
                 assert_eq!(
                     layer_stack[0].confidence.level,

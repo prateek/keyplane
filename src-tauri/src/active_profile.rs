@@ -274,6 +274,7 @@ fn runtime_state_for_profile(profile: &Profile) -> RuntimeState {
             })
             .into_iter()
             .collect(),
+        layer_stack_source_id: None,
         pressed_keys: Vec::new(),
         backend_health: profile
             .runtime_backends
@@ -498,7 +499,7 @@ mod tests {
             .expect("binding matches");
 
         match event {
-            RuntimeEvent::LayerStackChanged { layer_stack } => {
+            RuntimeEvent::LayerStackChanged { layer_stack, .. } => {
                 assert_eq!(layer_stack[0].layer_id, "layer-1");
                 assert_eq!(layer_stack[0].kind, ActivationKind::Momentary);
                 assert_eq!(layer_stack[0].confidence.level, StateConfidenceLevel::Low);
@@ -596,7 +597,7 @@ mod tests {
             .expect("binding still matches");
 
         match release_after_reset {
-            RuntimeEvent::LayerStackChanged { layer_stack } => {
+            RuntimeEvent::LayerStackChanged { layer_stack, .. } => {
                 assert_eq!(layer_stack.len(), 1);
                 assert_eq!(layer_stack[0].layer_id, "layer-0");
             }

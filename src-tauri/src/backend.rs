@@ -135,7 +135,7 @@ mod tests {
             .expect("layer event");
 
         match event {
-            RuntimeEvent::LayerStackChanged { layer_stack } => {
+            RuntimeEvent::LayerStackChanged { layer_stack, .. } => {
                 assert_eq!(layer_stack[0].layer_id, "layer-2");
                 assert_eq!(layer_stack[1].layer_id, "layer-0");
             }
@@ -163,7 +163,7 @@ mod tests {
 
         assert_eq!(backend.status().id, sentinel_backend::SENTINEL_BACKEND_ID);
         match event {
-            RuntimeEvent::LayerStackChanged { layer_stack } => {
+            RuntimeEvent::LayerStackChanged { layer_stack, .. } => {
                 assert_eq!(layer_stack[0].layer_id, "layer-1");
                 assert_eq!(layer_stack[1].layer_id, "layer-0");
             }
