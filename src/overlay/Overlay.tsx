@@ -4,7 +4,14 @@
 // resolution happens in Rust; this only renders.
 
 import { useEffect, useState } from "react";
-import { getSnapshot, onRuntimeEvent, onSnapshot } from "../api";
+import {
+  getSnapshot,
+  onPositioning,
+  onRuntimeEvent,
+  onSnapshot,
+  startOverlayDrag,
+  startOverlayResize,
+} from "../api";
 import { Keyboard } from "../components/Keyboard";
 import { StatusBar } from "../components/Status";
 import {
@@ -16,11 +23,17 @@ import {
 
 export function Overlay() {
   const [state, setState] = useState<OverlayState | null>(null);
+  const [positioning, setPositioning] = useState(false);
 
   useEffect(() => {
     let unlistenRuntime: (() => void) | undefined;
     let unlistenSnapshot: (() => void) | undefined;
+    let unlistenPositioning: (() => void) | undefined;
     let active = true;
+
+    onPositioning(setPositioning).then((un) => {
+      unlistenPositioning = un;
+    });
 
     getSnapshot()
       .then((snapshot) => {
@@ -46,6 +59,7 @@ export function Overlay() {
       active = false;
       unlistenRuntime?.();
       unlistenSnapshot?.();
+      unlistenPositioning?.();
     };
   }, []);
 
@@ -55,7 +69,12 @@ export function Overlay() {
 
   const { snapshot, pressed } = state;
   return (
-    <div className="overlay-surface">
+    <div className={positioning ? "overlay-surface positioning" : "overlay-surface"}>
+      {positioning ? (
+        <div className="drag-bar" onMouseDown={() => startOverlayDrag()}>
+          Drag to move · release to place
+        </div>
+      ) : null}
       <StatusBar
         confidence={snapshot.confidence}
         backends={snapshot.backends}
@@ -68,6 +87,9 @@ export function Overlay() {
         topLayer={topLayer(snapshot.layer_stack)}
         pressed={pressed}
       />
+      {positioning ? (
+        <div className="resize-handle" onMouseDown={() => startOverlayResize()} />
+      ) : null}
     </div>
   );
 }

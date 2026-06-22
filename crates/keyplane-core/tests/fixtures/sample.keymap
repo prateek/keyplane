@@ -1,0 +1,32 @@
+/*
+ * Sample ZMK keymap fixture (synthetic).
+ */
+#include <behaviors.dtsi>
+#include <dt-bindings/zmk/keys.h>
+
+/ {
+    keymap {
+        compatible = "zmk,keymap";
+
+        default_layer {
+            bindings = <
+                &kp Q &kp W &kp E &kp R
+                &mo 1 &kp A &kp S &lt 2 SPACE
+            >;
+        };
+
+        nav_layer {
+            bindings = <
+                &kp N1 &kp N2 &kp N3 &kp N4
+                &trans &trans &trans &kp ENTER
+            >;
+        };
+
+        sym_layer {
+            bindings = <
+                &kp LEFT &kp DOWN &kp UP &kp RIGHT
+                &trans &trans &trans &trans
+            >;
+        };
+    };
+};

@@ -2,10 +2,12 @@
 
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
+import { getCurrentWindow } from "@tauri-apps/api/window";
 import type { ImportReview, KeyboardSnapshot, RuntimeEvent } from "./types";
 
 export const EVENT_RUNTIME = "keyplane://runtime-event";
 export const EVENT_SNAPSHOT = "keyplane://snapshot";
+export const EVENT_POSITIONING = "keyplane://positioning";
 
 export const getSnapshot = () => invoke<KeyboardSnapshot>("get_snapshot");
 export const activeProfileEdn = () => invoke<string>("active_profile_edn");
@@ -33,6 +35,24 @@ export const connectKeypeek = (args: {
   });
 export const connectKanata = (port: number, host?: string) =>
   invoke<unknown>("connect_kanata", { host: host ?? null, port });
+export const connectSentinel = (
+  keys: { host_key: string; action: "momentary" | "toggle"; layer: string }[],
+  osCapture = false,
+) => invoke<unknown>("connect_sentinel", { keys, osCapture });
+export const feedHostEvent = (key: string, down: boolean) =>
+  invoke<unknown>("feed_host_event", { key, down });
+export const setDisplayTargeting = (args: {
+  x?: number;
+  y?: number;
+  width?: number;
+  height?: number;
+}) =>
+  invoke<unknown>("set_display_targeting", {
+    x: args.x ?? null,
+    y: args.y ?? null,
+    width: args.width ?? null,
+    height: args.height ?? null,
+  });
 export const setPositioningMode = (enabled: boolean) =>
   invoke<void>("set_positioning_mode", { enabled });
 export const setOverlayVisible = (visible: boolean) =>
@@ -45,3 +65,18 @@ export const onRuntimeEvent = (handler: (event: RuntimeEvent) => void) =>
 /** Subscribe to full snapshot replacements (after imports / hand edits). */
 export const onSnapshot = (handler: (snapshot: KeyboardSnapshot) => void) =>
   listen<KeyboardSnapshot>(EVENT_SNAPSHOT, (e) => handler(e.payload));
+
+/** Subscribe to Positioning Mode toggles (overlay shows drag/resize handles). */
+export const onPositioning = (handler: (enabled: boolean) => void) =>
+  listen<boolean>(EVENT_POSITIONING, (e) => handler(e.payload));
+
+/** Start dragging the overlay window from a pointer-down (Positioning Mode). */
+export const startOverlayDrag = () => getCurrentWindow().startDragging();
+
+/** Start resizing the overlay window from its bottom-right corner.
+ * `ResizeDirection` isn't re-exported by this API version, so the direction
+ * string is passed through a typed cast. */
+export const startOverlayResize = () =>
+  (
+    getCurrentWindow().startResizeDragging as (d: string) => Promise<void>
+  )("SouthEast");

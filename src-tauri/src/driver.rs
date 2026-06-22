@@ -1,27 +1,43 @@
-//! The Fake Backend driver loop (ADR 0003 first vertical slice).
+//! The backend driver loop (ADR 0003 first vertical slice; ADR 0026 fade).
 //!
-//! A background thread advances the scripted backend one step at a time and
-//! emits the resulting Runtime Events to the frontend, animating live layer
-//! changes in the Overlay Window without real hardware. Time lives here, not in
-//! `keyplane-core`, so core resolution stays deterministic.
+//! A background thread polls the active backend, emits the resulting Runtime
+//! Events to the frontend, and drives Overlay Visibility (Pinned or Fade). Time
+//! lives here, not in `keyplane-core`, so core resolution stays deterministic;
+//! the Fade timing is the clock-injected `FadeController`.
 
 use crate::state::{AppState, EVENT_RUNTIME};
-use std::time::Duration;
+use keyplane_core::profile::VisibilityPolicy;
+use keyplane_core::visibility::FadeController;
+use std::time::{Duration, Instant};
 use tauri::{AppHandle, Emitter, Manager};
 
 /// How long each demo layer state is held before advancing.
 const STEP: Duration = Duration::from_millis(1200);
 
-/// Spawn the driver thread. It owns no state directly; it locks [`AppState`]
-/// each tick so commands can interleave (imports, hand edits, positioning).
+/// Inactivity before the overlay fades under the Fade policy.
+const FADE_TIMEOUT_MS: u64 = 4000;
+
+/// Spawn the driver thread. It owns the Fade timing and the wall clock; it locks
+/// [`AppState`] each tick so commands can interleave (imports, edits, connect).
 pub fn spawn(handle: AppHandle) {
-    std::thread::spawn(move || loop {
-        std::thread::sleep(STEP);
-        tick(&handle);
+    std::thread::spawn(move || {
+        let start = Instant::now();
+        let mut fade = FadeController::new(FADE_TIMEOUT_MS);
+        let mut overlay_visible = false;
+        loop {
+            std::thread::sleep(STEP);
+            tick(&handle, start, &mut fade, &mut overlay_visible);
+        }
     });
 }
 
-fn tick(handle: &AppHandle) {
+fn tick(
+    handle: &AppHandle,
+    start: Instant,
+    fade: &mut FadeController,
+    overlay_visible: &mut bool,
+) {
+    let now_ms = start.elapsed().as_millis() as u64;
     let state = handle.state::<AppState>();
     let mut inner = state.inner.lock().expect("state poisoned");
 
@@ -33,10 +49,15 @@ fn tick(handle: &AppHandle) {
         updates = inner.backend.poll();
     }
 
+    let mut activity = false;
     for update in updates {
         if let Some(event) = inner.composer.apply(&backend_id, update) {
             let _ = handle.emit(EVENT_RUNTIME, &event);
+            activity = true;
         }
+    }
+    if activity {
+        fade.on_activity(now_ms);
     }
 
     let reveal = !inner.overlay_shown;
@@ -44,6 +65,7 @@ fn tick(handle: &AppHandle) {
         inner.overlay_shown = true;
     }
     let display = inner.profile.overlay.display.clone();
+    let policy = inner.profile.overlay.visibility;
     drop(inner);
 
     // Reveal the overlay on the first snapshot, click-through by default, placed
@@ -53,6 +75,19 @@ fn tick(handle: &AppHandle) {
             crate::commands::apply_display_targeting(&overlay, &display);
             let _ = overlay.set_ignore_cursor_events(true);
             let _ = overlay.show();
+            *overlay_visible = true;
+        }
+    }
+
+    // Fade Visibility: show on activity, hide after the inactivity interval.
+    // Pinned and ManualToggle leave window visibility to the reveal/commands.
+    if policy == VisibilityPolicy::Fade {
+        let should = fade.visible(now_ms);
+        if should != *overlay_visible {
+            if let Some(overlay) = handle.get_webview_window("overlay") {
+                let _ = if should { overlay.show() } else { overlay.hide() };
+                *overlay_visible = should;
+            }
         }
     }
 }

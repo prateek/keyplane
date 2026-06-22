@@ -17,6 +17,7 @@ use std::sync::Mutex;
 /// Tauri event names the frontend subscribes to.
 pub const EVENT_RUNTIME: &str = "keyplane://runtime-event";
 pub const EVENT_SNAPSHOT: &str = "keyplane://snapshot";
+pub const EVENT_POSITIONING: &str = "keyplane://positioning";
 
 /// The active Protocol Backend: the scripted Fake Backend, or a live
 /// KeyPeek-derived device backend. Both implement

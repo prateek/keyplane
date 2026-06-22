@@ -7,6 +7,7 @@
 use crate::state::{AppState, Backend, EVENT_SNAPSHOT};
 use keyplane_core::import::{
     ImportCandidate, ImportReview, Importer, KeyvizStyleImporter, OverKeysImporter, VialFileImporter,
+    ZmkKeymapImporter,
 };
 use keyplane_core::profile::{DisplayTargeting, Profile};
 use keyplane_core::snapshot::KeyboardSnapshot;
@@ -172,6 +173,7 @@ pub fn connect_sentinel(
     app: AppHandle,
     state: State<AppState>,
     keys: Vec<SentinelKeyDto>,
+    os_capture: Option<bool>,
 ) -> Result<(), String> {
     let mut inner = state.inner.lock().expect("state");
     let base = inner
@@ -197,6 +199,12 @@ pub fn connect_sentinel(
     let snapshot = inner.composer.snapshot();
     drop(inner);
     let _ = app.emit(EVENT_SNAPSHOT, &snapshot);
+
+    // Opt-in OS-level key capture. Off by default; starts a global key listener
+    // and surfaces missing OS permission as Backend Health (ADR 0023).
+    if os_capture.unwrap_or(false) {
+        crate::capture::start_sentinel_capture(app);
+    }
     Ok(())
 }
 
@@ -251,18 +259,34 @@ pub fn set_positioning_mode(app: AppHandle, enabled: bool) -> Result<(), String>
     if enabled {
         let _ = overlay.set_focus();
     }
+    // Tell the overlay UI to show or hide its drag/resize affordances.
+    let _ = app.emit_to("overlay", crate::state::EVENT_POSITIONING, enabled);
     Ok(())
 }
 
-/// Apply Profile-owned Display Targeting to the overlay window (ADR 0027).
-/// Position/size are honored now; monitor selection is recorded but not yet
-/// used for placement.
+/// Apply Profile-owned Display Targeting to the overlay window (ADR 0027). When
+/// a monitor name is set, the overlay is placed on that monitor (with `x`/`y` as
+/// an offset within it); otherwise `x`/`y` are global logical coordinates.
 pub fn apply_display_targeting(window: &tauri::WebviewWindow, display: &DisplayTargeting) {
-    if let (Some(x), Some(y)) = (display.x, display.y) {
-        let _ = window.set_position(tauri::LogicalPosition::new(x, y));
-    }
     if let (Some(w), Some(h)) = (display.width, display.height) {
         let _ = window.set_size(tauri::LogicalSize::new(w, h));
+    }
+
+    if let Some(name) = &display.monitor {
+        if let Ok(monitors) = window.available_monitors() {
+            if let Some(monitor) = monitors.iter().find(|m| m.name() == Some(name)) {
+                let origin = monitor.position();
+                let _ = window.set_position(tauri::PhysicalPosition::new(
+                    origin.x + display.x.unwrap_or(0.0) as i32,
+                    origin.y + display.y.unwrap_or(0.0) as i32,
+                ));
+                return;
+            }
+        }
+    }
+
+    if let (Some(x), Some(y)) = (display.x, display.y) {
+        let _ = window.set_position(tauri::LogicalPosition::new(x, y));
     }
 }
 
@@ -310,6 +334,7 @@ fn run_importer(format: &str, contents: &str) -> Result<ImportCandidate, String>
         "vial" | "vil" => VialFileImporter::new().import(contents),
         "overkeys" => OverKeysImporter::new().import(contents),
         "keyviz" => KeyvizStyleImporter::new().import(contents),
+        "zmk" | "keymap" => ZmkKeymapImporter::new().import(contents),
         other => return Err(format!("unknown import format: {other}")),
     };
     result.map_err(|e| e.to_string())

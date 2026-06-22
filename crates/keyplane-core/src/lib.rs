@@ -39,6 +39,7 @@ pub mod profile;
 pub mod provenance;
 pub mod resolve;
 pub mod snapshot;
+pub mod visibility;
 
 pub use action::{RawAction, SemanticAction};
 pub use compose::Composer;

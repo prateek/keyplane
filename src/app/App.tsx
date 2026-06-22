@@ -22,6 +22,7 @@ import type { ImportReview, KeyboardSnapshot } from "../types";
 
 const FORMATS = [
   { id: "vial", label: "Vial .vil" },
+  { id: "zmk", label: "ZMK .keymap" },
   { id: "overkeys", label: "OverKeys config" },
   { id: "keyviz", label: "keyviz style JSON" },
 ];

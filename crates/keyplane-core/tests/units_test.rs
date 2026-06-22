@@ -38,6 +38,19 @@ fn capability_set_is_sorted_and_deduped() {
 }
 
 #[test]
+fn fade_controller_hides_after_inactivity_and_reshows_on_activity() {
+    use keyplane_core::visibility::FadeController;
+    let mut fade = FadeController::new(1000);
+    fade.on_activity(0);
+    assert!(fade.visible(500), "visible within the timeout");
+    assert!(fade.visible(1000), "visible at the boundary");
+    assert!(!fade.visible(1500), "hidden after the timeout");
+    // New activity re-shows it and restarts the clock.
+    fade.on_activity(2000);
+    assert!(fade.visible(2500));
+}
+
+#[test]
 fn user_override_always_wins_precedence() {
     assert!(rank(SourceKind::User, Field::RuntimeState) > rank(SourceKind::KeyPeek, Field::RuntimeState));
     assert!(rank(SourceKind::User, Field::VisualStyle) > rank(SourceKind::Keyviz, Field::VisualStyle));

@@ -1,9 +1,11 @@
 //! Importers and Import Review (ADR 0008, 0034, 0046).
 
-use keyplane_core::action::SemanticAction;
+use keyplane_core::action::{LayerSwitch, SemanticAction};
 use keyplane_core::import::{
     ImportReview, Importer, KeyvizStyleImporter, OverKeysImporter, VialFileImporter,
+    ZmkKeymapImporter,
 };
+use keyplane_core::ids::KeyId;
 use keyplane_core::model::StyleVariant;
 use keyplane_core::profile::Profile;
 use keyplane_core::provenance::SourceKind;
@@ -11,6 +13,7 @@ use keyplane_core::provenance::SourceKind;
 const DEMO_VIL: &str = include_str!("fixtures/demo.vil");
 const OVERKEYS: &str = include_str!("fixtures/overkeys.json");
 const KEYVIZ: &str = include_str!("fixtures/keyviz-style.json");
+const ZMK_KEYMAP: &str = include_str!("fixtures/sample.keymap");
 
 #[test]
 fn vial_import_is_best_effort_preview_with_fallback_geometry() {
@@ -58,6 +61,41 @@ fn keyviz_import_affects_visual_style_only() {
     assert!(candidate.model.physical_layout.keys.is_empty());
     assert_eq!(candidate.model.style.accent.as_deref(), Some("#ff6600"));
     assert_eq!(candidate.model.style.variant, StyleVariant::Minimal);
+}
+
+#[test]
+fn zmk_keymap_import_parses_layers_and_bindings() {
+    let candidate = ZmkKeymapImporter::new().import(ZMK_KEYMAP).expect("import");
+    assert_eq!(candidate.source.kind, SourceKind::Zmk);
+    assert!(candidate.best_effort_preview);
+    assert!(candidate.model.physical_layout.fallback);
+    assert_eq!(candidate.model.keymap.layers.len(), 3);
+
+    let base = &candidate.model.keymap.layers[0];
+    assert_eq!(base.name.as_deref(), Some("default_layer"));
+
+    // &kp Q → a plain key.
+    let k0 = base.entry(&KeyId::new("k0")).unwrap();
+    assert_eq!(k0.semantic, SemanticAction::Key { label: "Q".into() });
+
+    // &mo 1 → momentary layer switch to layer-1; raw binding preserved.
+    let mo = base.entry(&KeyId::new("k4")).unwrap();
+    assert!(matches!(
+        mo.semantic,
+        SemanticAction::Layer { switch: LayerSwitch::Momentary, .. }
+    ));
+    assert_eq!(mo.provenance.as_ref().unwrap().raw.as_deref(), Some("&mo 1"));
+
+    // &lt 2 SPACE → layer-tap keeping the tap key.
+    let lt = base.entry(&KeyId::new("k7")).unwrap();
+    assert!(matches!(
+        lt.semantic,
+        SemanticAction::Layer { switch: LayerSwitch::Tap, .. }
+    ));
+
+    // Transparent bindings on the nav layer inherit on resolution.
+    let trans = candidate.model.keymap.layers[1].entry(&KeyId::new("k4")).unwrap();
+    assert_eq!(trans.semantic, SemanticAction::Transparent);
 }
 
 #[test]

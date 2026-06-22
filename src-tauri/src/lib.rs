@@ -6,6 +6,7 @@
 //! resolution, health, EDN persistence — lives in `keyplane-core`; this layer
 //! only does windows, scheduling, and serialization (ADR 0015, 0036, 0044).
 
+mod capture;
 mod commands;
 mod driver;
 mod state;

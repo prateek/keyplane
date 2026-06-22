@@ -9,10 +9,12 @@
 pub mod keyviz;
 pub mod overkeys;
 pub mod vial;
+pub mod zmk;
 
 pub use keyviz::KeyvizStyleImporter;
 pub use overkeys::OverKeysImporter;
 pub use vial::VialFileImporter;
+pub use zmk::ZmkKeymapImporter;
 
 use crate::ids::{KeyId, LayerId};
 use crate::model::KeyboardModel;
