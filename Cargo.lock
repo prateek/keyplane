@@ -2042,6 +2042,7 @@ name = "keyplane-sentinel"
 version = "0.1.0"
 dependencies = [
  "keyplane-core",
+ "rdev",
  "serde",
  "thiserror 2.0.18",
 ]

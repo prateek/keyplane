@@ -97,10 +97,19 @@ this environment can't provide:
   real device or daemon. The protocol code is vendored from KeyPeek and the
   pure adapters (model build, layer decode) are unit tested; the transports
   can't run in CI.
-- Sentinel OS key capture (`rdev`) and macOS input-monitoring permission
-  detection are wired (opt-in) and surface permission failures as Backend
-  Health, but capturing real global input needs the OS grant and isn't run
-  here.
+- Sentinel OS key capture is **validated for real**: the `validate_capture`
+  example runs an actual macOS global key hook (`rdev::listen` on the main
+  thread), injects a synthesized Fn key, and confirms the `SentinelBackend`
+  produces the right Layer Stack change. Input Monitoring + Accessibility are
+  granted in this environment, so it ran end to end (`cargo run -p
+  keyplane-sentinel --example validate_capture` → PASS). The app's spawned-thread
+  listener (`capture.rs`) works on Linux/Windows but is limited on macOS, where
+  `rdev` needs the main thread (Tauri owns it) — documented as follow-up.
+- No KeyPeek/VIA HID device is attached here: `cargo run -p keyplane-keypeek
+  --example probe_env` enumerates HID and finds zero keyboard/raw-HID
+  interfaces, so a live firmware layer change genuinely cannot be exercised in
+  this environment. The full backend pipeline is validated with a fake transport
+  instead.
 - The overlay was visually verified by launching the app on macOS and
   screenshotting it: the App Window renders its controls and the transparent
   Overlay Window renders the full 4x4 keyboard with live status ("Live ·

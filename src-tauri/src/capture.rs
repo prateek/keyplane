@@ -7,9 +7,16 @@
 //! failure (ADR 0023), which is exactly the permission-visibility the PRD wants.
 //!
 //! This is opt-in (the `connect_sentinel` `os_capture` flag) and starts a global
-//! key listener, so it is never enabled implicitly. On macOS `rdev` may require
-//! the listener on the main thread; that caveat is documented and the failure
-//! path reports health rather than panicking.
+//! key listener, so it is never enabled implicitly.
+//!
+//! macOS caveat (validated): `rdev::listen` must run on the thread that owns the
+//! CFRunLoop — the main thread. The capture *mechanism* is proven end to end by
+//! `keyplane-sentinel`'s `validate_capture` example (a real OS hook captures a
+//! synthesized key and drives the sentinel Layer Stack). Tauri owns the main
+//! thread for its own event loop, so this spawned-thread listener is reliable on
+//! Linux/Windows but limited on macOS; a denied hook or no events still surfaces
+//! as Backend Health rather than a silent failure. A main-thread tap (or a small
+//! helper process) on macOS is the follow-up to wire it into the running app.
 
 use crate::state::{AppState, EVENT_RUNTIME};
 use keyplane_core::health::HealthState;

@@ -11,3 +11,7 @@ rust-version.workspace = true
 keyplane-core = { path = "../keyplane-core" }
 serde = { workspace = true }
 thiserror = { workspace = true }
+
+[dev-dependencies]
+# Used only by the `validate_capture` example to exercise the real OS hook.
+rdev = "0.5"
