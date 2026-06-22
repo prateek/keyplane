@@ -8,6 +8,8 @@
     "build": "tsc && vite build",
     "test": "vitest --run",
     "check:workflows": "ruby scripts/validate-release-workflow.rb",
+    "validate:keypeek-live": "ruby scripts/validate-keypeek-live-hardware.rb",
+    "validate:keypeek-live:dry": "ruby scripts/validate-keypeek-live-hardware.rb --dry-run",
     "preview": "vite preview",
     "tauri": "tauri"
   },

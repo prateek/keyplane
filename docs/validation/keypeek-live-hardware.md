@@ -12,9 +12,37 @@ Use this checklist when a QMK/Vial/ZMK device with the KeyPeek firmware module i
 Discovery finds VIA Raw HID endpoints. It does not prove the keyboard has the
 KeyPeek firmware module until the subscription or layer-change checks pass.
 
+## Validation Runner
+
+The preferred validation path runs both ignored canaries and writes a sanitized
+local report under `target/keyplane-validation/`:
+
+```sh
+KEYPLANE_KEYPEEK_LIVE_VID=feed \
+KEYPLANE_KEYPEEK_LIVE_PID=cafe \
+KEYPLANE_KEYPEEK_LIVE_WAIT_MS=10000 \
+npm run validate:keypeek-live
+```
+
+The generated report redacts USB IDs. Add
+`KEYPLANE_KEYPEEK_LIVE_DEVICE_LABEL` and
+`KEYPLANE_KEYPEEK_LIVE_FIRMWARE_REF` when a public hardware or firmware label
+should be recorded with the evidence.
+
+To check report generation without opening hardware:
+
+```sh
+npm run validate:keypeek-live:dry
+```
+
+The dry run is not acceptance evidence. The layer-change Runtime Event canary
+must pass against a real KeyPeek-compatible device before the KeyPeek live MVP
+acceptance gate is satisfied.
+
 ## Raw HID Subscription Canary
 
-Run the ignored subscription canary with the device VID/PID:
+The validation runner invokes this test. Run it directly when isolating Raw HID
+open or subscription failures:
 
 ```sh
 cd src-tauri
@@ -28,8 +56,9 @@ and send the KeyPeek live subscription start/stop messages.
 
 ## Layer-Change Canary
 
-Run the ignored layer-change canary while manually activating a non-base layer
-on the keyboard within the wait window:
+The validation runner invokes this test after the subscription canary. Run it
+directly while manually activating a non-base layer on the keyboard within the
+wait window:
 
 ```sh
 cd src-tauri
@@ -53,4 +82,7 @@ while the test is running.
 5. Confirm the Overlay Window updates the Layer Stack, active layer highlight, and effective legends.
 6. Confirm Backend Health shows `ok` for `KeyPeek Live`.
 
-Record the keyboard, firmware commit or build identifier, VID/PID, and observed layer-change result in the PR or release notes.
+Record the generated validation report result, keyboard, firmware commit or
+build identifier, and observed layer-change result in the PR or release notes.
+Do not paste private local paths or unsanitized device identifiers unless they
+are intentionally public.

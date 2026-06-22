@@ -30,7 +30,7 @@ The current implementation includes:
 - launch-at-login Settings backed by the Tauri autostart plugin and scoped autostart permissions
 - a GitHub Actions desktop build workflow that verifies the app, validates the signed-release workflow shape, uploads unsigned macOS debug bundles, and uploads Linux/Windows debug binaries
 - a signed macOS release workflow scaffold for Apple certificate import, Tauri signing/notarization, and signed `.app`/`.dmg` artifact upload
-- env-gated KeyPeek Live hardware canaries and a validation checklist for compatible firmware devices
+- env-gated KeyPeek Live hardware canaries, a sanitized validation report runner, and a validation checklist for compatible firmware devices
 
 The remaining PRD scope includes observed real KeyPeek-supported layer-change validation and first signed release execution with real Apple credentials.
 
@@ -80,6 +80,19 @@ npm run tauri build -- --debug
 
 The `Desktop Build` GitHub Actions workflow runs the same verification path on macOS, uploads unsigned debug `.app` and `.dmg` artifacts, and builds Linux/Windows debug binaries without installer bundling.
 It also runs `npm run check:workflows` so signed-release workflow drift is caught in PRs before real Apple credentials are available.
+
+Validate KeyPeek Live hardware canaries:
+
+```sh
+KEYPLANE_KEYPEEK_LIVE_VID=feed \
+KEYPLANE_KEYPEEK_LIVE_PID=cafe \
+KEYPLANE_KEYPEEK_LIVE_WAIT_MS=10000 \
+npm run validate:keypeek-live
+```
+
+The runner writes a sanitized report to `target/keyplane-validation/`.
+Use `npm run validate:keypeek-live:dry` only to check report generation without
+opening hardware.
 
 Build a signed macOS release in CI:
 

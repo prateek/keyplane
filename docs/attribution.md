@@ -17,4 +17,6 @@ KeyPeek's egui UI code has not been copied into Keyplane.
 
 ## keyviz
 
-keyviz may inform future Visual Style import work under its GPL-3.0 terms. The current implementation does not copy keyviz code.
+keyviz informs Visual Style import compatibility under its GPL-3.0 terms. The
+current implementation imports compatible style JSON fields but does not copy
+keyviz code.
