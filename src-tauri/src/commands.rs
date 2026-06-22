@@ -10,6 +10,7 @@ use keyplane_core::import::{
 };
 use keyplane_core::profile::Profile;
 use keyplane_core::snapshot::KeyboardSnapshot;
+use keyplane_kanata::{KanataBackend, LayerMap};
 use keyplane_keypeek::{ConnectionSpec, KeyPeekBackend};
 use tauri::{AppHandle, Emitter, Manager, State};
 
@@ -40,8 +41,8 @@ pub fn apply_profile_edn(
 ) -> Result<Profile, String> {
     let profile = Profile::from_edn_str(&edn).map_err(|e| e.to_string())?;
     let mut inner = state.inner.lock().expect("state");
-    inner.replace_model(profile.model.clone());
     inner.profile = profile.clone();
+    inner.rebuild_from_profile();
     let snapshot = inner.composer.snapshot();
     drop(inner);
     let _ = app.emit(EVENT_SNAPSHOT, &snapshot);
@@ -72,8 +73,8 @@ pub fn commit_import(
     let candidate = run_importer(&format, &contents)?;
     let profile = candidate.into_new_profile("imported-profile");
     let mut inner = state.inner.lock().expect("state");
-    inner.replace_model(profile.model.clone());
     inner.profile = profile.clone();
+    inner.rebuild_from_profile();
     let snapshot = inner.composer.snapshot();
     drop(inner);
     let _ = app.emit(EVENT_SNAPSHOT, &snapshot);
@@ -116,11 +117,46 @@ pub fn connect_keypeek(
     Ok(profile)
 }
 
+/// Connect to a running Kanata instance's TCP server (ADR 0009). Kanata is
+/// authoritative for runtime layer state but supplies no keyboard data, so the
+/// current Active Profile is used as the companion model (ADR 0010): its layer
+/// names map Kanata's `LayerChange` events onto the rendered layers. Start
+/// Kanata with `--port <port>`.
+#[tauri::command]
+pub fn connect_kanata(
+    app: AppHandle,
+    state: State<AppState>,
+    host: Option<String>,
+    port: u16,
+) -> Result<(), String> {
+    let mut inner = state.inner.lock().expect("state");
+
+    // Build the Kanata layer-name → companion LayerId map from the active model.
+    let model = &inner.profile.model;
+    let pairs = model.keymap.layers.iter().map(|l| {
+        let name = l.name.clone().unwrap_or_else(|| l.id.to_string());
+        (name, l.id.clone())
+    });
+    let base = model
+        .base_layer()
+        .unwrap_or_else(|| keyplane_core::ids::LayerId::new("layer-0"));
+    let layers = LayerMap::new(pairs, base);
+
+    let host = host.unwrap_or_else(|| "127.0.0.1".to_string());
+    let backend = KanataBackend::connect((host.as_str(), port), layers)?;
+    inner.set_backend_keep_model(Backend::Kanata(backend));
+    let snapshot = inner.composer.snapshot();
+    drop(inner);
+    let _ = app.emit(EVENT_SNAPSHOT, &snapshot);
+    Ok(())
+}
+
 /// Promote a value to a User Override so future imports cannot replace it
 /// (ADR 0018). Recorded in the profile and persisted in EDN; applying overrides
 /// to live resolution is tracked as follow-up work.
 #[tauri::command]
 pub fn promote_override(
+    app: AppHandle,
     state: State<AppState>,
     field: String,
     value: serde_json::Value,
@@ -128,7 +164,13 @@ pub fn promote_override(
 ) -> Profile {
     let mut inner = state.inner.lock().expect("state");
     keyplane_core::import::promote_override(&mut inner.profile, field, value, note);
-    inner.profile.clone()
+    // User Overrides win immediately: re-resolve and repaint the overlay.
+    inner.rebuild_from_profile();
+    let snapshot = inner.composer.snapshot();
+    let profile = inner.profile.clone();
+    drop(inner);
+    let _ = app.emit(EVENT_SNAPSHOT, &snapshot);
+    profile
 }
 
 /// Toggle Positioning Mode: disable click-through and allow resize so the user

@@ -6,6 +6,7 @@ import {
   activeProfileEdn,
   applyProfileEdn,
   commitImport,
+  connectKanata,
   connectKeypeek,
   getSnapshot,
   importPreview,
@@ -157,7 +158,35 @@ function DeviceConnect() {
         <button onClick={connect}>Connect Vial</button>
         {status ? <span className="muted">{status}</span> : null}
       </div>
+      <KanataConnect />
     </section>
+  );
+}
+
+function KanataConnect() {
+  const [port, setPort] = useState("5829");
+  const [status, setStatus] = useState<string | null>(null);
+  const connect = async () => {
+    setStatus("connecting…");
+    try {
+      await connectKanata(parseInt(port, 10));
+      setStatus("connected");
+    } catch (e) {
+      setStatus(String(e));
+    }
+  };
+  return (
+    <div className="row">
+      <span className="muted">Kanata (companion profile + `--port`):</span>
+      <input
+        className="hex-input"
+        placeholder="port"
+        value={port}
+        onChange={(e) => setPort(e.target.value)}
+      />
+      <button onClick={connect}>Connect Kanata</button>
+      {status ? <span className="muted">{status}</span> : null}
+    </div>
   );
 }
 
@@ -247,9 +276,11 @@ function ReviewView({ review }: { review: ImportReview }) {
                 <td>
                   <button
                     onClick={() =>
-                      promoteOverride(c.field, { qmk: c.incoming.value }, "promoted from import").catch(
-                        () => undefined,
-                      )
+                      promoteOverride(
+                        c.field,
+                        { source: "qmk", value: c.incoming.value },
+                        "promoted from import",
+                      ).catch(() => undefined)
                     }
                   >
                     Keep mine

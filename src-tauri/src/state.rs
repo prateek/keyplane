@@ -9,6 +9,7 @@ use keyplane_core::compose::Composer;
 use keyplane_core::health::HealthState;
 use keyplane_core::model::{KeyboardModel, StateConfidence};
 use keyplane_core::profile::Profile;
+use keyplane_kanata::KanataBackend;
 use keyplane_keypeek::KeyPeekBackend;
 use std::sync::Mutex;
 
@@ -23,6 +24,7 @@ pub const EVENT_SNAPSHOT: &str = "keyplane://snapshot";
 pub enum Backend {
     Fake(FakeBackend),
     KeyPeek(KeyPeekBackend),
+    Kanata(KanataBackend),
 }
 
 impl Backend {
@@ -30,6 +32,7 @@ impl Backend {
         match self {
             Backend::Fake(b) => b.descriptor(),
             Backend::KeyPeek(b) => b.descriptor(),
+            Backend::Kanata(b) => b.descriptor(),
         }
     }
 
@@ -37,6 +40,7 @@ impl Backend {
         match self {
             Backend::Fake(b) => b.health(),
             Backend::KeyPeek(b) => b.health(),
+            Backend::Kanata(b) => b.health(),
         }
     }
 
@@ -44,6 +48,7 @@ impl Backend {
         match self {
             Backend::Fake(b) => b.poll(),
             Backend::KeyPeek(b) => b.poll(),
+            Backend::Kanata(b) => b.poll(),
         }
     }
 
@@ -101,9 +106,11 @@ impl Inner {
         }
     }
 
-    /// Replace the active keyboard model (after an import or a hand edit),
-    /// rebuilding the composer while keeping the current backend registered.
-    pub fn replace_model(&mut self, model: KeyboardModel) {
+    /// Rebuild the composer from the active profile with User Overrides applied
+    /// (ADR 0018), keeping the current backend registered. Call after the
+    /// profile changes (import, hand edit, override promotion).
+    pub fn rebuild_from_profile(&mut self) {
+        let model = self.profile.resolved_model();
         let mut composer = Composer::new(model, StateConfidence::Authoritative);
         composer.register_backend(&self.backend.descriptor(), self.backend.health());
         self.composer = composer;
@@ -111,6 +118,17 @@ impl Inner {
 
     /// Swap in a new backend and its model (e.g. after connecting a device).
     pub fn set_backend(&mut self, backend: Backend, model: KeyboardModel) {
+        let mut composer = Composer::new(model, StateConfidence::Authoritative);
+        composer.register_backend(&backend.descriptor(), backend.health());
+        self.composer = composer;
+        self.backend = backend;
+    }
+
+    /// Swap the backend while keeping the current model (e.g. Kanata, which
+    /// streams runtime layer state but relies on a companion profile for the
+    /// keyboard model, ADR 0010).
+    pub fn set_backend_keep_model(&mut self, backend: Backend) {
+        let model = self.composer.model().clone();
         let mut composer = Composer::new(model, StateConfidence::Authoritative);
         composer.register_backend(&backend.descriptor(), backend.health());
         self.composer = composer;

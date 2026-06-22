@@ -1,9 +1,12 @@
 //! EDN Profile Codec: round trips, determinism, schema versioning, migrations,
 //! stable IDs, and User Overrides (PRD Testing Decisions).
 
+use keyplane_core::action::{RawAction, SemanticAction};
 use keyplane_core::backend::fake::demo_model;
+use keyplane_core::ids::{KeyId, LayerId};
 use keyplane_core::import::promote_override;
 use keyplane_core::profile::{Profile, ProfileError};
+use keyplane_core::provenance::SourceKind;
 use serde_json::json;
 
 fn demo_profile() -> Profile {
@@ -125,4 +128,36 @@ fn user_override_promotion_is_recorded_and_wins_future_saves() {
     // Re-promoting the same field replaces rather than duplicates.
     promote_override(&mut profile, "keymap.layer-0.k0", json!({"qmk": "KC_TAB"}), None);
     assert_eq!(profile.user_overrides.len(), 1);
+}
+
+#[test]
+fn user_override_wins_in_the_resolved_model() {
+    let mut profile = demo_profile();
+    // Base-layer k0 is "A"; the user remaps it to Escape.
+    promote_override(
+        &mut profile,
+        "keymap.layer-0.k0",
+        json!({"source": "qmk", "value": "KC_ESC"}),
+        Some("remap".into()),
+    );
+    let model = profile.resolved_model();
+    let entry = model
+        .keymap
+        .layer(&LayerId::new("layer-0"))
+        .unwrap()
+        .entry(&KeyId::new("k0"))
+        .unwrap();
+    assert_eq!(entry.raw, RawAction::Qmk("KC_ESC".into()));
+    assert_eq!(entry.semantic, SemanticAction::Key { label: "Esc".into() });
+    assert_eq!(entry.provenance.as_ref().unwrap().kind, SourceKind::User);
+
+    // The un-resolved model is untouched (the override only applies on resolve).
+    let original = profile
+        .model
+        .keymap
+        .layer(&LayerId::new("layer-0"))
+        .unwrap()
+        .entry(&KeyId::new("k0"))
+        .unwrap();
+    assert_eq!(original.raw, RawAction::Qmk("KC_A".into()));
 }

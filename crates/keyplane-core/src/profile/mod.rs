@@ -161,4 +161,66 @@ impl Profile {
     pub fn to_edn_str(&self) -> String {
         codec::encode(self).to_edn_string()
     }
+
+    /// The Keyboard Model with User Overrides applied.
+    ///
+    /// User Overrides always win (ADR 0018), so this is what should drive the
+    /// overlay rather than the raw imported `model`. A keymap override targets
+    /// the field `keymap.<layer-id>.<key-id>` and carries a Raw Action as JSON
+    /// (e.g. `{"source":"qmk","value":"KC_ESC"}`); the Semantic Action is
+    /// re-derived so the legend updates too.
+    pub fn resolved_model(&self) -> KeyboardModel {
+        let mut model = self.model.clone();
+        for over in &self.user_overrides {
+            apply_override(&mut model, over);
+        }
+        model
+    }
+}
+
+/// Apply one User Override to the model in place. Unknown fields and
+/// unparseable values are ignored so a hand-edited profile never panics.
+fn apply_override(model: &mut KeyboardModel, over: &UserOverride) {
+    use crate::action::RawAction;
+    use crate::ids::{KeyId, LayerId};
+
+    let mut parts = over.field.splitn(3, '.');
+    if parts.next() != Some("keymap") {
+        return; // only keymap overrides are supported for now
+    }
+    let (Some(layer_id), Some(key_id)) = (parts.next(), parts.next()) else {
+        return;
+    };
+    let Ok(raw) = serde_json::from_value::<RawAction>(over.value.clone()) else {
+        return;
+    };
+
+    // Resolve layer-switch targets against the model's own layer indices.
+    let index_to_id: std::collections::BTreeMap<u16, LayerId> = model
+        .keymap
+        .layers
+        .iter()
+        .map(|l| (l.index, l.id.clone()))
+        .collect();
+    let resolver = |n: u16| {
+        index_to_id
+            .get(&n)
+            .cloned()
+            .unwrap_or_else(|| LayerId::new(format!("layer-{n}")))
+    };
+    let semantic = crate::resolve::semantic::derive(&raw, &resolver);
+
+    let layer_id = LayerId::new(layer_id);
+    let key_id = KeyId::new(key_id);
+    if let Some(layer) = model.keymap.layers.iter_mut().find(|l| l.id == layer_id) {
+        let provenance = crate::provenance::Provenance::new(
+            "user",
+            crate::provenance::SourceKind::User,
+        )
+        .with_raw(raw.token());
+        layer.entries.insert(
+            key_id,
+            crate::model::keymap::LayerEntry::new(raw, semantic).with_provenance(provenance),
+        );
+    }
 }

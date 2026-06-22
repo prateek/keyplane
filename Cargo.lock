@@ -1637,6 +1637,7 @@ name = "keyplane"
 version = "0.1.0"
 dependencies = [
  "keyplane-core",
+ "keyplane-kanata",
  "keyplane-keypeek",
  "serde",
  "serde_json",
@@ -1650,6 +1651,15 @@ name = "keyplane-core"
 version = "0.1.0"
 dependencies = [
  "serde",
+ "serde_json",
+ "thiserror 2.0.18",
+]
+
+[[package]]
+name = "keyplane-kanata"
+version = "0.1.0"
+dependencies = [
+ "keyplane-core",
  "serde_json",
  "thiserror 2.0.18",
 ]

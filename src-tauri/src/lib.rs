@@ -24,6 +24,7 @@ pub fn run() {
             commands::import_preview,
             commands::commit_import,
             commands::connect_keypeek,
+            commands::connect_kanata,
             commands::promote_override,
             commands::set_positioning_mode,
             commands::set_overlay_visible,

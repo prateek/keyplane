@@ -31,6 +31,8 @@ export const connectKeypeek = (args: {
     jsonPath: args.jsonPath ?? null,
     layout: args.layout ?? null,
   });
+export const connectKanata = (port: number, host?: string) =>
+  invoke<unknown>("connect_kanata", { host: host ?? null, port });
 export const setPositioningMode = (enabled: boolean) =>
   invoke<void>("set_positioning_mode", { enabled });
 export const setOverlayVisible = (visible: boolean) =>

@@ -1,0 +1,13 @@
+[package]
+name = "keyplane-kanata"
+description = "Kanata Protocol Backend for Keyplane: streams live layer changes over Kanata's TCP server."
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+rust-version.workspace = true
+
+[dependencies]
+keyplane-core = { path = "../keyplane-core" }
+serde_json = { workspace = true }
+thiserror = { workspace = true }
