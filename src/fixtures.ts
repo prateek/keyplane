@@ -228,8 +228,20 @@ export const fakeSnapshot: KeyboardSnapshot = {
   source_provenance: [...keys.map((key) => key.provenance), ...visualStyleProvenance],
   source_precedence: [
     {
+      field_scope: ":runtime/state",
+      source_order: ["keypeek-live", "kanata-tcp", sourceId, "sentinel-keys"],
+    },
+    {
+      field_scope: ":keyboard/physical-layout",
+      source_order: ["user-overrides", "vial-import", "zmk-import", "overkeys-import", sourceId],
+    },
+    {
+      field_scope: ":keyboard/keymap",
+      source_order: ["user-overrides", "vial-import", "zmk-import", "overkeys-import", sourceId],
+    },
+    {
       field_scope: ":visual/style",
-      source_order: [sourceId, "keyviz-import"],
+      source_order: ["user-overrides", sourceId, "keyviz-import"],
     },
   ],
   user_overrides: [],

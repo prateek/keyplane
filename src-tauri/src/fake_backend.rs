@@ -183,20 +183,20 @@ pub fn fake_profile() -> Profile {
                 field_scope: ":keyboard/physical-layout".to_string(),
                 source_order: vec![
                     "user-overrides".to_string(),
-                    FAKE_SOURCE_ID.to_string(),
                     "vial-import".to_string(),
                     "zmk-import".to_string(),
                     "overkeys-import".to_string(),
+                    FAKE_SOURCE_ID.to_string(),
                 ],
             },
             SourcePrecedenceRule {
                 field_scope: ":keyboard/keymap".to_string(),
                 source_order: vec![
                     "user-overrides".to_string(),
-                    FAKE_SOURCE_ID.to_string(),
                     "vial-import".to_string(),
                     "zmk-import".to_string(),
                     "overkeys-import".to_string(),
+                    FAKE_SOURCE_ID.to_string(),
                 ],
             },
             SourcePrecedenceRule {
@@ -431,17 +431,25 @@ mod tests {
         }));
         assert!(snapshot.source_precedence.iter().any(|rule| {
             rule.field_scope == ":keyboard/physical-layout"
-                && rule.source_order.contains(&FAKE_SOURCE_ID.to_string())
-                && rule.source_order.contains(&"vial-import".to_string())
-                && rule.source_order.contains(&"zmk-import".to_string())
-                && rule.source_order.contains(&"overkeys-import".to_string())
+                && rule.source_order
+                    == vec![
+                        "user-overrides".to_string(),
+                        "vial-import".to_string(),
+                        "zmk-import".to_string(),
+                        "overkeys-import".to_string(),
+                        FAKE_SOURCE_ID.to_string(),
+                    ]
         }));
         assert!(snapshot.source_precedence.iter().any(|rule| {
             rule.field_scope == ":keyboard/keymap"
-                && rule.source_order.contains(&FAKE_SOURCE_ID.to_string())
-                && rule.source_order.contains(&"vial-import".to_string())
-                && rule.source_order.contains(&"zmk-import".to_string())
-                && rule.source_order.contains(&"overkeys-import".to_string())
+                && rule.source_order
+                    == vec![
+                        "user-overrides".to_string(),
+                        "vial-import".to_string(),
+                        "zmk-import".to_string(),
+                        "overkeys-import".to_string(),
+                        FAKE_SOURCE_ID.to_string(),
+                    ]
         }));
         assert!(snapshot.source_precedence.iter().any(|rule| {
             rule.field_scope == ":visual/style"

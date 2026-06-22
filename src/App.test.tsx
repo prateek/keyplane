@@ -288,6 +288,11 @@ describe("Keyplane app", () => {
     expect(screen.getByText("keyviz-minimal")).toBeInTheDocument();
     expect(screen.getAllByText('{"style":"minimal"}').length).toBeGreaterThanOrEqual(1);
     expect(screen.getByText("Sources")).toBeInTheDocument();
+    expect(
+      screen.getAllByText(
+        "user-overrides -> vial-import -> zmk-import -> overkeys-import -> fake-backend",
+      ),
+    ).toHaveLength(2);
     expect(screen.getByText("Source Provenance")).toBeInTheDocument();
     expect(screen.getByText(":keyboard/physical-layout k-q")).toBeInTheDocument();
     expect(screen.getByText("matrix:0,1")).toBeInTheDocument();
