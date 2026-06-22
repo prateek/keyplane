@@ -45,6 +45,23 @@ describe("Keyplane app", () => {
     expect(screen.getByText(":keyboard/keymap k-q")).toBeInTheDocument();
   });
 
+  it("shows Layer Stack precedence and confidence in Source Inspector", async () => {
+    const user = userEvent.setup();
+    render(<App />);
+
+    await user.click(await screen.findByRole("button", { name: /fake event/i }));
+    await user.click(screen.getByRole("button", { name: /source inspector/i }));
+
+    expect(screen.getByText("Layer Stack")).toBeInTheDocument();
+    expect(screen.getByText(/1\.\s*Nav/)).toBeInTheDocument();
+    expect(screen.getByText("top precedence")).toBeInTheDocument();
+    expect(screen.getByText("layer-1 - momentary")).toBeInTheDocument();
+    expect(screen.getByText("Momentary layer from fake backend Runtime Event")).toBeInTheDocument();
+    expect(screen.getByText(/2\.\s*Base/)).toBeInTheDocument();
+    expect(screen.getByText("lower precedence")).toBeInTheDocument();
+    expect(screen.getByText("layer-0 - default")).toBeInTheDocument();
+  });
+
   it("uses Visual Style density to collapse or preserve structured Legend Slots", () => {
     const renderOverlay = (density: "compact" | "standard" | "rich") =>
       render(

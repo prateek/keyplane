@@ -42,6 +42,7 @@ Started the Tauri v2 implementation from the PRD.
 - Added a Kanata TCP runtime path with local host/port Settings controls, newline-delimited JSON protocol parsing, Layer Stack Runtime Events from `LayerChange` and `CurrentLayerName`, and typed Backend Health from `HelloOk`, errors, reloads, disconnects, and parse failures.
 - Added Source Provenance and Source records to the Keyboard Snapshot contract and surfaced them in the Source Inspector with raw preserved values.
 - Expanded the Source Inspector to show concrete Backend Health messages and raw Source Provenance beside matching Source Conflict candidates.
+- Added Layer Stack precedence, Activation Kind, and State Confidence rows to Source Inspector so active-layer ordering is inspectable outside the Overlay Surface.
 - Added Transparent Entries to Source Inspector so transparent Raw Actions remain visible with the inherited lower-layer source and effective label.
 - Added State Confidence reasons and Backend Health messages to the Overlay Surface status strip so inferred, stale, and disconnected state is visible without opening Source Inspector.
 - Added an Active Profile diff summary to Import Review so Import Candidates show changed keys, layers, sources, provenance records, backends, style, and fallback-layout state before commit.

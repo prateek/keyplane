@@ -931,6 +931,8 @@ function SourceInspector({
 }) {
   const sourceName = (sourceId: string) =>
     snapshot.sources.find((source) => source.id === sourceId)?.name ?? sourceId;
+  const layerName = (layerId: string) =>
+    snapshot.keymap.layers.find((layer) => layer.id === layerId)?.name ?? layerId;
   const transparentRows = transparentEntryRows(snapshot);
 
   return (
@@ -965,6 +967,26 @@ function SourceInspector({
                 <span className="badge">{backend.health.state}</span>
                 <p>{backend.health.message}</p>
                 <p>{backend.capabilities.join(", ")}</p>
+              </article>
+            ))}
+          </section>
+
+          <section>
+            <h2>Layer Stack</h2>
+            {snapshot.runtime_state.layer_stack.length === 0 ? <p>No active layers.</p> : null}
+            {snapshot.runtime_state.layer_stack.map((activation, index) => (
+              <article className="list-row" key={`${activation.layer_id}-${index}`}>
+                <strong>
+                  {index + 1}. {layerName(activation.layer_id)}
+                </strong>
+                <span className="badge">
+                  {index === 0 ? "top precedence" : "lower precedence"}
+                </span>
+                <p>
+                  {activation.layer_id} - {activation.kind}
+                </p>
+                <p>{activation.confidence.level} confidence</p>
+                <p>{activation.confidence.reason}</p>
               </article>
             ))}
           </section>
