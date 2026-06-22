@@ -346,6 +346,7 @@ describe("Keyplane app", () => {
         candidate={candidate}
         error={null}
         onCommit={() => undefined}
+        onPromote={() => undefined}
       />,
     );
 
@@ -364,9 +365,55 @@ describe("Keyplane app", () => {
     expect(screen.getByText("no -> yes")).toBeInTheDocument();
     expect(screen.getByText(":visual/style :style/variant-id")).toBeInTheDocument();
     expect(screen.getByText("Selected")).toBeInTheDocument();
-    expect(screen.getByText("Candidate")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /promote/i })).toBeInTheDocument();
     expect(screen.getByText("variant=keyplane-default")).toBeInTheDocument();
     expect(screen.getByText('{"style":"minimal"}')).toBeInTheDocument();
+  });
+
+  it("promotes an Import Review Source Conflict candidate before commit", async () => {
+    const user = userEvent.setup();
+    const onPromote = vi.fn();
+    const candidate: ImportCandidate = {
+      id: "candidate-style",
+      source: fakeSnapshot.sources[0],
+      best_effort_preview: true,
+      preview_profile: {
+        schema_version: 1,
+        id: "profile-style",
+        keyboard_id: "keyboard-style",
+        name: "Style Preview",
+        sources: fakeSnapshot.sources,
+        physical_layout: fakeSnapshot.physical_layout,
+        keymap: fakeSnapshot.keymap,
+        runtime_backends: fakeSnapshot.backends,
+        sentinel_keys: fakeSnapshot.sentinel_keys,
+        visual_style: fakeSnapshot.visual_style,
+        overlay_window: fakeSnapshot.overlay_window,
+        source_precedence: fakeSnapshot.source_precedence,
+        user_overrides: [],
+        source_provenance: fakeSnapshot.source_provenance,
+      },
+      conflicts: fakeSnapshot.source_conflicts,
+      summary: {
+        imported_keys: 0,
+        imported_layers: 0,
+        preserved_sections: [],
+      },
+    };
+
+    render(
+      <ImportReview
+        activeSnapshot={fakeSnapshot}
+        candidate={candidate}
+        error={null}
+        onCommit={() => undefined}
+        onPromote={onPromote}
+      />,
+    );
+
+    await user.click(screen.getByRole("button", { name: /promote/i }));
+
+    expect(onPromote).toHaveBeenCalledWith(fakeSnapshot.source_conflicts[0], "keyviz-import");
   });
 });
 

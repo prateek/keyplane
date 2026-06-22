@@ -32,7 +32,7 @@ import type {
   VisibilityPolicy,
 } from "./domain";
 import { navLayerEvent } from "./fixtures";
-import { applyRuntimeEvent } from "./state";
+import { applyRuntimeEvent, promoteImportCandidateSource } from "./state";
 import {
   commitImportCandidate,
   importKeyvizStyleFile,
@@ -316,6 +316,12 @@ function App() {
   async function promoteSourceValue(conflict: SourceConflict, sourceId: string) {
     if (!snapshot) return;
     setSnapshot(await promoteActiveSourceCandidate(snapshot, conflict, sourceId));
+  }
+
+  function promoteImportValue(conflict: SourceConflict, sourceId: string) {
+    setImportCandidate((candidate) =>
+      candidate ? promoteImportCandidateSource(candidate, conflict, sourceId) : candidate,
+    );
   }
 
   async function dragOverlay() {
@@ -705,6 +711,7 @@ function App() {
             candidate={importCandidate}
             error={importError}
             onCommit={commitImportPreview}
+            onPromote={promoteImportValue}
           />
         ) : null}
         {view === "settings" ? (
@@ -1260,11 +1267,13 @@ export function ImportReview({
   candidate,
   error,
   onCommit,
+  onPromote,
 }: {
   activeSnapshot: KeyboardSnapshot;
   candidate: ImportCandidate | null;
   error: string | null;
   onCommit: (candidate: ImportCandidate) => void;
+  onPromote?: (conflict: SourceConflict, sourceId: string) => void;
 }) {
   if (error) return <section className="empty-state">{error}</section>;
   if (!candidate) {
@@ -1321,6 +1330,7 @@ export function ImportReview({
               <ConflictCandidateRows
                 conflict={conflict}
                 sourceProvenance={candidate.preview_profile.source_provenance}
+                onPromote={onPromote}
               />
             </article>
           ))}

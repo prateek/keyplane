@@ -1,11 +1,14 @@
 import type {
   EffectiveKey,
+  ImportCandidate,
   KeyboardSnapshot,
   KeyAction,
   LogicalKeymap,
   RuntimeEvent,
   RuntimeState,
   SourceConflict,
+  UserOverride,
+  VisualStyle,
 } from "./domain";
 
 const userOverrideSourceId = "user-overrides";
@@ -55,71 +58,110 @@ export function promoteSourceCandidate(
   );
   if (!nextConflict) return snapshot;
 
-  const userOverride = {
-    field_path: conflict.field_path,
-    value: selected.value,
-    reason: `Promoted from ${sourceId}`,
-  };
-
-  const existingOverride = next.user_overrides.findIndex(
-    (override) => override.field_path === conflict.field_path,
+  promoteConflictSelection(
+    next.user_overrides,
+    nextConflict,
+    conflict.field_path,
+    selected.value,
+    sourceId,
   );
-  if (existingOverride >= 0) {
-    next.user_overrides[existingOverride] = userOverride;
-  } else {
-    next.user_overrides.push(userOverride);
-  }
-
-  const existingOverrideCandidate = nextConflict.candidates.find(
-    (candidate) => candidate.source_id === userOverrideSourceId,
-  );
-  if (existingOverrideCandidate) {
-    existingOverrideCandidate.value = selected.value;
-  } else {
-    nextConflict.candidates.push({
-      source_id: userOverrideSourceId,
-      value: selected.value,
-      selected: false,
-    });
-  }
-
-  nextConflict.selected_source_id = userOverrideSourceId;
-  nextConflict.candidates = nextConflict.candidates.map((candidate) => ({
-    ...candidate,
-    selected: candidate.source_id === userOverrideSourceId,
-  }));
-
-  applyVisualConflictSelection(next, conflict.field_path, selected.value);
+  applyVisualStyleSelection(next.visual_style, conflict.field_path, selected.value);
 
   return next;
 }
 
-function applyVisualConflictSelection(
-  snapshot: KeyboardSnapshot,
+export function promoteImportCandidateSource(
+  candidate: ImportCandidate,
+  conflict: SourceConflict,
+  sourceId: string,
+): ImportCandidate {
+  const selected = conflict.candidates.find((candidate) => candidate.source_id === sourceId);
+  if (!selected) return candidate;
+
+  const next: ImportCandidate = structuredClone(candidate);
+  const nextConflict = next.conflicts.find(
+    (candidate) => candidate.field_path === conflict.field_path,
+  );
+  if (!nextConflict) return candidate;
+
+  promoteConflictSelection(
+    next.preview_profile.user_overrides,
+    nextConflict,
+    conflict.field_path,
+    selected.value,
+    sourceId,
+  );
+  applyVisualStyleSelection(next.preview_profile.visual_style, conflict.field_path, selected.value);
+
+  return next;
+}
+
+function promoteConflictSelection(
+  userOverrides: UserOverride[],
+  conflict: SourceConflict,
+  fieldPath: string,
+  value: string,
+  sourceId: string,
+) {
+  const userOverride = {
+    field_path: fieldPath,
+    value,
+    reason: `Promoted from ${sourceId}`,
+  };
+
+  const existingOverride = userOverrides.findIndex((override) => override.field_path === fieldPath);
+  if (existingOverride >= 0) {
+    userOverrides[existingOverride] = userOverride;
+  } else {
+    userOverrides.push(userOverride);
+  }
+
+  const existingOverrideCandidate = conflict.candidates.find(
+    (candidate) => candidate.source_id === userOverrideSourceId,
+  );
+  if (existingOverrideCandidate) {
+    existingOverrideCandidate.value = value;
+  } else {
+    conflict.candidates.push({
+      source_id: userOverrideSourceId,
+      value,
+      selected: false,
+    });
+  }
+
+  conflict.selected_source_id = userOverrideSourceId;
+  conflict.candidates = conflict.candidates.map((candidate) => ({
+    ...candidate,
+    selected: candidate.source_id === userOverrideSourceId,
+  }));
+}
+
+function applyVisualStyleSelection(
+  visualStyle: VisualStyle,
   fieldPath: string,
   value: string,
 ) {
-  if (fieldPath === ":visual/style :style/id") snapshot.visual_style.id = value;
-  if (fieldPath === ":visual/style :style/variant-id") snapshot.visual_style.variant_id = value;
+  if (fieldPath === ":visual/style :style/id") visualStyle.id = value;
+  if (fieldPath === ":visual/style :style/variant-id") visualStyle.variant_id = value;
   if (fieldPath === ":visual/style :style/density") {
     if (value === "compact" || value === "standard" || value === "rich") {
-      snapshot.visual_style.density = value;
+      visualStyle.density = value;
     }
   }
   if (fieldPath === ":visual/style :style/colors :color/keycap-background") {
-    snapshot.visual_style.colors.keycap_background = sourceConflictOptionalValue(value);
+    visualStyle.colors.keycap_background = sourceConflictOptionalValue(value);
   }
   if (fieldPath === ":visual/style :style/colors :color/keycap-text") {
-    snapshot.visual_style.colors.keycap_text = sourceConflictOptionalValue(value);
+    visualStyle.colors.keycap_text = sourceConflictOptionalValue(value);
   }
   if (fieldPath === ":visual/style :style/colors :color/keycap-border") {
-    snapshot.visual_style.colors.keycap_border = sourceConflictOptionalValue(value);
+    visualStyle.colors.keycap_border = sourceConflictOptionalValue(value);
   }
   if (fieldPath === ":visual/style :style/colors :color/modifier-accent") {
-    snapshot.visual_style.colors.modifier_accent = sourceConflictOptionalValue(value);
+    visualStyle.colors.modifier_accent = sourceConflictOptionalValue(value);
   }
   if (fieldPath === ":visual/style :style/colors :color/overlay-background") {
-    snapshot.visual_style.colors.overlay_background = sourceConflictOptionalValue(value);
+    visualStyle.colors.overlay_background = sourceConflictOptionalValue(value);
   }
 }
 

@@ -47,6 +47,7 @@ Started the Tauri v2 implementation from the PRD.
 - Added State Confidence reasons and Backend Health messages to the Overlay Surface status strip so inferred, stale, and disconnected state is visible without opening Source Inspector.
 - Added an Active Profile diff summary to Import Review so Import Candidates show changed keys, layers, sources, provenance records, backends, style, and fallback-layout state before commit.
 - Added selected-winner and raw Source Provenance rows to Import Review Source Conflicts before Import Candidate commit.
+- Added Import Review promotion controls that turn selected Source Conflict candidates into pending Profile User Overrides before Import Candidate commit.
 - Added density-aware structured Display Legend rendering so compact Visual Styles collapse to primary labels, standard styles show one secondary slot, and rich styles preserve all secondary Legend Slots.
 - Added derived `tap-role` and `hold-role` Display Legend Slots for QMK and ZMK layer-tap actions while preserving compact primary labels.
 - Added QMK mod-tap alias parsing and `tap-role`/`hold-role` Legend Slots with persisted optional hold labels for richer tap-hold visualization.
@@ -74,7 +75,7 @@ Verification:
 - `cargo test` (100 Rust tests passed, 3 private local hardware canaries ignored by default)
 - `KEYPLANE_LOCAL_VIL_CANDIDATE=<private .vil path> cargo test local_vil_candidate_file_imports_when_env_is_set -- --ignored`
 - `npm ci`
-- `npm test` (31 frontend tests)
+- `npm test` (33 frontend tests)
 - `npm run build`
 - `actionlint .github/workflows/signed-release.yml .github/workflows/desktop-build.yml`
 - `ruby -e 'require "yaml"; %w[.github/workflows/signed-release.yml .github/workflows/desktop-build.yml].each { |path| YAML.load_file(path) }'`

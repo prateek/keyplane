@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
+import type { ImportCandidate } from "./domain";
 import { fakeSnapshot, navLayerEvent } from "./fixtures";
-import { applyRuntimeEvent, promoteSourceCandidate } from "./state";
+import { applyRuntimeEvent, promoteImportCandidateSource, promoteSourceCandidate } from "./state";
 
 describe("frontend runtime state", () => {
   it("recomputes inherited Effective Actions after a layer-stack Runtime Event", () => {
@@ -100,5 +101,72 @@ describe("frontend runtime state", () => {
       reason: "Promoted from keyviz-import",
     });
     expect(next.visual_style.colors.keycap_background).toBe("#ffffff");
+  });
+
+  it("promotes Import Review candidates to pending Profile User Overrides", () => {
+    const conflict = {
+      field_path: ":visual/style :style/colors :color/keycap-background",
+      selected_source_id: "keyviz-import",
+      candidates: [
+        { source_id: "fake-backend", value: "nil", selected: false },
+        { source_id: "keyviz-import", value: "#ffffff", selected: true },
+      ],
+    };
+    const candidate: ImportCandidate = {
+      id: "candidate-keyviz",
+      source: {
+        id: "keyviz-import",
+        name: "keyviz import",
+        kind: "keyviz-style-import",
+        authority: "best-effort-preview",
+      },
+      best_effort_preview: true,
+      preview_profile: {
+        schema_version: 1,
+        id: "profile-keyviz",
+        keyboard_id: "keyboard-keyviz",
+        name: "keyviz profile",
+        sources: fakeSnapshot.sources,
+        physical_layout: fakeSnapshot.physical_layout,
+        keymap: fakeSnapshot.keymap,
+        runtime_backends: fakeSnapshot.backends,
+        sentinel_keys: fakeSnapshot.sentinel_keys,
+        visual_style: {
+          ...fakeSnapshot.visual_style,
+          colors: {
+            ...fakeSnapshot.visual_style.colors,
+            keycap_background: "#ffffff",
+          },
+        },
+        overlay_window: fakeSnapshot.overlay_window,
+        source_precedence: fakeSnapshot.source_precedence,
+        user_overrides: [],
+        source_provenance: fakeSnapshot.source_provenance,
+      },
+      conflicts: [conflict],
+      summary: {
+        imported_keys: 0,
+        imported_layers: 0,
+        preserved_sections: [],
+      },
+    };
+
+    const next = promoteImportCandidateSource(candidate, conflict, "fake-backend");
+
+    expect(next.preview_profile.user_overrides).toEqual([
+      {
+        field_path: ":visual/style :style/colors :color/keycap-background",
+        value: "nil",
+        reason: "Promoted from fake-backend",
+      },
+    ]);
+    expect(next.conflicts[0].selected_source_id).toBe("user-overrides");
+    expect(next.conflicts[0].candidates).toContainEqual({
+      source_id: "user-overrides",
+      value: "nil",
+      selected: true,
+    });
+    expect(next.preview_profile.visual_style.colors.keycap_background).toBeNull();
+    expect(candidate.preview_profile.user_overrides).toEqual([]);
   });
 });

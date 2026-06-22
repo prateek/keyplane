@@ -20,7 +20,7 @@ The current implementation includes:
 - a Kanata TCP runtime path with Settings host/port controls, newline JSON event parsing, and Layer Stack Runtime Event streaming
 - a Rust-owned Active Profile store with Import Review commit support
 - visible Backend Health and State Confidence reasons for fake, Overlay Window, KeyPeek Live, Kanata TCP, and Sentinel Keys runtime backends
-- App Window surfaces for the overlay, Import Review with Active Profile diffs and provenance-backed Source Conflicts, Source Inspector, Source Precedence, Layer Stack precedence, Source Provenance, transparent-entry inheritance, Backend Health, and Positioning Mode
+- App Window surfaces for the overlay, Import Review with Active Profile diffs, provenance-backed Source Conflicts, and User Override promotion, Source Inspector, Source Precedence, Layer Stack precedence, Source Provenance, transparent-entry inheritance, Backend Health, and Positioning Mode
 - active Layer Stack rendering that highlights non-inherited key actions supplied by the top active layer
 - Rust-owned Overlay Window drag and resize controls while Positioning Mode is active, with unsupported window behavior surfaced as typed Backend Health
 - Profile-owned Overlay Window placement, size, click-through, visibility policy, visible state, Fade Visibility inactivity behavior, and renderer opacity application with a Global Display Fallback for profiles without saved targeting
