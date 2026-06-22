@@ -10,6 +10,7 @@ The current implementation includes:
 - Effective Action resolution for transparent keys and inherited legends
 - EDN v1 Profile Codec save/load support with deterministic output and toolbar import/export actions
 - NocFree/Vial `.vil` JSON import as a Best-Effort Preview Import Candidate, including backup-style layer matrices
+- Vial device HID import as a Best-Effort Preview Import Candidate, using KeyPeek-derived Vial definition and raw-matrix reads
 - ZMK `.keymap` import as a Best-Effort Preview Import Candidate with fallback geometry
 - keyviz style JSON import as a style-only Import Candidate
 - OverKeys companion JSON import as a Best-Effort Preview Import Candidate with row-array fallback geometry

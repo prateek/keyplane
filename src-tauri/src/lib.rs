@@ -11,6 +11,7 @@ pub mod profile_codec;
 pub mod sentinel_backend;
 #[cfg(desktop)]
 pub mod sentinel_shortcuts;
+pub mod vial_device;
 
 use crate::active_profile::ActiveProfileStore;
 use crate::backend::{FakeProtocolBackend, ProtocolBackend};
@@ -346,6 +347,18 @@ fn import_vial_file(contents: String) -> Result<ImportCandidate, String> {
 }
 
 #[tauri::command]
+fn import_vial_device(request: KeyPeekConnectionRequest) -> Result<ImportCandidate, String> {
+    let vid = keypeek_live::parse_usb_id(&request.vid)
+        .map_err(|err| format!("Invalid Vial device VID: {err}"))?;
+    let pid = keypeek_live::parse_usb_id(&request.pid)
+        .map_err(|err| format!("Invalid Vial device PID: {err}"))?;
+    let mut transport = vial_device::QmkViaVialTransport::open(vid, pid)
+        .map_err(|err| format!("Could not open Vial HID {:04x}:{:04x}: {err}", vid, pid))?;
+
+    vial_device::import_vial_device(&mut transport, vid, pid).map_err(|err| err.to_string())
+}
+
+#[tauri::command]
 fn import_keyviz_style_file(
     active_profile: State<'_, ActiveProfileStore>,
     contents: String,
@@ -476,6 +489,7 @@ pub fn run() {
             save_active_profile_edn,
             load_active_profile_edn,
             import_vial_file,
+            import_vial_device,
             import_keyviz_style_file,
             import_overkeys_companion_file,
             import_zmk_keymap_file,

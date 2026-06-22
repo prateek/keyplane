@@ -32,6 +32,7 @@ import {
   commitImportCandidate,
   importKeyvizStyleFile,
   importOverkeysCompanionFile,
+  importVialDevice,
   importVialFile,
   importZmkKeymapFile,
   loadLaunchAtLogin,
@@ -148,6 +149,18 @@ function App() {
       (candidate) => candidate.backend_id === "keypeek-live",
     );
     setProfileStatus(health?.message ?? "KeyPeek live backend updated");
+  }
+
+  async function importVialDevicePreview() {
+    setImportError(null);
+    setProfileStatus(null);
+    try {
+      setImportCandidate(await importVialDevice({ vid: keyPeekVid, pid: keyPeekPid }));
+      setView("import");
+    } catch (error) {
+      setImportError(error instanceof Error ? error.message : String(error));
+      setView("import");
+    }
   }
 
   async function updateLaunchAtLogin(enabled: boolean) {
@@ -357,6 +370,14 @@ function App() {
               <button type="submit">
                 <RadioTower size={17} />
                 Connect
+              </button>
+              <button
+                type="button"
+                aria-label="Import Vial device"
+                onClick={() => void importVialDevicePreview()}
+              >
+                <FileJson size={17} />
+                Vial device
               </button>
             </form>
             <button onClick={advanceFakeEvent}>

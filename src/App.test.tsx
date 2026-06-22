@@ -40,6 +40,7 @@ describe("Keyplane app", () => {
     expect(await screen.findByLabelText("KeyPeek VID")).toBeInTheDocument();
     expect(screen.getByLabelText("KeyPeek PID")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /connect/i })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /import vial device/i })).toBeInTheDocument();
   });
 
   it("exposes startup and Sentinel Key backend settings", async () => {

@@ -153,6 +153,10 @@ export async function importVialFile(contents: string): Promise<ImportCandidate>
   return invoke<ImportCandidate>("import_vial_file", { contents });
 }
 
+export async function importVialDevice(request: KeyPeekConnectionRequest): Promise<ImportCandidate> {
+  return invoke<ImportCandidate>("import_vial_device", { request });
+}
+
 export async function importKeyvizStyleFile(contents: string): Promise<ImportCandidate> {
   return invoke<ImportCandidate>("import_keyviz_style_file", { contents });
 }

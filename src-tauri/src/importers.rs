@@ -4,6 +4,7 @@ use crate::domain::{
     OverlayWindowConfig, PhysicalKey, PhysicalLayout, Profile, Source, SourceAuthority,
     SourceConflict, SourcePrecedenceRule, SourceRef, StyleDensity, VisibilityPolicy, VisualStyle,
 };
+use qmk_via_api::keycodes::Keycode;
 use serde_json::Value as JsonValue;
 use thiserror::Error;
 
@@ -13,6 +14,16 @@ pub enum ImportError {
     Json(String),
     #[error("Import is missing {0}")]
     Missing(&'static str),
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct VialDeviceSnapshot {
+    pub vid: u16,
+    pub pid: u16,
+    pub uid: String,
+    pub protocol_version: u32,
+    pub definition_json: JsonValue,
+    pub raw_matrices: Vec<Vec<Vec<u16>>>,
 }
 
 pub fn import_vial_json(contents: &str) -> Result<ImportCandidate, ImportError> {
@@ -81,6 +92,140 @@ pub fn import_vial_json(contents: &str) -> Result<ImportCandidate, ImportError> 
         sentinel_keys: Vec::new(),
         visual_style: VisualStyle {
             variant_id: "vial-preview".to_string(),
+            density: StyleDensity::Standard,
+        },
+        overlay_window: OverlayWindowConfig {
+            visibility: VisibilityPolicy::Pinned,
+            click_through: true,
+            positioning_mode: false,
+            display_targeting: DisplayTargeting {
+                display_id: None,
+                x: 80.0,
+                y: 80.0,
+                width: 920.0,
+                height: 320.0,
+                opacity: 0.9,
+            },
+        },
+        source_precedence: vec![
+            SourcePrecedenceRule {
+                field_scope: ":keyboard/physical-layout".to_string(),
+                source_order: vec![source.id.clone(), "user-overrides".to_string()],
+            },
+            SourcePrecedenceRule {
+                field_scope: ":keyboard/keymap".to_string(),
+                source_order: vec![source.id.clone(), "user-overrides".to_string()],
+            },
+        ],
+        user_overrides: Vec::new(),
+        source_provenance,
+    };
+
+    Ok(ImportCandidate {
+        id: format!("candidate-{}", source.id),
+        source,
+        best_effort_preview: true,
+        preview_profile: profile,
+        conflicts: Vec::<SourceConflict>::new(),
+        summary: ImportSummary {
+            imported_keys: physical_keys.len(),
+            imported_layers: layers.len(),
+            preserved_sections,
+        },
+    })
+}
+
+pub fn import_vial_device_snapshot(
+    snapshot: VialDeviceSnapshot,
+) -> Result<ImportCandidate, ImportError> {
+    let uid_slug = sanitize_id_or(&snapshot.uid, "device");
+    let source = Source {
+        id: format!(
+            "vial-device-{:04x}-{:04x}-{}",
+            snapshot.vid, snapshot.pid, uid_slug
+        ),
+        name: format!("Vial device {:04x}:{:04x}", snapshot.vid, snapshot.pid),
+        kind: "vial-device-import".to_string(),
+        authority: SourceAuthority::BestEffortPreview,
+    };
+    let layer_values = raw_matrices_to_imported_layers(&snapshot.raw_matrices);
+    if layer_values.is_empty() {
+        return Err(ImportError::Missing("Vial device keymap matrix"));
+    }
+    let physical_keys = vial_geometry_rows(&snapshot.definition_json)
+        .map(|rows| import_kle_rows_as_fallback_layout(rows, &source.id))
+        .filter(|keys| !keys.is_empty())
+        .or_else(|| {
+            if layer_values.is_empty() {
+                None
+            } else {
+                let keys = import_matrix_rows_as_fallback_layout(&layer_values, &source.id, "vial");
+                (!keys.is_empty()).then_some(keys)
+            }
+        })
+        .ok_or(ImportError::Missing(
+            "Vial device layouts.keymap or keymap matrix",
+        ))?;
+    let has_geometry = vial_geometry_rows(&snapshot.definition_json).is_some();
+    let layers = import_layers(Some(&layer_values), &physical_keys, &source.id, "vial");
+    let preserved_sections = vec![
+        "vial-device-definition".to_string(),
+        "vial-device-keymap".to_string(),
+    ];
+    let mut source_provenance: Vec<SourceRef> = physical_keys
+        .iter()
+        .map(|key| key.provenance.clone())
+        .collect();
+    source_provenance.push(SourceRef {
+        source_id: source.id.clone(),
+        field_path: ":source/raw vial-device-definition".to_string(),
+        raw: Some(snapshot.definition_json.to_string()),
+    });
+    source_provenance.push(SourceRef {
+        source_id: source.id.clone(),
+        field_path: ":source/raw vial-device-keymap".to_string(),
+        raw: Some(format!("{:?}", snapshot.raw_matrices)),
+    });
+    source_provenance.push(SourceRef {
+        source_id: source.id.clone(),
+        field_path: ":source/raw vial-device-protocol".to_string(),
+        raw: Some(format!(
+            "vial_protocol={} vid={:04x} pid={:04x} uid={}",
+            snapshot.protocol_version, snapshot.vid, snapshot.pid, snapshot.uid
+        )),
+    });
+    let backend_health = BackendHealth {
+        backend_id: source.id.clone(),
+        state: HealthState::Stale,
+        message:
+            "Imported Vial device geometry and keymap as Best-Effort Preview; no live layer channel"
+                .to_string(),
+    };
+    let profile = Profile {
+        schema_version: 1,
+        id: format!("profile-{}", source.id),
+        name: format!("{} Preview", source.name),
+        sources: vec![source.clone()],
+        physical_layout: PhysicalLayout {
+            keys: physical_keys.clone(),
+            fallback: !has_geometry,
+        },
+        keymap: LogicalKeymap {
+            layers: layers.clone(),
+        },
+        runtime_backends: vec![BackendStatus {
+            id: source.id.clone(),
+            name: source.name.clone(),
+            capabilities: vec![
+                CapabilityFlag::ImportGeometry,
+                CapabilityFlag::ImportKeymaps,
+                CapabilityFlag::PreviewOnly,
+            ],
+            health: backend_health,
+        }],
+        sentinel_keys: Vec::new(),
+        visual_style: VisualStyle {
+            variant_id: "vial-device-preview".to_string(),
             density: StyleDensity::Standard,
         },
         overlay_window: OverlayWindowConfig {
@@ -762,6 +907,22 @@ fn import_vial_layer_values(json: &JsonValue) -> Option<Vec<Vec<ImportedLayerCel
     }
 }
 
+pub(crate) fn vial_matrix_dimensions(json: &JsonValue) -> Option<(usize, usize)> {
+    let keys = vial_geometry_rows(json)?;
+    let mut max_row = None::<u16>;
+    let mut max_col = None::<u16>;
+
+    for key in import_kle_rows_as_fallback_layout(keys, "vial-device-dimensions") {
+        let Some(matrix) = key.matrix else {
+            continue;
+        };
+        max_row = Some(max_row.map_or(matrix.row, |candidate| candidate.max(matrix.row)));
+        max_col = Some(max_col.map_or(matrix.col, |candidate| candidate.max(matrix.col)));
+    }
+
+    Some((usize::from(max_row?) + 1, usize::from(max_col?) + 1))
+}
+
 fn is_layer_matrix(value: &JsonValue) -> bool {
     let Some(layers) = value.as_array() else {
         return false;
@@ -782,6 +943,53 @@ fn is_layer_matrix(value: &JsonValue) -> bool {
                     })
                 })
         })
+}
+
+fn raw_matrices_to_imported_layers(raw_matrices: &[Vec<Vec<u16>>]) -> Vec<Vec<ImportedLayerCell>> {
+    raw_matrices
+        .iter()
+        .map(|layer| {
+            layer
+                .iter()
+                .enumerate()
+                .flat_map(|(row_index, row)| {
+                    row.iter()
+                        .enumerate()
+                        .map(move |(col_index, keycode)| ImportedLayerCell {
+                            raw: qmk_keycode_label(*keycode),
+                            row: Some(row_index),
+                            col: Some(col_index),
+                        })
+                })
+                .collect()
+        })
+        .collect()
+}
+
+fn qmk_keycode_label(keycode: u16) -> String {
+    match keycode {
+        0x0000 => "KC_NO".to_string(),
+        0x0001 => "KC_TRNS".to_string(),
+        _ => Keycode::try_from(keycode)
+            .map(|keycode| normalize_qmk_keycode_label(keycode.as_ref()))
+            .unwrap_or_else(|_| format!("0x{keycode:04X}")),
+    }
+}
+
+fn normalize_qmk_keycode_label(value: &str) -> String {
+    value
+        .replace("KC_TRANSPARENT", "KC_TRNS")
+        .replace("KC_ESCAPE", "KC_ESC")
+        .replace("KC_BACKSPACE", "KC_BSPC")
+        .replace("KC_SPACE", "KC_SPC")
+        .replace("KC_LEFT_CTRL", "KC_LCTL")
+        .replace("KC_RIGHT_CTRL", "KC_RCTL")
+        .replace("KC_LEFT_SHIFT", "KC_LSFT")
+        .replace("KC_RIGHT_SHIFT", "KC_RSFT")
+        .replace("KC_LEFT_ALT", "KC_LALT")
+        .replace("KC_RIGHT_ALT", "KC_RALT")
+        .replace("KC_LEFT_GUI", "KC_LGUI")
+        .replace("KC_RIGHT_GUI", "KC_RGUI")
 }
 
 fn flatten_layer_collection(layer_source: &JsonValue) -> Vec<Vec<ImportedLayerCell>> {
@@ -1355,6 +1563,70 @@ mod tests {
 
         assert_eq!(right.raw.value, "KC_B");
         assert_eq!(left.raw.value, "KC_A");
+    }
+
+    #[test]
+    fn vial_device_snapshot_imports_raw_matrices_by_matrix_position() {
+        let candidate = import_vial_device_snapshot(VialDeviceSnapshot {
+            vid: 0xfeed,
+            pid: 0xcafe,
+            uid: "Device UID".to_string(),
+            protocol_version: 6,
+            definition_json: serde_json::json!({
+                "layouts": {
+                    "keymap": [
+                        ["0,1\nRight", "0,0\nLeft"]
+                    ]
+                }
+            }),
+            raw_matrices: vec![vec![vec![0x0004, 0x0005]], vec![vec![0x0001, 0x0000]]],
+        })
+        .expect("device snapshot imports");
+        let base = &candidate.preview_profile.keymap.layers[0];
+        let nav = &candidate.preview_profile.keymap.layers[1];
+        let right = base
+            .actions
+            .iter()
+            .find(|action| action.key_id == "vial-r0c1")
+            .expect("right matrix key imported");
+        let left = base
+            .actions
+            .iter()
+            .find(|action| action.key_id == "vial-r0c0")
+            .expect("left matrix key imported");
+        let transparent_left = nav
+            .actions
+            .iter()
+            .find(|action| action.key_id == "vial-r0c0")
+            .expect("left matrix key imported on layer 1");
+
+        assert_eq!(candidate.source.kind, "vial-device-import");
+        assert_eq!(
+            candidate.source.authority,
+            SourceAuthority::BestEffortPreview
+        );
+        assert!(candidate.best_effort_preview);
+        assert!(!candidate.preview_profile.physical_layout.fallback);
+        assert_eq!(candidate.summary.imported_keys, 2);
+        assert_eq!(candidate.summary.imported_layers, 2);
+        assert_eq!(right.raw.value, "KC_B");
+        assert_eq!(left.raw.value, "KC_A");
+        assert_eq!(transparent_left.raw.value, "KC_TRNS");
+        assert!(candidate
+            .summary
+            .preserved_sections
+            .contains(&"vial-device-definition".to_string()));
+        assert!(candidate
+            .preview_profile
+            .source_provenance
+            .iter()
+            .any(|source_ref| {
+                source_ref.field_path == ":source/raw vial-device-protocol"
+                    && source_ref
+                        .raw
+                        .as_deref()
+                        .is_some_and(|raw| raw.contains("vial_protocol=6"))
+            }));
     }
 
     #[test]
