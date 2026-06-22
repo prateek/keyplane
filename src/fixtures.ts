@@ -240,6 +240,7 @@ export const fakeSnapshot: KeyboardSnapshot = {
   ],
   user_overrides: [],
   visual_style: {
+    id: "style-keyplane-default",
     variant_id: "keyplane-default",
     density: "rich",
     colors: {

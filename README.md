@@ -4,12 +4,12 @@ Keyplane is a cross-platform keyboard layer overlay built with Tauri, Rust, Reac
 
 The current implementation includes:
 
-- a normalized Keyboard Model DTO boundary shared by Rust and the frontend, including stable Profile and keyboard/workflow IDs
+- a normalized Keyboard Model DTO boundary shared by Rust and the frontend, including stable Profile, keyboard/workflow, and Visual Style reference IDs
 - a Fake Backend that emits Keyboard Snapshots and Layer Stack Runtime Events
 - a transparent, frameless, always-on-top Tauri Overlay Window owned by Rust
 - Effective Action resolution for transparent keys and inherited legends
 - density-aware structured Display Legend rendering, including shifted symbol, action-hint, layer-tap, QMK mod-tap, and optional icon slots, plus Settings controls for compact, standard, and rich Visual Styles
-- EDN v1 Profile Codec save/load support with deterministic output, schema migration gating, and toolbar import/export actions
+- EDN v1 Profile Codec save/load support with deterministic output, schema migration gating, stable style references, and toolbar import/export actions
 - NocFree/Vial `.vil` JSON import as a Best-Effort Preview Import Candidate, including backup-style layer matrices
 - Vial device HID import as a Best-Effort Preview Import Candidate, using KeyPeek-derived Vial definition and raw-matrix reads
 - ZMK `.keymap` import as a Best-Effort Preview Import Candidate with fallback geometry

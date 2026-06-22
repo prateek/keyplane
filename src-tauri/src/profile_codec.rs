@@ -330,6 +330,7 @@ fn visual_style_to_value(style: &VisualStyle) -> Value {
             kw("style", "density"),
             style_density_to_value(&style.density),
         ),
+        (kw("style", "id"), Value::from(style.id.clone())),
         (
             kw("style", "variant-id"),
             Value::from(style.variant_id.clone()),
@@ -648,8 +649,13 @@ fn parse_sentinel_keys(value: &Value) -> Result<Vec<SentinelKeyBinding>, Profile
 
 fn parse_visual_style(value: &Value) -> Result<VisualStyle, ProfileCodecError> {
     let map = as_map(value, ":visual/style")?;
+    let variant_id = as_string(get(map, "style", "variant-id")?, ":style/variant-id")?;
     Ok(VisualStyle {
-        variant_id: as_string(get(map, "style", "variant-id")?, ":style/variant-id")?,
+        id: match get_optional(map, "style", "id") {
+            Some(value) => as_string(value, ":style/id")?,
+            None => variant_id.clone(),
+        },
+        variant_id,
         density: parse_style_density(get(map, "style", "density")?)?,
         colors: match get_optional(map, "style", "colors") {
             Some(value) => parse_visual_style_colors(value)?,
@@ -1149,6 +1155,7 @@ mod tests {
         assert_eq!(loaded.schema_version, 1);
         assert_eq!(loaded.id, profile.id);
         assert_eq!(loaded.keyboard_id, profile.keyboard_id);
+        assert_eq!(loaded.visual_style.id, profile.visual_style.id);
         assert_eq!(
             loaded.physical_layout.keys.len(),
             profile.physical_layout.keys.len()
@@ -1160,6 +1167,7 @@ mod tests {
         assert!(saved.contains(":keyboard/id \"keyboard-keyplane-demo\""));
         assert!(saved.contains(":keyboard/physical-layout"));
         assert!(saved.contains(":runtime/sentinel-keys"));
+        assert!(saved.contains(":style/id \"style-keyplane-default\""));
         assert!(saved.contains(":source/provenance"));
     }
 
@@ -1186,6 +1194,26 @@ mod tests {
 
         assert!(saved.contains(":style/colors"));
         assert_eq!(loaded.visual_style.colors, profile.visual_style.colors);
+    }
+
+    #[test]
+    fn profile_codec_defaults_missing_visual_style_id_to_variant_id() {
+        let profile = fake_profile();
+        let Value::Map(mut map) = profile_to_value(&profile) else {
+            panic!("profile should serialize as map");
+        };
+        let visual_style = map
+            .get_mut(&kw("visual", "style"))
+            .expect("visual style section exists");
+        let Value::Map(visual_style_map) = visual_style else {
+            panic!("visual style section should be a map");
+        };
+        visual_style_map.remove(&kw("style", "id"));
+        let saved_without_style_id = emit_str(&Value::Map(map));
+
+        let loaded = load_profile(&saved_without_style_id).expect("legacy profile should load");
+
+        assert_eq!(loaded.visual_style.id, profile.visual_style.variant_id);
     }
 
     #[test]

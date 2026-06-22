@@ -266,6 +266,7 @@ describe("Keyplane app", () => {
 
     expect(screen.getByText("Active Profile")).toBeInTheDocument();
     expect(screen.getByText("Keyboard ID: keyboard-keyplane-demo")).toBeInTheDocument();
+    expect(screen.getByText("Style ID: style-keyplane-default")).toBeInTheDocument();
     expect(screen.getAllByText("Overlay Window").length).toBeGreaterThanOrEqual(1);
     expect(screen.getByText(/render-overlay-window/)).toBeInTheDocument();
     expect(screen.getAllByText("KeyPeek Live").length).toBeGreaterThanOrEqual(2);
@@ -316,6 +317,7 @@ describe("Keyplane app", () => {
       runtime_backends: fakeSnapshot.backends.slice(0, 1),
       sentinel_keys: [],
       visual_style: {
+        id: "style-vial-preview",
         variant_id: "vial-preview",
         density: "standard" as const,
         colors: fakeSnapshot.visual_style.colors,
@@ -351,7 +353,11 @@ describe("Keyplane app", () => {
     expect(screen.getByText("Physical Keys")).toBeInTheDocument();
     expect(screen.getByText("12 -> 1")).toBeInTheDocument();
     expect(screen.getByText("Visual Style")).toBeInTheDocument();
-    expect(screen.getByText("keyplane-default -> vial-preview")).toBeInTheDocument();
+    expect(
+      screen.getByText("style-keyplane-default (keyplane-default) -> style-vial-preview (vial-preview)"),
+    ).toBeInTheDocument();
+    expect(screen.getByText("Style ID")).toBeInTheDocument();
+    expect(screen.getByText("style-keyplane-default -> style-vial-preview")).toBeInTheDocument();
     expect(screen.getByText("Keyboard ID")).toBeInTheDocument();
     expect(screen.getByText("keyboard-keyplane-demo -> keyboard-small-preview")).toBeInTheDocument();
     expect(screen.getByText("Fallback Layout")).toBeInTheDocument();

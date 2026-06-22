@@ -296,6 +296,7 @@ pub enum StyleDensity {
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct VisualStyle {
+    pub id: String,
     pub variant_id: String,
     pub density: StyleDensity,
     pub colors: VisualStyleColors,

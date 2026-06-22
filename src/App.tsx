@@ -945,6 +945,7 @@ function SourceInspector({
               <strong>{snapshot.profile_name}</strong>
               <span className="badge">{snapshot.profile_id}</span>
               <p>Keyboard ID: {snapshot.keyboard_id}</p>
+              <p>Style ID: {snapshot.visual_style.id}</p>
             </article>
           </section>
 
@@ -1227,6 +1228,11 @@ export function buildImportDiffRows(
       preview: visualStyleSummary(profile.visual_style),
     },
     {
+      label: "Style ID",
+      current: activeSnapshot.visual_style.id,
+      preview: profile.visual_style.id,
+    },
+    {
       label: "Fallback Layout",
       current: activeSnapshot.physical_layout.fallback ? "yes" : "no",
       preview: profile.physical_layout.fallback ? "yes" : "no",
@@ -1241,9 +1247,12 @@ export function buildImportDiffRows(
 
 function visualStyleSummary(style: KeyboardSnapshot["visual_style"]) {
   const colorTokenCount = Object.values(style.colors).filter(Boolean).length;
+  const referenceId = style.id || style.variant_id;
+  const styleLabel =
+    referenceId === style.variant_id ? style.variant_id : `${referenceId} (${style.variant_id})`;
   return colorTokenCount === 0
-    ? style.variant_id
-    : `${style.variant_id} + ${colorTokenCount} color tokens`;
+    ? styleLabel
+    : `${styleLabel} + ${colorTokenCount} color tokens`;
 }
 
 export function ImportReview({

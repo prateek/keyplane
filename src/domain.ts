@@ -224,6 +224,7 @@ export interface VisualStyleColors {
 }
 
 export interface VisualStyle {
+  id: string;
   variant_id: string;
   density: StyleDensity;
   colors: VisualStyleColors;

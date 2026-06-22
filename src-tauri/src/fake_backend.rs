@@ -157,6 +157,7 @@ pub fn fake_profile() -> Profile {
             activation: ActivationKind::Momentary,
         }],
         visual_style: VisualStyle {
+            id: "style-keyplane-default".to_string(),
             variant_id: "keyplane-default".to_string(),
             density: StyleDensity::Rich,
             colors: VisualStyleColors::default(),

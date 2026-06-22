@@ -59,6 +59,7 @@ Started the Tauri v2 implementation from the PRD.
 - Added macOS Accessibility and Input Monitoring permission checks and request prompts, surfaced through persistent Sentinel Keys Backend Health and Settings controls.
 - Added typed Overlay Window Backend Health for window creation, transparency/click-through configuration, focusability, drag, and resize capability failures; Positioning Mode now makes the Overlay Window focusable only while placement controls are active.
 - Added stable keyboard/workflow IDs to the public Profile and Keyboard Snapshot contracts, persisted as `:keyboard/id` with backward-compatible loading for older EDN Profiles.
+- Added stable Visual Style reference IDs to the public Profile and Keyboard Snapshot contracts, persisted as `:style/id` with backward-compatible loading for older EDN Profiles.
 - Added a GitHub Actions desktop build workflow that runs the Rust/frontend verification gate and uploads unsigned macOS debug `.app` and `.dmg` artifacts.
 - Refreshed npm dependency metadata and made the Rolldown wasm runtime peer dependencies explicit so the desktop build workflow can use `npm ci` reliably.
 - Extended the desktop build workflow with Linux and Windows debug binary builds using Tauri's no-bundle path.
@@ -69,10 +70,10 @@ Started the Tauri v2 implementation from the PRD.
 Verification:
 
 - `cargo fmt --check`
-- `cargo test` (96 Rust tests passed, 3 private local hardware canaries ignored by default)
+- `cargo test` (98 Rust tests passed, 3 private local hardware canaries ignored by default)
 - `KEYPLANE_LOCAL_VIL_CANDIDATE=<private .vil path> cargo test local_vil_candidate_file_imports_when_env_is_set -- --ignored`
 - `npm ci`
-- `npm test` (29 frontend tests)
+- `npm test` (30 frontend tests)
 - `npm run build`
 - `actionlint .github/workflows/signed-release.yml .github/workflows/desktop-build.yml`
 - `ruby -e 'require "yaml"; %w[.github/workflows/signed-release.yml .github/workflows/desktop-build.yml].each { |path| YAML.load_file(path) }'`

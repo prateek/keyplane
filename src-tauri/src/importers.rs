@@ -93,6 +93,7 @@ pub fn import_vial_json(contents: &str) -> Result<ImportCandidate, ImportError> 
         }],
         sentinel_keys: Vec::new(),
         visual_style: VisualStyle {
+            id: "style-vial-preview".to_string(),
             variant_id: "vial-preview".to_string(),
             density: StyleDensity::Standard,
             colors: VisualStyleColors::default(),
@@ -230,6 +231,7 @@ pub fn import_vial_device_snapshot(
         }],
         sentinel_keys: Vec::new(),
         visual_style: VisualStyle {
+            id: "style-vial-device-preview".to_string(),
             variant_id: "vial-device-preview".to_string(),
             density: StyleDensity::Standard,
             colors: VisualStyleColors::default(),
@@ -294,6 +296,7 @@ pub fn import_keyviz_style_json(
         authority: SourceAuthority::BestEffortPreview,
     };
     let imported_style = VisualStyle {
+        id: format!("style-keyviz-{}", sanitize_id(keyviz_style)),
         variant_id: format!("keyviz-{}", sanitize_id(keyviz_style)),
         density: keyviz_density(keyviz_style),
         colors: keyviz_style_colors(&json),
@@ -427,6 +430,7 @@ pub fn import_overkeys_companion_json(contents: &str) -> Result<ImportCandidate,
         }],
         sentinel_keys: Vec::new(),
         visual_style: VisualStyle {
+            id: "style-overkeys-preview".to_string(),
             variant_id: "overkeys-preview".to_string(),
             density: StyleDensity::Standard,
             colors: VisualStyleColors::default(),
@@ -543,6 +547,7 @@ pub fn import_zmk_keymap(contents: &str) -> Result<ImportCandidate, ImportError>
         }],
         sentinel_keys: Vec::new(),
         visual_style: VisualStyle {
+            id: "style-zmk-preview".to_string(),
             variant_id: "zmk-preview".to_string(),
             density: StyleDensity::Standard,
             colors: VisualStyleColors::default(),
@@ -1916,6 +1921,10 @@ mod tests {
         assert_eq!(candidate.source.kind, "keyviz-style-import");
         assert_eq!(candidate.summary.imported_keys, 0);
         assert_eq!(candidate.summary.imported_layers, 0);
+        assert_eq!(
+            candidate.preview_profile.visual_style.id,
+            "style-keyviz-lowprofile"
+        );
         assert_eq!(
             candidate.preview_profile.visual_style.variant_id,
             "keyviz-lowprofile"
