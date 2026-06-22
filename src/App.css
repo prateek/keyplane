@@ -100,6 +100,7 @@ button:hover {
 .nav-tabs button,
 .toolbar-actions button,
 .keypeek-connect button,
+.backend-connect button,
 .file-button,
 .overlay-controls button {
   display: inline-flex;
@@ -194,6 +195,34 @@ button:hover {
   color: #17201f;
   padding: 0 8px;
   text-transform: uppercase;
+}
+
+.backend-connect {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: flex-end;
+  margin-bottom: 14px;
+}
+
+.backend-connect label {
+  display: grid;
+  gap: 4px;
+}
+
+.backend-connect label span {
+  color: #5e716b;
+  font-size: 0.78rem;
+}
+
+.backend-connect input {
+  width: 128px;
+  min-height: 38px;
+  border: 1px solid #bdcbc5;
+  border-radius: 6px;
+  background: #ffffff;
+  color: #17201f;
+  padding: 0 8px;
 }
 
 .file-button {

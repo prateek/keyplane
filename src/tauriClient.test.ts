@@ -6,6 +6,8 @@ import {
   loadLaunchAtLogin,
   registerSentinelKeyShortcuts,
   setLaunchAtLogin,
+  startKanataTcpBackend,
+  stopKanataTcpBackend,
   unregisterSentinelKeyShortcuts,
 } from "./tauriClient";
 
@@ -111,5 +113,10 @@ describe("Tauri client fallbacks", () => {
   it("reports Sentinel Key shortcut registration as unavailable when Tauri is absent", async () => {
     await expect(registerSentinelKeyShortcuts()).resolves.toBeNull();
     await expect(unregisterSentinelKeyShortcuts()).resolves.toBeNull();
+  });
+
+  it("reports Kanata TCP runtime control as unavailable when Tauri is absent", async () => {
+    await expect(startKanataTcpBackend({ host: "127.0.0.1", port: 7070 })).resolves.toBeNull();
+    await expect(stopKanataTcpBackend()).resolves.toBeNull();
   });
 });

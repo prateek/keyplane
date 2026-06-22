@@ -51,6 +51,10 @@ describe("Keyplane app", () => {
 
     expect(screen.getByRole("region", { name: /app settings/i })).toBeInTheDocument();
     expect(screen.getByLabelText(/launch at login/i)).toBeInTheDocument();
+    expect(screen.getByLabelText(/kanata host/i)).toBeInTheDocument();
+    expect(screen.getByLabelText(/kanata port/i)).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /connect kanata/i })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /stop kanata/i })).toBeInTheDocument();
     expect(screen.getByLabelText(/sentinel keys/i)).toBeInTheDocument();
     expect(screen.getAllByText(/unavailable|enabled|disabled/i).length).toBeGreaterThanOrEqual(2);
   });

@@ -44,10 +44,12 @@ import {
   registerSentinelKeyShortcuts,
   saveActiveProfileEdn,
   setLaunchAtLogin,
+  startKanataTcpBackend,
   startOverlayDrag,
   startOverlayResize,
   startKeyPeekLiveBackend,
   setOverlayPositioningMode,
+  stopKanataTcpBackend,
   unregisterSentinelKeyShortcuts,
 } from "./tauriClient";
 
@@ -64,6 +66,8 @@ function App() {
   const [profileStatus, setProfileStatus] = useState<string | null>(null);
   const [keyPeekVid, setKeyPeekVid] = useState("");
   const [keyPeekPid, setKeyPeekPid] = useState("");
+  const [kanataHost, setKanataHost] = useState("127.0.0.1");
+  const [kanataPort, setKanataPort] = useState("7070");
   const [launchAtLogin, setLaunchAtLoginState] = useState<boolean | null>(null);
 
   useEffect(() => {
@@ -95,6 +99,7 @@ function App() {
   const activeLayer = snapshot?.runtime_state.layer_stack[0];
   const health = snapshot?.runtime_state.backend_health ?? [];
   const topHealth = health[0];
+  const kanataHealth = health.find((candidate) => candidate.backend_id === "kanata-tcp");
   const sentinelHealth = health.find((candidate) => candidate.backend_id === "sentinel-keys");
   const sentinelKeysEnabled = sentinelHealth ? sentinelHealth.state === "ok" : null;
 
@@ -191,6 +196,41 @@ function App() {
       (candidate) => candidate.backend_id === "sentinel-keys",
     );
     setProfileStatus(health?.message ?? "Sentinel Keys updated");
+  }
+
+  async function connectKanataTcp() {
+    setProfileStatus(null);
+    const parsedPort = Number.parseInt(kanataPort, 10);
+    if (!Number.isInteger(parsedPort) || parsedPort < 1 || parsedPort > 65535) {
+      setProfileStatus("Kanata TCP port must be between 1 and 65535");
+      return;
+    }
+    const nextSnapshot = await startKanataTcpBackend({ host: kanataHost, port: parsedPort });
+    if (!nextSnapshot) {
+      setProfileStatus("Kanata TCP connection unavailable");
+      return;
+    }
+
+    setSnapshot(nextSnapshot);
+    const health = nextSnapshot.runtime_state.backend_health.find(
+      (candidate) => candidate.backend_id === "kanata-tcp",
+    );
+    setProfileStatus(health?.message ?? "Kanata TCP backend updated");
+  }
+
+  async function disconnectKanataTcp() {
+    setProfileStatus(null);
+    const nextSnapshot = await stopKanataTcpBackend();
+    if (!nextSnapshot) {
+      setProfileStatus("Kanata TCP backend unavailable");
+      return;
+    }
+
+    setSnapshot(nextSnapshot);
+    const health = nextSnapshot.runtime_state.backend_health.find(
+      (candidate) => candidate.backend_id === "kanata-tcp",
+    );
+    setProfileStatus(health?.message ?? "Kanata TCP backend stopped");
   }
 
   async function handleImport(file: File | null) {
@@ -462,8 +502,15 @@ function App() {
         {view === "settings" ? (
           <SettingsView
             launchAtLogin={launchAtLogin}
+            kanataHealthState={kanataHealth?.state ?? null}
+            kanataHost={kanataHost}
+            kanataPort={kanataPort}
             sentinelKeysEnabled={sentinelKeysEnabled}
             onLaunchAtLoginChange={updateLaunchAtLogin}
+            onKanataConnect={connectKanataTcp}
+            onKanataDisconnect={disconnectKanataTcp}
+            onKanataHostChange={setKanataHost}
+            onKanataPortChange={setKanataPort}
             onSentinelKeysChange={updateSentinelKeyShortcuts}
           />
         ) : null}
@@ -732,13 +779,27 @@ function ImportReview({
 
 function SettingsView({
   launchAtLogin,
+  kanataHealthState,
+  kanataHost,
+  kanataPort,
   sentinelKeysEnabled,
   onLaunchAtLoginChange,
+  onKanataConnect,
+  onKanataDisconnect,
+  onKanataHostChange,
+  onKanataPortChange,
   onSentinelKeysChange,
 }: {
   launchAtLogin: boolean | null;
+  kanataHealthState: string | null;
+  kanataHost: string;
+  kanataPort: string;
   sentinelKeysEnabled: boolean | null;
   onLaunchAtLoginChange: (enabled: boolean) => void;
+  onKanataConnect: () => void;
+  onKanataDisconnect: () => void;
+  onKanataHostChange: (host: string) => void;
+  onKanataPortChange: (port: string) => void;
   onSentinelKeysChange: (enabled: boolean) => void;
 }) {
   return (
@@ -760,6 +821,34 @@ function SettingsView({
       </section>
       <section>
         <h2>Protocol Backends</h2>
+        <div className="backend-connect">
+          <label>
+            <span>Kanata host</span>
+            <input
+              aria-label="Kanata host"
+              value={kanataHost}
+              onChange={(event) => onKanataHostChange(event.currentTarget.value)}
+            />
+          </label>
+          <label>
+            <span>Kanata port</span>
+            <input
+              aria-label="Kanata port"
+              inputMode="numeric"
+              value={kanataPort}
+              onChange={(event) => onKanataPortChange(event.currentTarget.value)}
+            />
+          </label>
+          <button type="button" onClick={onKanataConnect}>
+            <RadioTower size={17} />
+            Connect Kanata
+          </button>
+          <button type="button" onClick={onKanataDisconnect}>
+            <RadioTower size={17} />
+            Stop Kanata
+          </button>
+          <span className="badge">{kanataHealthState ?? "unknown"}</span>
+        </div>
         <label className="setting-toggle">
           <span>
             <Keyboard size={17} />

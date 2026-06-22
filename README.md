@@ -16,6 +16,7 @@ The current implementation includes:
 - OverKeys companion JSON import as a Best-Effort Preview Import Candidate with row-array fallback geometry
 - a vendored KeyPeek protocol/domain source slice for live firmware packet attribution and drift checks
 - a KeyPeek Live Raw HID path using `qmk-via-api`, with VID/PID connection controls and Tauri Runtime Event streaming
+- a Kanata TCP runtime path with Settings host/port controls, newline JSON event parsing, and Layer Stack Runtime Event streaming
 - a Rust-owned Active Profile store with Import Review commit support
 - visible Backend Health for fake, KeyPeek Live, Kanata TCP, and Sentinel Keys runtime backends
 - App Window surfaces for the overlay, Import Review, Source Inspector, Backend Health, and Positioning Mode

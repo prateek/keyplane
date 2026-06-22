@@ -4,6 +4,7 @@ pub mod domain;
 pub mod fake_backend;
 pub mod importers;
 pub mod kanata_backend;
+pub mod kanata_tcp;
 pub mod keypeek_backend;
 pub mod keypeek_contract;
 pub mod keypeek_live;
@@ -19,6 +20,7 @@ use crate::domain::{
     apply_runtime_event, HealthState, HostInputEvent, ImportCandidate, KeyboardSnapshot,
     OverlayWindowConfig, Profile, RuntimeEvent, SourceConflict, VisibilityPolicy,
 };
+use crate::kanata_tcp::{KanataLayerMap, KanataTcpRuntime, KanataTcpSession, TcpKanataTransport};
 use crate::keypeek_live::{KeyPeekLiveRuntime, KeyPeekLiveSession, QmkViaRawHidTransport};
 #[cfg(desktop)]
 use crate::sentinel_shortcuts::SentinelShortcutRuntime;
@@ -47,6 +49,12 @@ enum OverlayResizeDirection {
 struct KeyPeekConnectionRequest {
     vid: String,
     pid: String,
+}
+
+#[derive(Debug, Deserialize)]
+struct KanataConnectionRequest {
+    host: String,
+    port: u16,
 }
 
 impl From<OverlayResizeDirection> for ResizeDirection {
@@ -303,6 +311,80 @@ fn stop_keypeek_live_backend(
 }
 
 #[tauri::command]
+fn start_kanata_tcp_backend(
+    app: tauri::AppHandle,
+    active_profile: State<'_, ActiveProfileStore>,
+    kanata_runtime: State<'_, KanataTcpRuntime>,
+    request: KanataConnectionRequest,
+) -> Result<KeyboardSnapshot, String> {
+    let host = request.host.trim();
+    if host.is_empty() || request.port == 0 {
+        return active_profile
+            .set_runtime_backend_status(kanata_backend::kanata_backend_status(
+                HealthState::ParseError,
+                "Kanata TCP host and port are required",
+            ))
+            .map_err(|err| err.to_string());
+    }
+
+    let profile = active_profile
+        .profile_snapshot()
+        .map_err(|err| err.to_string())?;
+    let transport = match TcpKanataTransport::connect(host, request.port) {
+        Ok(transport) => transport,
+        Err(err) => {
+            return active_profile
+                .set_runtime_backend_status(kanata_backend::kanata_backend_status(
+                    HealthState::Disconnected,
+                    format!(
+                        "Could not connect to Kanata TCP {host}:{}: {err}",
+                        request.port
+                    ),
+                ))
+                .map_err(|err| err.to_string());
+        }
+    };
+    let mut session = KanataTcpSession::new(
+        transport,
+        KanataLayerMap::from_layers(&profile.keymap.layers),
+    );
+    if let Err(err) = session.start() {
+        return active_profile
+            .set_runtime_backend_status(kanata_backend::kanata_backend_status(
+                HealthState::ProtocolError,
+                format!(
+                    "Could not start Kanata TCP session {host}:{}: {err}",
+                    request.port
+                ),
+            ))
+            .map_err(|err| err.to_string());
+    }
+
+    let snapshot = active_profile
+        .set_runtime_backend_status(kanata_backend::kanata_backend_status(
+            HealthState::Ok,
+            format!("Connected to Kanata TCP {host}:{}", request.port),
+        ))
+        .map_err(|err| err.to_string())?;
+    kanata_runtime.start(app, session)?;
+    Ok(snapshot)
+}
+
+#[tauri::command]
+fn stop_kanata_tcp_backend(
+    active_profile: State<'_, ActiveProfileStore>,
+    kanata_runtime: State<'_, KanataTcpRuntime>,
+) -> Result<KeyboardSnapshot, String> {
+    kanata_runtime.stop();
+    active_profile
+        .set_runtime_backend_status(kanata_backend::kanata_backend_status(
+            HealthState::Disconnected,
+            "Kanata TCP backend stopped",
+        ))
+        .map_err(|err| err.to_string())
+}
+
+#[tauri::command]
 fn apply_event(mut snapshot: KeyboardSnapshot, event: RuntimeEvent) -> KeyboardSnapshot {
     apply_runtime_event(&mut snapshot, event);
     snapshot
@@ -450,7 +532,8 @@ fn start_overlay_resize(
 pub fn run() {
     let mut builder = tauri::Builder::default()
         .manage(ActiveProfileStore::new(fake_backend::fake_profile()))
-        .manage(KeyPeekLiveRuntime::new());
+        .manage(KeyPeekLiveRuntime::new())
+        .manage(KanataTcpRuntime::new());
 
     #[cfg(desktop)]
     {
@@ -483,6 +566,8 @@ pub fn run() {
             unregister_sentinel_key_shortcuts,
             start_keypeek_live_backend,
             stop_keypeek_live_backend,
+            start_kanata_tcp_backend,
+            stop_kanata_tcp_backend,
             apply_event,
             save_profile_edn,
             load_profile_edn,

@@ -30,6 +30,11 @@ export interface KeyPeekConnectionRequest {
   pid: string;
 }
 
+export interface KanataConnectionRequest {
+  host: string;
+  port: number;
+}
+
 export type LaunchAtLoginState = boolean | null;
 
 export async function loadInitialSnapshot(): Promise<KeyboardSnapshot> {
@@ -87,6 +92,24 @@ export async function startKeyPeekLiveBackend(
 export async function stopKeyPeekLiveBackend(): Promise<KeyboardSnapshot | null> {
   try {
     return await invoke<KeyboardSnapshot>("stop_keypeek_live_backend");
+  } catch {
+    return null;
+  }
+}
+
+export async function startKanataTcpBackend(
+  request: KanataConnectionRequest,
+): Promise<KeyboardSnapshot | null> {
+  try {
+    return await invoke<KeyboardSnapshot>("start_kanata_tcp_backend", { request });
+  } catch {
+    return null;
+  }
+}
+
+export async function stopKanataTcpBackend(): Promise<KeyboardSnapshot | null> {
+  try {
+    return await invoke<KeyboardSnapshot>("stop_kanata_tcp_backend");
   } catch {
     return null;
   }

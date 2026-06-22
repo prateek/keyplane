@@ -33,12 +33,13 @@ Started the Tauri v2 implementation from the PRD.
 - Added native Sentinel Key global shortcut registration through `tauri-plugin-global-shortcut`, with a Rust-owned shortcut registry, Runtime Event emission, registration rollback on partial failure, and a Settings toggle backed by typed Backend Health.
 - Fixed Vial layer import resolution so matrix-addressed layer cells map to Physical Keys by `MatrixPosition` even when KLE geometry order differs from row/column order.
 - Added a Vial device HID import path using KeyPeek-derived Vial definition reads, XZ decompression, `qmk-via-api` layer matrix reads, and Import Review wiring as a Best-Effort Preview rather than live layer sync.
+- Added a Kanata TCP runtime path with local host/port Settings controls, newline-delimited JSON protocol parsing, Layer Stack Runtime Events from `LayerChange` and `CurrentLayerName`, and typed Backend Health from `HelloOk`, errors, reloads, disconnects, and parse failures.
 
 Verification:
 
 - `cargo fmt --check`
-- `cargo test` (70 Rust tests passed, 1 private local `.vil` canary ignored by default)
+- `cargo test` (76 Rust tests passed, 1 private local `.vil` canary ignored by default)
 - `KEYPLANE_LOCAL_VIL_CANDIDATE=<private .vil path> cargo test local_vil_candidate_file_imports_when_env_is_set -- --ignored`
-- `npm test` (17 frontend tests)
+- `npm test` (18 frontend tests)
 - `npm run build`
 - `npm run tauri build -- --debug`
