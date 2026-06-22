@@ -841,9 +841,7 @@ fn legend_for_semantic(semantic: &SemanticAction) -> DisplayLegend {
     }];
 
     match semantic.kind {
-        SemanticActionKind::LayerMomentary
-        | SemanticActionKind::LayerToggle
-        | SemanticActionKind::LayerTap => {
+        SemanticActionKind::LayerMomentary | SemanticActionKind::LayerToggle => {
             if let Some(target_layer) = &semantic.target_layer {
                 slots.push(LegendSlot {
                     slot: LegendSlotKind::LayerHint,
@@ -851,7 +849,27 @@ fn legend_for_semantic(semantic: &SemanticAction) -> DisplayLegend {
                 });
             }
         }
+        SemanticActionKind::LayerTap => {
+            if let Some(target_layer) = &semantic.target_layer {
+                slots.push(LegendSlot {
+                    slot: LegendSlotKind::LayerHint,
+                    text: target_layer.clone(),
+                });
+                slots.push(LegendSlot {
+                    slot: LegendSlotKind::HoldRole,
+                    text: format!("hold {target_layer}"),
+                });
+            }
+            slots.push(LegendSlot {
+                slot: LegendSlotKind::TapRole,
+                text: format!("tap {}", semantic.label),
+            });
+        }
         SemanticActionKind::TapHold => {
+            slots.push(LegendSlot {
+                slot: LegendSlotKind::TapRole,
+                text: "tap".to_string(),
+            });
             slots.push(LegendSlot {
                 slot: LegendSlotKind::HoldRole,
                 text: "hold".to_string(),
@@ -1142,6 +1160,7 @@ mod tests {
         let momentary = derive_action("zmk", "&mo 2", source_ref(), "k-fn");
         let toggle = derive_action("zmk", "&tog 3", source_ref(), "k-toggle");
         let layer_tap = derive_action("zmk", "&lt 1 SPACE", source_ref(), "k-space");
+        let qmk_layer_tap = derive_action("qmk", "LT(2, KC_TAB)", source_ref(), "k-tab");
 
         assert_eq!(momentary.raw.value, "&mo 2");
         assert_eq!(momentary.semantic.kind, SemanticActionKind::LayerMomentary);
@@ -1151,5 +1170,42 @@ mod tests {
         assert_eq!(layer_tap.semantic.kind, SemanticActionKind::LayerTap);
         assert_eq!(layer_tap.semantic.label, "Space");
         assert_eq!(layer_tap.semantic.target_layer.as_deref(), Some("layer-1"));
+        assert_eq!(
+            layer_tap.legend.slots,
+            vec![
+                LegendSlot {
+                    slot: LegendSlotKind::Primary,
+                    text: "Space".to_string()
+                },
+                LegendSlot {
+                    slot: LegendSlotKind::LayerHint,
+                    text: "layer-1".to_string()
+                },
+                LegendSlot {
+                    slot: LegendSlotKind::HoldRole,
+                    text: "hold layer-1".to_string()
+                },
+                LegendSlot {
+                    slot: LegendSlotKind::TapRole,
+                    text: "tap Space".to_string()
+                }
+            ]
+        );
+        assert_eq!(qmk_layer_tap.semantic.kind, SemanticActionKind::LayerTap);
+        assert_eq!(qmk_layer_tap.semantic.label, "Tab");
+        assert_eq!(
+            qmk_layer_tap.semantic.target_layer.as_deref(),
+            Some("layer-2")
+        );
+        assert!(qmk_layer_tap
+            .legend
+            .slots
+            .iter()
+            .any(|slot| { slot.slot == LegendSlotKind::TapRole && slot.text == "tap Tab" }));
+        assert!(qmk_layer_tap
+            .legend
+            .slots
+            .iter()
+            .any(|slot| { slot.slot == LegendSlotKind::HoldRole && slot.text == "hold layer-2" }));
     }
 }
