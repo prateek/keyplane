@@ -9,6 +9,7 @@ import type {
   RuntimeEvent,
   RuntimeState,
   SourceConflict,
+  StyleDensity,
 } from "./domain";
 import { fakeSnapshot } from "./fixtures";
 import { promoteSourceCandidate, resolveEffectiveKeys } from "./state";
@@ -151,6 +152,16 @@ export async function setOverlayPositioningMode(
 ): Promise<KeyboardSnapshot | null> {
   try {
     return await invoke<KeyboardSnapshot>("set_overlay_positioning_mode", { enabled });
+  } catch {
+    return null;
+  }
+}
+
+export async function setVisualStyleDensity(
+  density: StyleDensity,
+): Promise<KeyboardSnapshot | null> {
+  try {
+    return await invoke<KeyboardSnapshot>("set_visual_style_density", { density });
   } catch {
     return null;
   }

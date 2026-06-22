@@ -1,4 +1,4 @@
-import { render, screen } from "@testing-library/react";
+import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it } from "vitest";
 import App, { ImportReview, OverlaySurface } from "./App";
@@ -85,8 +85,34 @@ describe("Keyplane app", () => {
     expect(screen.getByLabelText(/kanata port/i)).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /connect kanata/i })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /stop kanata/i })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /compact/i })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /standard/i })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /rich/i })).toBeInTheDocument();
     expect(screen.getByLabelText(/sentinel keys/i)).toBeInTheDocument();
     expect(screen.getAllByText(/unavailable|enabled|disabled/i).length).toBeGreaterThanOrEqual(2);
+  });
+
+  it("updates Visual Style density from Settings", async () => {
+    const user = userEvent.setup();
+    render(<App />);
+
+    expect((await screen.findAllByText("layer-1")).length).toBeGreaterThan(0);
+
+    await user.click(screen.getByRole("button", { name: /settings/i }));
+    await user.click(screen.getByRole("button", { name: /compact/i }));
+    await screen.findByText("Visual style density set to compact");
+    await user.click(screen.getByRole("button", { name: /overlay/i }));
+
+    await waitFor(() => {
+      expect(screen.queryByText("layer-1")).not.toBeInTheDocument();
+    });
+
+    await user.click(screen.getByRole("button", { name: /settings/i }));
+    await user.click(screen.getByRole("button", { name: /rich/i }));
+    await screen.findByText("Visual style density set to rich");
+    await user.click(screen.getByRole("button", { name: /overlay/i }));
+
+    expect((await screen.findAllByText("layer-1")).length).toBeGreaterThan(0);
   });
 
   it("shows overlay drag and resize affordances in Positioning Mode", async () => {

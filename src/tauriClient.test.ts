@@ -6,6 +6,7 @@ import {
   loadLaunchAtLogin,
   registerSentinelKeyShortcuts,
   setLaunchAtLogin,
+  setVisualStyleDensity,
   startKanataTcpBackend,
   stopKanataTcpBackend,
   unregisterSentinelKeyShortcuts,
@@ -120,5 +121,9 @@ describe("Tauri client fallbacks", () => {
   it("reports Kanata TCP runtime control as unavailable when Tauri is absent", async () => {
     await expect(startKanataTcpBackend({ host: "127.0.0.1", port: 7070 })).resolves.toBeNull();
     await expect(stopKanataTcpBackend()).resolves.toBeNull();
+  });
+
+  it("reports Visual Style density updates as unavailable when Tauri is absent", async () => {
+    await expect(setVisualStyleDensity("compact")).resolves.toBeNull();
   });
 });

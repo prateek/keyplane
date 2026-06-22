@@ -50,6 +50,7 @@ import {
   startOverlayResize,
   startKeyPeekLiveBackend,
   setOverlayPositioningMode,
+  setVisualStyleDensity,
   stopKanataTcpBackend,
   unregisterSentinelKeyShortcuts,
 } from "./tauriClient";
@@ -121,6 +122,29 @@ function App() {
       },
     };
     setSnapshot(fallbackSnapshot);
+  }
+
+  async function updateVisualStyleDensity(density: StyleDensity) {
+    setProfileStatus(null);
+    const nextSnapshot = await setVisualStyleDensity(density);
+    if (nextSnapshot) {
+      setSnapshot(nextSnapshot);
+      setProfileStatus(`Visual style density set to ${density}`);
+      return;
+    }
+
+    setSnapshot((current) =>
+      current
+        ? {
+            ...current,
+            visual_style: {
+              ...current.visual_style,
+              density,
+            },
+          }
+        : current,
+    );
+    setProfileStatus(`Visual style density set to ${density}`);
   }
 
   function advanceFakeEvent() {
@@ -503,11 +527,13 @@ function App() {
         ) : null}
         {view === "settings" ? (
           <SettingsView
+            density={snapshot.visual_style.density}
             launchAtLogin={launchAtLogin}
             kanataHealthState={kanataHealth?.state ?? null}
             kanataHost={kanataHost}
             kanataPort={kanataPort}
             sentinelKeysEnabled={sentinelKeysEnabled}
+            onDensityChange={updateVisualStyleDensity}
             onLaunchAtLoginChange={updateLaunchAtLogin}
             onKanataConnect={connectKanataTcp}
             onKanataDisconnect={disconnectKanataTcp}
@@ -900,11 +926,13 @@ export function ImportReview({
 }
 
 function SettingsView({
+  density,
   launchAtLogin,
   kanataHealthState,
   kanataHost,
   kanataPort,
   sentinelKeysEnabled,
+  onDensityChange,
   onLaunchAtLoginChange,
   onKanataConnect,
   onKanataDisconnect,
@@ -912,11 +940,13 @@ function SettingsView({
   onKanataPortChange,
   onSentinelKeysChange,
 }: {
+  density: StyleDensity;
   launchAtLogin: boolean | null;
   kanataHealthState: string | null;
   kanataHost: string;
   kanataPort: string;
   sentinelKeysEnabled: boolean | null;
+  onDensityChange: (density: StyleDensity) => void;
   onLaunchAtLoginChange: (enabled: boolean) => void;
   onKanataConnect: () => void;
   onKanataDisconnect: () => void;
@@ -940,6 +970,21 @@ function SettingsView({
             {launchAtLogin === null ? "unavailable" : launchAtLogin ? "enabled" : "disabled"}
           </span>
         </label>
+      </section>
+      <section>
+        <h2>Visual Style</h2>
+        <div className="density-options" aria-label="Visual style density">
+          {(["compact", "standard", "rich"] as const).map((option) => (
+            <button
+              className={density === option ? "active" : ""}
+              key={option}
+              onClick={() => onDensityChange(option)}
+              type="button"
+            >
+              {option}
+            </button>
+          ))}
+        </div>
       </section>
       <section>
         <h2>Protocol Backends</h2>

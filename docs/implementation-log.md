@@ -37,12 +37,13 @@ Started the Tauri v2 implementation from the PRD.
 - Added Source Provenance and Source records to the Keyboard Snapshot contract and surfaced them in the Source Inspector with raw preserved values.
 - Added an Active Profile diff summary to Import Review so Import Candidates show changed keys, layers, sources, provenance records, backends, style, and fallback-layout state before commit.
 - Added density-aware structured Display Legend rendering so compact Visual Styles collapse to primary labels, standard styles show one secondary slot, and rich styles preserve all secondary Legend Slots.
+- Added a Visual Style density Settings control backed by the Rust Active Profile store so compact, standard, and rich density choices persist into saved EDN Profiles.
 
 Verification:
 
 - `cargo fmt --check`
-- `cargo test` (76 Rust tests passed, 1 private local `.vil` canary ignored by default)
+- `cargo test` (77 Rust tests passed, 1 private local `.vil` canary ignored by default)
 - `KEYPLANE_LOCAL_VIL_CANDIDATE=<private .vil path> cargo test local_vil_candidate_file_imports_when_env_is_set -- --ignored`
-- `npm test` (20 frontend tests)
+- `npm test` (22 frontend tests)
 - `npm run build`
 - `npm run tauri build -- --debug`

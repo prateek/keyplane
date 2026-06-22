@@ -2,6 +2,7 @@ use crate::domain::{
     compose_snapshot, promote_conflict_to_override, ActivationKind, BackendStatus, CapabilityFlag,
     HealthState, HostInputEvent, ImportCandidate, KeyboardSnapshot, LayerActivation, Profile,
     RuntimeEvent, RuntimeState, SourceConflict, StateConfidence, StateConfidenceLevel,
+    StyleDensity,
 };
 use crate::profile_codec;
 use crate::sentinel_backend;
@@ -64,6 +65,20 @@ impl ActiveProfileStore {
             let mut profile = self.profile()?;
             profile.overlay_window.positioning_mode = enabled;
             profile.overlay_window.click_through = !enabled;
+            profile.clone()
+        };
+        let source_conflicts = self.source_conflicts()?.clone();
+
+        Ok(snapshot_from_profile(&profile, source_conflicts))
+    }
+
+    pub fn set_visual_style_density(
+        &self,
+        density: StyleDensity,
+    ) -> Result<KeyboardSnapshot, ActiveProfileError> {
+        let profile = {
+            let mut profile = self.profile()?;
+            profile.visual_style.density = density;
             profile.clone()
         };
         let source_conflicts = self.source_conflicts()?.clone();
@@ -362,6 +377,21 @@ mod tests {
             .expect("positioning mode disables");
         assert!(!locked.overlay_window.positioning_mode);
         assert!(locked.overlay_window.click_through);
+    }
+
+    #[test]
+    fn visual_style_density_updates_the_active_profile() {
+        let store = ActiveProfileStore::new(crate::fake_backend::fake_profile());
+
+        let compact = store
+            .set_visual_style_density(StyleDensity::Compact)
+            .expect("density updates");
+
+        assert_eq!(compact.visual_style.density, StyleDensity::Compact);
+
+        let saved = store.save_profile_edn().expect("profile saves");
+        let loaded = profile_codec::load_profile(&saved).expect("saved profile loads");
+        assert_eq!(loaded.visual_style.density, StyleDensity::Compact);
     }
 
     #[test]

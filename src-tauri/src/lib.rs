@@ -18,7 +18,7 @@ use crate::active_profile::ActiveProfileStore;
 use crate::backend::{FakeProtocolBackend, ProtocolBackend};
 use crate::domain::{
     apply_runtime_event, HealthState, HostInputEvent, ImportCandidate, KeyboardSnapshot,
-    OverlayWindowConfig, Profile, RuntimeEvent, SourceConflict, VisibilityPolicy,
+    OverlayWindowConfig, Profile, RuntimeEvent, SourceConflict, StyleDensity, VisibilityPolicy,
 };
 use crate::kanata_tcp::{KanataLayerMap, KanataTcpRuntime, KanataTcpSession, TcpKanataTransport};
 use crate::keypeek_live::{KeyPeekLiveRuntime, KeyPeekLiveSession, QmkViaRawHidTransport};
@@ -504,6 +504,16 @@ fn set_overlay_positioning_mode(
 }
 
 #[tauri::command]
+fn set_visual_style_density(
+    active_profile: State<'_, ActiveProfileStore>,
+    density: StyleDensity,
+) -> Result<KeyboardSnapshot, String> {
+    active_profile
+        .set_visual_style_density(density)
+        .map_err(|err| err.to_string())
+}
+
+#[tauri::command]
 fn apply_overlay_window_config(
     app: tauri::AppHandle,
     config: OverlayWindowConfig,
@@ -582,6 +592,7 @@ pub fn run() {
             promote_source_candidate,
             apply_overlay_window_config,
             set_overlay_positioning_mode,
+            set_visual_style_density,
             start_overlay_drag,
             start_overlay_resize,
         ])

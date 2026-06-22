@@ -101,6 +101,7 @@ button:hover {
 .toolbar-actions button,
 .keypeek-connect button,
 .backend-connect button,
+.density-options button,
 .file-button,
 .overlay-controls button {
   display: inline-flex;
@@ -418,6 +419,27 @@ button:hover {
 .settings-view {
   display: grid;
   gap: 18px;
+}
+
+.density-options {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  border: 1px solid #d2ddd8;
+  border-radius: 8px;
+  background: #f8fbf9;
+  padding: 4px;
+}
+
+.density-options button {
+  min-height: 34px;
+  border-color: transparent;
+  text-transform: capitalize;
+}
+
+.density-options button.active {
+  border-color: #2f6f67;
+  background: #dcefeb;
 }
 
 .setting-toggle {
