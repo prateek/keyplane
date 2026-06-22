@@ -40,12 +40,14 @@ Started the Tauri v2 implementation from the PRD.
 - Added a Visual Style density Settings control backed by the Rust Active Profile store so compact, standard, and rich density choices persist into saved EDN Profiles.
 - Added macOS Accessibility and Input Monitoring permission checks and request prompts, surfaced through persistent Sentinel Keys Backend Health and Settings controls.
 - Added a GitHub Actions desktop build workflow that runs the Rust/frontend verification gate and uploads unsigned macOS debug `.app` and `.dmg` artifacts.
+- Refreshed `package-lock.json` so the desktop build workflow can use `npm ci` reliably.
 
 Verification:
 
 - `cargo fmt --check`
 - `cargo test` (79 Rust tests passed, 1 private local `.vil` canary ignored by default)
 - `KEYPLANE_LOCAL_VIL_CANDIDATE=<private .vil path> cargo test local_vil_candidate_file_imports_when_env_is_set -- --ignored`
+- `npm ci`
 - `npm test` (23 frontend tests)
 - `npm run build`
 - `ruby -e 'require "yaml"; YAML.load_file(".github/workflows/desktop-build.yml")'`
