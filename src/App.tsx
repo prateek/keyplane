@@ -19,7 +19,7 @@ import {
   Upload,
 } from "lucide-react";
 import type { CSSProperties } from "react";
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import "./App.css";
 import type {
   EffectiveKey,
@@ -64,10 +64,41 @@ import {
 
 type View = "overlay" | "inspector" | "import" | "settings";
 
+export const FADE_VISIBILITY_INACTIVITY_MS = 3_000;
+
+function snapshotWithOverlayVisible(snapshot: KeyboardSnapshot, visible: boolean): KeyboardSnapshot {
+  return {
+    ...snapshot,
+    overlay_window: {
+      ...snapshot.overlay_window,
+      visible,
+      positioning_mode: visible ? snapshot.overlay_window.positioning_mode : false,
+      click_through: visible ? snapshot.overlay_window.click_through : true,
+    },
+  };
+}
+
+function mergeOverlayWindowSnapshot(
+  current: KeyboardSnapshot,
+  overlaySnapshot: KeyboardSnapshot,
+): KeyboardSnapshot {
+  return {
+    ...current,
+    overlay_window: overlaySnapshot.overlay_window,
+    runtime_state: {
+      ...current.runtime_state,
+      backend_health: overlaySnapshot.runtime_state.backend_health,
+    },
+    backends: overlaySnapshot.backends,
+  };
+}
+
 function App() {
   const overlayOnly = window.location.hash === "#/overlay";
   const [view, setView] = useState<View>(overlayOnly ? "overlay" : "overlay");
   const [snapshot, setSnapshot] = useState<KeyboardSnapshot | null>(null);
+  const snapshotRef = useRef<KeyboardSnapshot | null>(null);
+  const fadeTimerRef = useRef<ReturnType<typeof window.setTimeout> | null>(null);
   const [events, setEvents] = useState<RuntimeEvent[]>([]);
   const [eventIndex, setEventIndex] = useState(0);
   const [importCandidate, setImportCandidate] = useState<ImportCandidate | null>(null);
@@ -93,12 +124,71 @@ function App() {
   }, []);
 
   useEffect(() => {
+    snapshotRef.current = snapshot;
+  }, [snapshot]);
+
+  const clearFadeTimer = useCallback(() => {
+    if (fadeTimerRef.current !== null) {
+      window.clearTimeout(fadeTimerRef.current);
+      fadeTimerRef.current = null;
+    }
+  }, []);
+
+  const applyLocalOverlayVisible = useCallback((visible: boolean) => {
+    setSnapshot((current) => (current ? snapshotWithOverlayVisible(current, visible) : current));
+  }, []);
+
+  const syncOverlayWindowVisible = useCallback(
+    async (visible: boolean) => {
+      applyLocalOverlayVisible(visible);
+      const nextSnapshot = await setOverlayVisible(visible);
+      if (nextSnapshot) {
+        setSnapshot((current) =>
+          current ? mergeOverlayWindowSnapshot(current, nextSnapshot) : nextSnapshot,
+        );
+      }
+      return nextSnapshot;
+    },
+    [applyLocalOverlayVisible],
+  );
+
+  const scheduleFadeHide = useCallback(() => {
+    clearFadeTimer();
+    fadeTimerRef.current = window.setTimeout(() => {
+      fadeTimerRef.current = null;
+      const current = snapshotRef.current;
+      if (
+        current?.overlay_window.visibility === "fade" &&
+        current.overlay_window.visible &&
+        !current.overlay_window.positioning_mode
+      ) {
+        void syncOverlayWindowVisible(false);
+      }
+    }, FADE_VISIBILITY_INACTIVITY_MS);
+  }, [clearFadeTimer, syncOverlayWindowVisible]);
+
+  const noteRuntimeActivity = useCallback(() => {
+    const current = snapshotRef.current;
+    if (current?.overlay_window.visibility !== "fade") return;
+    if (!current.overlay_window.visible) {
+      void syncOverlayWindowVisible(true);
+    }
+    scheduleFadeHide();
+  }, [scheduleFadeHide, syncOverlayWindowVisible]);
+
+  const handleRuntimeEvent = useCallback(
+    (event: RuntimeEvent) => {
+      setSnapshot((current) => (current ? applyRuntimeEvent(current, event) : current));
+      noteRuntimeActivity();
+    },
+    [noteRuntimeActivity],
+  );
+
+  useEffect(() => {
     let mounted = true;
     let unlisten: (() => void) | null = null;
 
-    void listenToRuntimeEvents((event) => {
-      setSnapshot((current) => (current ? applyRuntimeEvent(current, event) : current));
-    }).then((nextUnlisten) => {
+    void listenToRuntimeEvents(handleRuntimeEvent).then((nextUnlisten) => {
       if (!mounted) {
         nextUnlisten?.();
         return;
@@ -110,7 +200,27 @@ function App() {
       mounted = false;
       unlisten?.();
     };
-  }, []);
+  }, [handleRuntimeEvent]);
+
+  useEffect(() => {
+    if (
+      snapshot?.overlay_window.visibility === "fade" &&
+      snapshot.overlay_window.visible &&
+      !snapshot.overlay_window.positioning_mode
+    ) {
+      scheduleFadeHide();
+      return;
+    }
+    clearFadeTimer();
+  }, [
+    clearFadeTimer,
+    scheduleFadeHide,
+    snapshot?.overlay_window.positioning_mode,
+    snapshot?.overlay_window.visibility,
+    snapshot?.overlay_window.visible,
+  ]);
+
+  useEffect(() => () => clearFadeTimer(), [clearFadeTimer]);
 
   const activeLayer = snapshot?.runtime_state.layer_stack[0];
   const health = snapshot?.runtime_state.backend_health ?? [];
@@ -190,33 +300,15 @@ function App() {
 
   async function updateOverlayVisible(visible: boolean) {
     setProfileStatus(null);
-    const nextSnapshot = await setOverlayVisible(visible);
-    if (nextSnapshot) {
-      setSnapshot(nextSnapshot);
-      setProfileStatus(visible ? "Overlay Window shown" : "Overlay Window hidden");
-      return;
-    }
-
-    setSnapshot((current) =>
-      current
-        ? {
-            ...current,
-            overlay_window: {
-              ...current.overlay_window,
-              visible,
-              positioning_mode: visible ? current.overlay_window.positioning_mode : false,
-              click_through: visible ? current.overlay_window.click_through : true,
-            },
-          }
-        : current,
-    );
+    await syncOverlayWindowVisible(visible);
     setProfileStatus(visible ? "Overlay Window shown" : "Overlay Window hidden");
   }
 
   function advanceFakeEvent() {
-    if (!snapshot) return;
+    if (!snapshotRef.current) return;
     const event = events[eventIndex] ?? navLayerEvent;
-    setSnapshot(applyRuntimeEvent(snapshot, event));
+    setSnapshot((current) => (current ? applyRuntimeEvent(current, event) : current));
+    noteRuntimeActivity();
     setEventIndex((index) => (index + 1) % Math.max(events.length, 1));
   }
 

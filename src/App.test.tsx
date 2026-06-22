@@ -1,7 +1,7 @@
-import { render, screen, waitFor } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { describe, expect, it } from "vitest";
-import App, { ImportReview, OverlaySurface } from "./App";
+import { describe, expect, it, vi } from "vitest";
+import App, { FADE_VISIBILITY_INACTIVITY_MS, ImportReview, OverlaySurface } from "./App";
 import type { ImportCandidate } from "./domain";
 import { fakeSnapshot } from "./fixtures";
 
@@ -140,6 +140,44 @@ describe("Keyplane app", () => {
     await user.click(screen.getByRole("button", { name: /overlay/i }));
 
     expect(screen.getByText("manual-toggle")).toBeInTheDocument();
+    expect(screen.getByText("hidden")).toBeInTheDocument();
+  });
+
+  it("fades the Overlay Window after inactivity and shows it again on Runtime Events", async () => {
+    render(<App />);
+    await screen.findByRole("region", { name: "Keyboard overlay" });
+
+    fireEvent.click(screen.getByRole("button", { name: /settings/i }));
+    vi.useFakeTimers();
+
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: /fade/i }));
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    expect(screen.getByText("Overlay Visibility Policy set to fade")).toBeInTheDocument();
+    expect(screen.getByText("visible")).toBeInTheDocument();
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(FADE_VISIBILITY_INACTIVITY_MS);
+    });
+
+    expect(screen.getByText("hidden")).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: /overlay/i }));
+    fireEvent.click(screen.getByRole("button", { name: /fake event/i }));
+    expect(screen.getByText("visible")).toBeInTheDocument();
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(FADE_VISIBILITY_INACTIVITY_MS - 1);
+    });
+    expect(screen.getByText("visible")).toBeInTheDocument();
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(1);
+    });
+
     expect(screen.getByText("hidden")).toBeInTheDocument();
   });
 
