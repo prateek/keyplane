@@ -3,6 +3,7 @@ use crate::domain::{
     ImportCandidate, ImportSummary, KeyGeometry, Layer, LogicalKeymap, MatrixPosition,
     OverlayWindowConfig, PhysicalKey, PhysicalLayout, Profile, Source, SourceAuthority,
     SourceConflict, SourcePrecedenceRule, SourceRef, StyleDensity, VisibilityPolicy, VisualStyle,
+    VisualStyleColors,
 };
 use qmk_via_api::keycodes::Keycode;
 use serde_json::Value as JsonValue;
@@ -93,6 +94,7 @@ pub fn import_vial_json(contents: &str) -> Result<ImportCandidate, ImportError> 
         visual_style: VisualStyle {
             variant_id: "vial-preview".to_string(),
             density: StyleDensity::Standard,
+            colors: VisualStyleColors::default(),
         },
         overlay_window: OverlayWindowConfig {
             visibility: VisibilityPolicy::Pinned,
@@ -228,6 +230,7 @@ pub fn import_vial_device_snapshot(
         visual_style: VisualStyle {
             variant_id: "vial-device-preview".to_string(),
             density: StyleDensity::Standard,
+            colors: VisualStyleColors::default(),
         },
         overlay_window: OverlayWindowConfig {
             visibility: VisibilityPolicy::Pinned,
@@ -291,6 +294,7 @@ pub fn import_keyviz_style_json(
     let imported_style = VisualStyle {
         variant_id: format!("keyviz-{}", sanitize_id(keyviz_style)),
         density: keyviz_density(keyviz_style),
+        colors: keyviz_style_colors(&json),
     };
     let active_style_source_id = base_profile
         .sources
@@ -422,6 +426,7 @@ pub fn import_overkeys_companion_json(contents: &str) -> Result<ImportCandidate,
         visual_style: VisualStyle {
             variant_id: "overkeys-preview".to_string(),
             density: StyleDensity::Standard,
+            colors: VisualStyleColors::default(),
         },
         overlay_window: OverlayWindowConfig {
             visibility: VisibilityPolicy::Pinned,
@@ -536,6 +541,7 @@ pub fn import_zmk_keymap(contents: &str) -> Result<ImportCandidate, ImportError>
         visual_style: VisualStyle {
             variant_id: "zmk-preview".to_string(),
             density: StyleDensity::Standard,
+            colors: VisualStyleColors::default(),
         },
         overlay_window: OverlayWindowConfig {
             visibility: VisibilityPolicy::Pinned,
@@ -609,6 +615,31 @@ fn keyviz_density(keyviz_style: &str) -> StyleDensity {
         "laptop" | "lowprofile" | "pbt" => StyleDensity::Rich,
         _ => StyleDensity::Standard,
     }
+}
+
+fn keyviz_style_colors(json: &JsonValue) -> VisualStyleColors {
+    VisualStyleColors {
+        keycap_background: json_color_at(json, "/color/color"),
+        keycap_text: json_color_at(json, "/text/color"),
+        keycap_border: json_color_at(json, "/border/color"),
+        modifier_accent: json_color_at(json, "/modifier/color"),
+        overlay_background: json_color_at(json, "/background/color"),
+    }
+}
+
+fn json_color_at(json: &JsonValue, pointer: &str) -> Option<String> {
+    json.pointer(pointer)
+        .and_then(JsonValue::as_str)
+        .map(str::trim)
+        .filter(|value| is_hex_color(value))
+        .map(ToOwned::to_owned)
+}
+
+fn is_hex_color(value: &str) -> bool {
+    let Some(hex) = value.strip_prefix('#') else {
+        return false;
+    };
+    matches!(hex.len(), 3 | 4 | 6 | 8) && hex.chars().all(|ch| ch.is_ascii_hexdigit())
 }
 
 fn promote_style_precedence(profile: &mut Profile, source_id: &str, active_style_source_id: &str) {
@@ -1865,6 +1896,51 @@ mod tests {
         assert_eq!(
             candidate.preview_profile.visual_style.density,
             StyleDensity::Rich
+        );
+        assert_eq!(
+            candidate
+                .preview_profile
+                .visual_style
+                .colors
+                .keycap_background
+                .as_deref(),
+            Some("#ffffff")
+        );
+        assert_eq!(
+            candidate
+                .preview_profile
+                .visual_style
+                .colors
+                .keycap_text
+                .as_deref(),
+            Some("#000000")
+        );
+        assert_eq!(
+            candidate
+                .preview_profile
+                .visual_style
+                .colors
+                .keycap_border
+                .as_deref(),
+            Some("#1a1a1a")
+        );
+        assert_eq!(
+            candidate
+                .preview_profile
+                .visual_style
+                .colors
+                .modifier_accent
+                .as_deref(),
+            Some("#3a86ff")
+        );
+        assert_eq!(
+            candidate
+                .preview_profile
+                .visual_style
+                .colors
+                .overlay_background
+                .as_deref(),
+            Some("#ffffff99")
         );
         assert_eq!(
             candidate.preview_profile.physical_layout,

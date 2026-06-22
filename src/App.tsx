@@ -758,12 +758,19 @@ export function OverlaySurface({
   const activeLayer = snapshot.runtime_state.layer_stack[0] ?? null;
   const bounds = useMemo(() => layoutBounds(snapshot), [snapshot]);
   const overlayOpacity = clampOpacity(snapshot.overlay_window.display_targeting.opacity);
+  const overlayStyle = useMemo(
+    () => ({
+      opacity: overlayOpacity,
+      ...visualStyleCssVariables(snapshot.visual_style.colors),
+    }),
+    [overlayOpacity, snapshot.visual_style.colors],
+  );
   const topLayerId = activeLayer?.layer_id ?? null;
 
   return (
     <section
       className="overlay-surface"
-      style={{ opacity: overlayOpacity }}
+      style={overlayStyle}
       aria-label="Keyboard overlay"
     >
       <div className="overlay-status">
@@ -887,6 +894,28 @@ function visibleLegendSlots(effective: EffectiveKey, density: StyleDensity) {
   if (density === "compact") return [];
   if (density === "standard") return secondarySlots.slice(0, 1);
   return secondarySlots;
+}
+
+function visualStyleCssVariables(
+  colors: KeyboardSnapshot["visual_style"]["colors"],
+): CSSProperties {
+  const variables: Record<string, string> = {};
+  if (colors.keycap_background) {
+    variables["--keyplane-keycap-background"] = colors.keycap_background;
+  }
+  if (colors.keycap_text) {
+    variables["--keyplane-keycap-text"] = colors.keycap_text;
+  }
+  if (colors.keycap_border) {
+    variables["--keyplane-keycap-border"] = colors.keycap_border;
+  }
+  if (colors.modifier_accent) {
+    variables["--keyplane-modifier-accent"] = colors.modifier_accent;
+  }
+  if (colors.overlay_background) {
+    variables["--keyplane-overlay-background"] = colors.overlay_background;
+  }
+  return variables as CSSProperties;
 }
 
 function SourceInspector({
@@ -1093,8 +1122,8 @@ export function buildImportDiffRows(
     },
     {
       label: "Visual Style",
-      current: activeSnapshot.visual_style.variant_id,
-      preview: profile.visual_style.variant_id,
+      current: visualStyleSummary(activeSnapshot.visual_style),
+      preview: visualStyleSummary(profile.visual_style),
     },
     {
       label: "Fallback Layout",
@@ -1107,6 +1136,13 @@ export function buildImportDiffRows(
     ...row,
     changed: row.current !== row.preview,
   }));
+}
+
+function visualStyleSummary(style: KeyboardSnapshot["visual_style"]) {
+  const colorTokenCount = Object.values(style.colors).filter(Boolean).length;
+  return colorTokenCount === 0
+    ? style.variant_id
+    : `${style.variant_id} + ${colorTokenCount} color tokens`;
 }
 
 export function ImportReview({

@@ -241,6 +241,13 @@ export const fakeSnapshot: KeyboardSnapshot = {
   visual_style: {
     variant_id: "keyplane-default",
     density: "rich",
+    colors: {
+      keycap_background: null,
+      keycap_text: null,
+      keycap_border: null,
+      modifier_accent: null,
+      overlay_background: null,
+    },
   },
   overlay_window: {
     visibility: "pinned",

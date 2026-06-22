@@ -60,6 +60,37 @@ describe("Keyplane app", () => {
     expect(screen.getByText("hold-layer")).toBeInTheDocument();
   });
 
+  it("applies Visual Style color tokens to the overlay surface", () => {
+    const snapshot = structuredClone(fakeSnapshot);
+    snapshot.visual_style = {
+      ...snapshot.visual_style,
+      colors: {
+        keycap_background: "#ffffff",
+        keycap_text: "#111111",
+        keycap_border: "#222222",
+        modifier_accent: "#3a86ff",
+        overlay_background: "#ffffff99",
+      },
+    };
+
+    render(
+      <OverlaySurface
+        snapshot={snapshot}
+        onAdvance={() => undefined}
+        onDragOverlay={() => undefined}
+        onResizeOverlay={() => undefined}
+        onTogglePositioningMode={() => undefined}
+      />,
+    );
+
+    const overlay = screen.getByRole("region", { name: "Keyboard overlay" });
+    expect(overlay.getAttribute("style")).toContain("--keyplane-keycap-background: #ffffff");
+    expect(overlay.getAttribute("style")).toContain("--keyplane-keycap-text: #111111");
+    expect(overlay.getAttribute("style")).toContain("--keyplane-keycap-border: #222222");
+    expect(overlay.getAttribute("style")).toContain("--keyplane-modifier-accent: #3a86ff");
+    expect(overlay.getAttribute("style")).toContain("--keyplane-overlay-background: #ffffff99");
+  });
+
   it("exposes active Profile EDN save and load actions", async () => {
     render(<App />);
 
@@ -252,6 +283,7 @@ describe("Keyplane app", () => {
       visual_style: {
         variant_id: "vial-preview",
         density: "standard" as const,
+        colors: fakeSnapshot.visual_style.colors,
       },
       overlay_window: fakeSnapshot.overlay_window,
       source_precedence: fakeSnapshot.source_precedence,

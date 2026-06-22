@@ -214,9 +214,18 @@ export interface OverlayWindowConfig {
 
 export type StyleDensity = "compact" | "standard" | "rich";
 
+export interface VisualStyleColors {
+  keycap_background: string | null;
+  keycap_text: string | null;
+  keycap_border: string | null;
+  modifier_accent: string | null;
+  overlay_background: string | null;
+}
+
 export interface VisualStyle {
   variant_id: string;
   density: StyleDensity;
+  colors: VisualStyleColors;
 }
 
 export interface SourcePrecedenceRule {

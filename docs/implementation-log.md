@@ -47,6 +47,7 @@ Started the Tauri v2 implementation from the PRD.
 - Added derived `tap-role` and `hold-role` Display Legend Slots for QMK and ZMK layer-tap actions while preserving compact primary labels.
 - Added top active layer highlighting for non-inherited Effective Actions in the full-keyboard Overlay Surface.
 - Added a Visual Style density Settings control backed by the Rust Active Profile store so compact, standard, and rich density choices persist into saved EDN Profiles.
+- Added first-class Visual Style color tokens to the Profile contract, keyviz style import, EDN codec, and overlay renderer so imported keyviz keycap colors affect the full-keyboard overlay.
 - Added macOS Accessibility and Input Monitoring permission checks and request prompts, surfaced through persistent Sentinel Keys Backend Health and Settings controls.
 - Added typed Overlay Window Backend Health for window creation, transparency/click-through configuration, focusability, drag, and resize capability failures; Positioning Mode now makes the Overlay Window focusable only while placement controls are active.
 - Added a GitHub Actions desktop build workflow that runs the Rust/frontend verification gate and uploads unsigned macOS debug `.app` and `.dmg` artifacts.
@@ -59,10 +60,10 @@ Started the Tauri v2 implementation from the PRD.
 Verification:
 
 - `cargo fmt --check`
-- `cargo test` (89 Rust tests passed, 3 private local hardware canaries ignored by default)
+- `cargo test` (91 Rust tests passed, 3 private local hardware canaries ignored by default)
 - `KEYPLANE_LOCAL_VIL_CANDIDATE=<private .vil path> cargo test local_vil_candidate_file_imports_when_env_is_set -- --ignored`
 - `npm ci`
-- `npm test` (26 frontend tests)
+- `npm test` (28 frontend tests)
 - `npm run build`
 - `actionlint .github/workflows/signed-release.yml .github/workflows/desktop-build.yml`
 - `ruby -e 'require "yaml"; %w[.github/workflows/signed-release.yml .github/workflows/desktop-build.yml].each { |path| YAML.load_file(path) }'`

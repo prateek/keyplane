@@ -4,7 +4,7 @@ use crate::domain::{
     KeyGeometry, KeyboardSnapshot, Layer, LayerActivation, LogicalKeymap, OverlayWindowConfig,
     PhysicalKey, PhysicalLayout, Profile, RuntimeEvent, RuntimeState, Source, SourceAuthority,
     SourceConflict, SourcePrecedenceRule, SourceRef, StateConfidence, StateConfidenceLevel,
-    StyleDensity, UserOverride, VisibilityPolicy, VisualStyle,
+    StyleDensity, UserOverride, VisibilityPolicy, VisualStyle, VisualStyleColors,
 };
 use crate::kanata_backend;
 use crate::keypeek_backend;
@@ -157,6 +157,7 @@ pub fn fake_profile() -> Profile {
         visual_style: VisualStyle {
             variant_id: "keyplane-default".to_string(),
             density: StyleDensity::Rich,
+            colors: VisualStyleColors::default(),
         },
         overlay_window: OverlayWindowConfig {
             visibility: VisibilityPolicy::Pinned,

@@ -5,6 +5,7 @@ use crate::domain::{
     PhysicalLayout, Profile, RawAction, SemanticAction, SemanticActionKind, SentinelKeyBinding,
     Source, SourceAuthority, SourcePrecedenceRule, SourceRef, StateConfidence,
     StateConfidenceLevel, StyleDensity, UserOverride, VisibilityPolicy, VisualStyle,
+    VisualStyleColors,
 };
 use edn_format::{emit_str, parse_str, Keyword, Value};
 use std::collections::BTreeMap;
@@ -305,6 +306,10 @@ fn sentinel_key_to_value(binding: &SentinelKeyBinding) -> Value {
 fn visual_style_to_value(style: &VisualStyle) -> Value {
     map([
         (
+            kw("style", "colors"),
+            visual_style_colors_to_value(&style.colors),
+        ),
+        (
             kw("style", "density"),
             style_density_to_value(&style.density),
         ),
@@ -313,6 +318,38 @@ fn visual_style_to_value(style: &VisualStyle) -> Value {
             Value::from(style.variant_id.clone()),
         ),
     ])
+}
+
+fn visual_style_colors_to_value(colors: &VisualStyleColors) -> Value {
+    map([
+        (
+            kw("color", "keycap-background"),
+            optional_string_to_value(&colors.keycap_background),
+        ),
+        (
+            kw("color", "keycap-border"),
+            optional_string_to_value(&colors.keycap_border),
+        ),
+        (
+            kw("color", "keycap-text"),
+            optional_string_to_value(&colors.keycap_text),
+        ),
+        (
+            kw("color", "modifier-accent"),
+            optional_string_to_value(&colors.modifier_accent),
+        ),
+        (
+            kw("color", "overlay-background"),
+            optional_string_to_value(&colors.overlay_background),
+        ),
+    ])
+}
+
+fn optional_string_to_value(value: &Option<String>) -> Value {
+    value
+        .as_ref()
+        .map(|text| Value::from(text.clone()))
+        .unwrap_or(Value::Nil)
 }
 
 fn overlay_window_to_value(overlay: &OverlayWindowConfig) -> Value {
@@ -593,7 +630,54 @@ fn parse_visual_style(value: &Value) -> Result<VisualStyle, ProfileCodecError> {
     Ok(VisualStyle {
         variant_id: as_string(get(map, "style", "variant-id")?, ":style/variant-id")?,
         density: parse_style_density(get(map, "style", "density")?)?,
+        colors: match get_optional(map, "style", "colors") {
+            Some(value) => parse_visual_style_colors(value)?,
+            None => VisualStyleColors::default(),
+        },
     })
+}
+
+fn parse_visual_style_colors(value: &Value) -> Result<VisualStyleColors, ProfileCodecError> {
+    let map = as_map(value, ":style/colors")?;
+    Ok(VisualStyleColors {
+        keycap_background: parse_optional_string(
+            map,
+            "color",
+            "keycap-background",
+            ":color/keycap-background",
+        )?,
+        keycap_border: parse_optional_string(
+            map,
+            "color",
+            "keycap-border",
+            ":color/keycap-border",
+        )?,
+        keycap_text: parse_optional_string(map, "color", "keycap-text", ":color/keycap-text")?,
+        modifier_accent: parse_optional_string(
+            map,
+            "color",
+            "modifier-accent",
+            ":color/modifier-accent",
+        )?,
+        overlay_background: parse_optional_string(
+            map,
+            "color",
+            "overlay-background",
+            ":color/overlay-background",
+        )?,
+    })
+}
+
+fn parse_optional_string(
+    map: &BTreeMap<Value, Value>,
+    namespace: &'static str,
+    name: &'static str,
+    field: &'static str,
+) -> Result<Option<String>, ProfileCodecError> {
+    match get_optional(map, namespace, name) {
+        Some(Value::Nil) | None => Ok(None),
+        Some(value) => as_string(value, field).map(Some),
+    }
 }
 
 fn parse_overlay_window(value: &Value) -> Result<OverlayWindowConfig, ProfileCodecError> {
@@ -1063,6 +1147,24 @@ mod tests {
     }
 
     #[test]
+    fn profile_codec_round_trips_visual_style_colors() {
+        let mut profile = fake_profile();
+        profile.visual_style.colors = VisualStyleColors {
+            keycap_background: Some("#ffffff".to_string()),
+            keycap_text: Some("#111111".to_string()),
+            keycap_border: Some("#222222".to_string()),
+            modifier_accent: Some("#3a86ff".to_string()),
+            overlay_background: Some("#ffffff99".to_string()),
+        };
+
+        let saved = save_profile(&profile);
+        let loaded = load_profile(&saved).expect("profile should load");
+
+        assert!(saved.contains(":style/colors"));
+        assert_eq!(loaded.visual_style.colors, profile.visual_style.colors);
+    }
+
+    #[test]
     fn profile_codec_loads_profiles_without_sentinel_keys_as_empty_bindings() {
         let profile = fake_profile();
         let Value::Map(mut map) = profile_to_value(&profile) else {
@@ -1075,6 +1177,26 @@ mod tests {
             load_profile(&saved_without_sentinel_keys).expect("legacy profile should load");
 
         assert!(loaded.sentinel_keys.is_empty());
+    }
+
+    #[test]
+    fn profile_codec_defaults_missing_visual_style_colors() {
+        let profile = fake_profile();
+        let Value::Map(mut map) = profile_to_value(&profile) else {
+            panic!("profile should serialize as map");
+        };
+        let visual_style = map
+            .get_mut(&kw("visual", "style"))
+            .expect("visual style section exists");
+        let Value::Map(visual_style_map) = visual_style else {
+            panic!("visual style section should be a map");
+        };
+        visual_style_map.remove(&kw("style", "colors"));
+        let saved_without_colors = emit_str(&Value::Map(map));
+
+        let loaded = load_profile(&saved_without_colors).expect("legacy profile should load");
+
+        assert_eq!(loaded.visual_style.colors, VisualStyleColors::default());
     }
 
     #[test]

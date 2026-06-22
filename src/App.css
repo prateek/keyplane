@@ -306,7 +306,7 @@ button:hover {
   border-radius: 8px;
   background:
     linear-gradient(180deg, rgba(255, 255, 255, 0.78), rgba(229, 239, 235, 0.9)),
-    #e4ede9;
+    var(--keyplane-overlay-background, #e4ede9);
   box-shadow: inset 0 1px 0 #ffffff;
 }
 
@@ -318,13 +318,13 @@ button:hover {
   place-items: center;
   padding: min(1.6vw, 12px) 6px 5px;
   overflow: hidden;
-  border: 1px solid #9db4ad;
+  border: 1px solid var(--keyplane-keycap-border, #9db4ad);
   border-radius: 7px;
-  background: #fbfcfb;
+  background: var(--keyplane-keycap-background, #fbfcfb);
   box-shadow:
     inset 0 -6px 0 rgba(37, 63, 58, 0.08),
     0 6px 14px rgba(18, 49, 45, 0.08);
-  color: #17201f;
+  color: var(--keyplane-keycap-text, #17201f);
 }
 
 .keycap span {
@@ -348,7 +348,7 @@ button:hover {
 .keycap i {
   max-width: 100%;
   overflow: hidden;
-  color: #6e5a20;
+  color: var(--keyplane-modifier-accent, #6e5a20);
   font-size: clamp(0.55rem, 0.5rem + 0.22vw, 0.72rem);
   font-style: normal;
   text-overflow: ellipsis;
@@ -366,7 +366,7 @@ button:hover {
 }
 
 .keycap.top-active-layer {
-  border-color: #22766a;
+  border-color: var(--keyplane-modifier-accent, #22766a);
   background: #e4f7f2;
   box-shadow:
     inset 0 -6px 0 rgba(34, 118, 106, 0.16),
@@ -379,7 +379,7 @@ button:hover {
 }
 
 .keycap.pressed {
-  border-color: #317568;
+  border-color: var(--keyplane-modifier-accent, #317568);
   background: #cce8e2;
 }
 

@@ -297,6 +297,16 @@ pub enum StyleDensity {
 pub struct VisualStyle {
     pub variant_id: String,
     pub density: StyleDensity,
+    pub colors: VisualStyleColors,
+}
+
+#[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq, Eq)]
+pub struct VisualStyleColors {
+    pub keycap_background: Option<String>,
+    pub keycap_text: Option<String>,
+    pub keycap_border: Option<String>,
+    pub modifier_accent: Option<String>,
+    pub overlay_background: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
