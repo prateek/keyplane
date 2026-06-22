@@ -22,6 +22,14 @@ def run_command(*command)
   fail_with("#{command.join(" ")} failed with #{status.exitstatus}:\n#{output}")
 end
 
+def run_command_failure(*command)
+  stdout, stderr, status = Open3.capture3(*command, chdir: ROOT)
+  output = [stdout, stderr].reject(&:empty?).join("\n")
+  fail_with("#{command.join(" ")} unexpectedly passed") if status.success?
+
+  output
+end
+
 def assert_includes(text, expected, message)
   return if text.include?(expected)
 
@@ -41,6 +49,94 @@ def with_json_file(value)
   yield file.path
 ensure
   file&.unlink
+end
+
+def signed_release_runs_fixture(run_id)
+  [
+    {
+      "databaseId" => 987_654_321,
+      "status" => "in_progress",
+      "conclusion" => nil,
+      "workflowName" => "Signed Release"
+    },
+    {
+      "databaseId" => run_id,
+      "status" => "completed",
+      "conclusion" => "success",
+      "workflowName" => "Signed Release"
+    }
+  ]
+end
+
+def signed_release_run_fixture(run_id)
+  {
+    "attempt" => 1,
+    "conclusion" => "success",
+    "databaseId" => run_id,
+    "event" => "workflow_dispatch",
+    "headSha" => "abc123",
+    "jobs" => [
+      {
+        "name" => "Signed macOS release",
+        "status" => "completed",
+        "conclusion" => "success",
+        "url" => "https://example.test/job"
+      }
+    ],
+    "status" => "completed",
+    "updatedAt" => "2026-06-22T00:00:00Z",
+    "url" => "https://example.test/run",
+    "workflowName" => "Signed Release"
+  }
+end
+
+def signed_release_artifacts_fixture(include_verification:)
+  artifacts = [
+    {
+      "name" => "keyplane-macos-signed-app",
+      "expired" => false,
+      "size_in_bytes" => 42
+    },
+    {
+      "name" => "keyplane-macos-signed-dmg",
+      "expired" => false,
+      "size_in_bytes" => 43
+    }
+  ]
+
+  if include_verification
+    artifacts << {
+      "name" => "keyplane-macos-release-evidence",
+      "expired" => false,
+      "size_in_bytes" => 44
+    }
+  end
+
+  {
+    "total_count" => artifacts.length,
+    "artifacts" => artifacts
+  }
+end
+
+def collect_signed_release_evidence(runs_path, run_path, artifacts_path, report_dir, expect_success:)
+  command = [
+    "ruby",
+    "scripts/collect-signed-release-evidence.rb",
+    "--runs-json",
+    runs_path,
+    "--run-json",
+    run_path,
+    "--artifacts-json",
+    artifacts_path,
+    "--report-dir",
+    report_dir
+  ]
+
+  if expect_success
+    run_command(*command)
+  else
+    run_command_failure(*command)
+  end
 end
 
 run_command("ruby", "scripts/validate-keypeek-live-hardware.rb", "--dry-run")
@@ -71,81 +167,53 @@ refute_match(
 signed_report_dir = Dir.mktmpdir("keyplane-signed-release-evidence")
 begin
   run_id = 123_456_789
-  with_json_file([
-    {
-      "databaseId" => 987_654_321,
-      "status" => "in_progress",
-      "conclusion" => nil,
-      "workflowName" => "Signed Release"
-    },
-    {
-      "databaseId" => run_id,
-      "status" => "completed",
-      "conclusion" => "success",
-      "workflowName" => "Signed Release"
-    }
-  ]) do |runs_path|
-    with_json_file(
-      {
-        "attempt" => 1,
-        "conclusion" => "success",
-        "databaseId" => run_id,
-        "event" => "workflow_dispatch",
-        "headSha" => "abc123",
-        "jobs" => [
-          {
-            "name" => "Signed macOS release",
-            "status" => "completed",
-            "conclusion" => "success",
-            "url" => "https://example.test/job"
-          }
-        ],
-        "status" => "completed",
-        "updatedAt" => "2026-06-22T00:00:00Z",
-        "url" => "https://example.test/run",
-        "workflowName" => "Signed Release"
-      }
-    ) do |run_path|
-      with_json_file(
-        {
-          "total_count" => 2,
-          "artifacts" => [
-            {
-              "name" => "keyplane-macos-signed-app",
-              "expired" => false,
-              "size_in_bytes" => 42
-            },
-            {
-              "name" => "keyplane-macos-signed-dmg",
-              "expired" => false,
-              "size_in_bytes" => 43
-            }
-          ]
-        }
-      ) do |artifacts_path|
-        run_command(
-          "ruby",
-          "scripts/collect-signed-release-evidence.rb",
-          "--runs-json",
+  with_json_file(signed_release_runs_fixture(run_id)) do |runs_path|
+    with_json_file(signed_release_run_fixture(run_id)) do |run_path|
+      with_json_file(signed_release_artifacts_fixture(include_verification: true)) do |artifacts_path|
+        collect_signed_release_evidence(
           runs_path,
-          "--run-json",
           run_path,
-          "--artifacts-json",
           artifacts_path,
-          "--report-dir",
-          signed_report_dir
+          signed_report_dir,
+          expect_success: true
         )
+      end
+
+      signed_report = File.read(File.join(signed_report_dir, "signed-release.md"))
+      assert_includes(signed_report, "- Run id: #{run_id}", "signed-release fixture run id should be selected")
+      assert_includes(
+        signed_report,
+        "- No evidence gaps found.",
+        "signed-release fixture should satisfy report evidence shape"
+      )
+      assert_includes(
+        signed_report,
+        "keyplane-macos-release-evidence",
+        "signed-release fixture should include the verification evidence artifact"
+      )
+
+      missing_verification_report_dir = Dir.mktmpdir("keyplane-signed-release-missing-verification")
+      begin
+        with_json_file(signed_release_artifacts_fixture(include_verification: false)) do |artifacts_path|
+          collect_signed_release_evidence(
+            runs_path,
+            run_path,
+            artifacts_path,
+            missing_verification_report_dir,
+            expect_success: false
+          )
+        end
+        missing_verification_report = File.read(File.join(missing_verification_report_dir, "signed-release.md"))
+        assert_includes(
+          missing_verification_report,
+          "missing required artifact \"keyplane-macos-release-evidence\"",
+          "signed-release evidence should reject runs without the verification report artifact"
+        )
+      ensure
+        FileUtils.remove_entry(missing_verification_report_dir) if missing_verification_report_dir && Dir.exist?(missing_verification_report_dir)
       end
     end
   end
-
-  signed_report = File.read(File.join(signed_report_dir, "signed-release.md"))
-  assert_includes(signed_report, "- Run id: #{run_id}", "signed-release fixture run id should be selected")
-  assert_includes(
-    signed_report,
-    "- No evidence gaps found.",
-    "signed-release fixture should satisfy report evidence shape"
-  )
 ensure
   FileUtils.remove_entry(signed_report_dir) if signed_report_dir && Dir.exist?(signed_report_dir)
 end

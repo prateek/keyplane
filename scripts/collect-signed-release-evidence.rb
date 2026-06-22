@@ -17,6 +17,7 @@ JOB_NAME = "Signed macOS release"
 REQUIRED_ARTIFACTS = %w[
   keyplane-macos-signed-app
   keyplane-macos-signed-dmg
+  keyplane-macos-release-evidence
 ].freeze
 
 def fail_with(message)
@@ -196,11 +197,11 @@ def validation_findings(run_json, artifacts_json)
   REQUIRED_ARTIFACTS.each do |name|
     artifact = artifacts.find { |candidate| candidate["name"] == name }
     if artifact.nil?
-      findings << "missing signed artifact #{name.inspect}"
+      findings << "missing required artifact #{name.inspect}"
     elsif artifact["expired"]
-      findings << "signed artifact #{name.inspect} is expired"
+      findings << "required artifact #{name.inspect} is expired"
     elsif artifact["size_in_bytes"].to_i <= 0
-      findings << "signed artifact #{name.inspect} has empty size"
+      findings << "required artifact #{name.inspect} has empty size"
     end
   end
 
@@ -237,7 +238,7 @@ def build_report(run_json, artifacts_json, findings, dry:)
   if dry
     report << "Dry run only. This report does not prove a signed release was executed.\n\n"
   elsif findings.empty?
-    report << "Passed. The signed release workflow completed successfully and uploaded the required signed macOS artifacts.\n\n"
+    report << "Passed. The signed release workflow completed successfully and uploaded the required signed macOS artifacts plus verification evidence.\n\n"
   else
     report << "Failed. The run is not acceptable signed-release evidence yet.\n\n"
   end
@@ -273,8 +274,8 @@ def build_report(run_json, artifacts_json, findings, dry:)
   end
 
   report << "## Acceptance Notes\n\n"
-  report << "- This report checks workflow success, the signed macOS release job, and the signed `.app` and `.dmg` artifact records.\n"
-  report << "- It does not download artifacts or inspect Apple notarization logs.\n"
+  report << "- This report checks workflow success, the signed macOS release job, signed `.app` and `.dmg` artifact records, and the workflow-generated verification report record.\n"
+  report << "- It does not download artifacts or inspect Apple notarization logs beyond the verification report produced by the workflow.\n"
   report << "- Keep Apple credentials and signing identities out of PR comments and committed files.\n"
   report
 end

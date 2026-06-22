@@ -94,6 +94,7 @@ Started the Tauri v2 implementation from the PRD.
 - Added a signed-release evidence collector that checks a completed `Signed Release` GitHub Actions run and its signed `.app`/`.dmg` artifacts, writes a sanitized local report under `target/keyplane-validation/`, and supports dry-run report generation before Apple credentials are available.
 - Added latest-run discovery to the signed-release evidence collector so the first real signed `Signed Release` run can be validated without manually copying a run ID.
 - Added a repository-owned evidence script validator that dry-runs the acceptance collectors and fixture-checks KeyPeek device discovery plus signed-release latest-run evidence selection in CI.
+- Added workflow-generated signed macOS artifact verification evidence and made the signed-release collector require the uploaded verification report alongside the signed `.app` and `.dmg` artifacts.
 - Removed the unused Tauri opener plugin and `opener:default` permission, then added a static capability validator so the default app/overlay window capability stays limited to the permissions Keyplane currently needs.
 - Added an MVP acceptance evidence collector that aggregates local automated checks, a private NocFree/Vial `.vil` canary, the KeyPeek Live hardware report, and the signed-release report into one generated acceptance report that fails on missing real evidence.
 

@@ -284,7 +284,7 @@ def build_report(results, dry:)
 
   report << "## Acceptance Notes\n\n"
   report << "- The KeyPeek live gate requires a hardware canary report with an observed Layer Stack Runtime Event from a real KeyPeek-compatible device.\n"
-  report << "- The signed-release gate requires a real `Signed Release` GitHub Actions run with Apple credentials and signed `.app` and `.dmg` artifacts.\n"
+  report << "- The signed-release gate requires a real `Signed Release` GitHub Actions run with Apple credentials, signed `.app` and `.dmg` artifacts, and a workflow-generated verification report.\n"
   report << "- Private `.vil` paths, USB IDs, and release run IDs are redacted from command output.\n"
   report
 end

@@ -2,7 +2,8 @@
 
 The `Signed Release` GitHub Actions workflow builds a signed macOS `.app` bundle
 and `.dmg` artifact when a `v*` tag is pushed or when the workflow is started
-manually.
+manually. It also writes a verification report for the generated app bundle and
+DMG before uploading artifacts.
 
 This is a release scaffold, not proof that the first signed release has shipped.
 The workflow still needs to be run with real Apple signing credentials before
@@ -35,6 +36,12 @@ contract:
 Manual runs default to `skip_stapling=true`, which appends `--skip-stapling`.
 Set `skip_stapling=false` after notarization credentials are confirmed and the
 release should fail if stapling fails.
+
+After the build, the workflow writes
+`target/keyplane-validation/signed-artifacts.md`. That report verifies the app
+bundle with `codesign --verify --deep --strict`, records app code-signing
+details, runs Gatekeeper assessment when stapling is enabled, verifies the DMG
+with `hdiutil`, and records the DMG SHA-256.
 
 ## Local Dry Checks
 
@@ -70,10 +77,11 @@ default branch. To inspect a specific run instead, set
 
 The report is written to `target/keyplane-validation/signed-release.md`. It
 checks that the `Signed Release` workflow completed successfully, that the
-`Signed macOS release` job passed, and that both signed artifact records exist:
+`Signed macOS release` job passed, and that the required artifact records exist:
 
 - `keyplane-macos-signed-app`
 - `keyplane-macos-signed-dmg`
+- `keyplane-macos-release-evidence`
 
 To check report generation without querying GitHub:
 

@@ -116,6 +116,19 @@ build_release = step_named(job, "Build signed macOS release")
   assert_run_contains(build_release, text, "signed Tauri build command changed")
 end
 
+verify_release = step_named(job, "Verify signed macOS artifacts")
+[
+  'report_path="$validation_dir/signed-artifacts.md"',
+  'app_path="src-tauri/target/release/bundle/macos/Keyplane.app"',
+  'codesign --verify --deep --strict --verbose=2 "$app_path"',
+  'codesign -dv --verbose=4 "$app_path"',
+  'spctl --assess --type execute --verbose=4 "$app_path"',
+  'hdiutil verify "$dmg_path"',
+  'shasum -a 256 "$dmg_path"'
+].each do |text|
+  assert_run_contains(verify_release, text, "signed artifact verification contract changed")
+end
+
 assert_equal(
   step_named(job, "Upload signed macOS app bundle").dig("with", "path"),
   "src-tauri/target/release/bundle/macos/Keyplane.app",
@@ -125,6 +138,17 @@ assert_equal(
   step_named(job, "Upload signed macOS dmg").dig("with", "path"),
   "src-tauri/target/release/bundle/dmg/*.dmg",
   "signed dmg artifact path changed"
+)
+verification_upload = step_named(job, "Upload signed release verification report")
+assert_equal(
+  verification_upload.dig("with", "name"),
+  "keyplane-macos-release-evidence",
+  "signed release verification artifact name changed"
+)
+assert_equal(
+  verification_upload.dig("with", "path"),
+  "target/keyplane-validation/signed-artifacts.md",
+  "signed release verification artifact path changed"
 )
 
 cleanup = step_named(job, "Clean up signing keychain")

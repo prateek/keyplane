@@ -32,7 +32,7 @@ The current implementation includes:
 - launch-at-login Settings backed by the Tauri autostart plugin and scoped autostart permissions
 - a static Tauri capability check that keeps unused plugin permissions out of the default app/overlay window capability
 - a GitHub Actions desktop build workflow that verifies the app, validates the signed-release workflow shape, uploads unsigned macOS debug bundles, and uploads Linux/Windows debug binaries
-- a signed macOS release workflow scaffold for Apple certificate import, Tauri signing/notarization, signed `.app`/`.dmg` artifact upload, and sanitized signed-run evidence reports
+- a signed macOS release workflow scaffold for Apple certificate import, Tauri signing/notarization, signed `.app`/`.dmg` artifact upload, workflow-generated artifact verification, and sanitized signed-run evidence reports
 - env-gated KeyPeek Live hardware canaries, a sanitized validation report runner, and a validation checklist for compatible firmware devices
 - an MVP acceptance evidence collector that aggregates automated checks, private Vial import evidence, KeyPeek live hardware evidence, and signed-release evidence without treating dry runs as acceptance
 
