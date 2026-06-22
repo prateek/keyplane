@@ -9,7 +9,37 @@ use crate::backend::{FakeProtocolBackend, ProtocolBackend};
 use crate::domain::{
     apply_runtime_event, ImportCandidate, KeyboardSnapshot, Profile, RuntimeEvent,
 };
+use serde::Deserialize;
 use tauri::{Manager, WebviewUrl, WebviewWindowBuilder};
+use tauri_runtime::ResizeDirection;
+
+#[derive(Debug, Clone, Copy, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "kebab-case")]
+enum OverlayResizeDirection {
+    East,
+    North,
+    NorthEast,
+    NorthWest,
+    South,
+    SouthEast,
+    SouthWest,
+    West,
+}
+
+impl From<OverlayResizeDirection> for ResizeDirection {
+    fn from(direction: OverlayResizeDirection) -> Self {
+        match direction {
+            OverlayResizeDirection::East => ResizeDirection::East,
+            OverlayResizeDirection::North => ResizeDirection::North,
+            OverlayResizeDirection::NorthEast => ResizeDirection::NorthEast,
+            OverlayResizeDirection::NorthWest => ResizeDirection::NorthWest,
+            OverlayResizeDirection::South => ResizeDirection::South,
+            OverlayResizeDirection::SouthEast => ResizeDirection::SouthEast,
+            OverlayResizeDirection::SouthWest => ResizeDirection::SouthWest,
+            OverlayResizeDirection::West => ResizeDirection::West,
+        }
+    }
+}
 
 #[tauri::command]
 fn initial_snapshot() -> KeyboardSnapshot {
@@ -46,17 +76,35 @@ fn import_vial_file(contents: String) -> Result<ImportCandidate, String> {
 
 #[tauri::command]
 fn set_overlay_positioning_mode(app: tauri::AppHandle, enabled: bool) -> Result<(), String> {
-    let window = app
-        .get_webview_window("overlay")
-        .ok_or_else(|| "overlay window does not exist".to_string())?;
+    let window = overlay_window(&app)?;
     window
         .set_ignore_cursor_events(!enabled)
+        .map_err(|err| err.to_string())?;
+    window
+        .set_resizable(enabled)
         .map_err(|err| err.to_string())?;
     if enabled {
         window.show().map_err(|err| err.to_string())?;
         window.set_focus().map_err(|err| err.to_string())?;
     }
     Ok(())
+}
+
+#[tauri::command]
+fn start_overlay_drag(app: tauri::AppHandle) -> Result<(), String> {
+    overlay_window(&app)?
+        .start_dragging()
+        .map_err(|err| err.to_string())
+}
+
+#[tauri::command]
+fn start_overlay_resize(
+    app: tauri::AppHandle,
+    direction: OverlayResizeDirection,
+) -> Result<(), String> {
+    overlay_window(&app)?
+        .start_resize_dragging(direction.into())
+        .map_err(|err| err.to_string())
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -75,9 +123,16 @@ pub fn run() {
             load_profile_edn,
             import_vial_file,
             set_overlay_positioning_mode,
+            start_overlay_drag,
+            start_overlay_resize,
         ])
         .run(tauri::generate_context!())
         .expect("error while running Keyplane");
+}
+
+fn overlay_window(app: &tauri::AppHandle) -> Result<tauri::Window, String> {
+    app.get_window("overlay")
+        .ok_or_else(|| "overlay window does not exist".to_string())
 }
 
 fn create_overlay_window(app: &tauri::AppHandle) -> tauri::Result<()> {
@@ -101,4 +156,21 @@ fn create_overlay_window(app: &tauri::AppHandle) -> tauri::Result<()> {
 
     overlay.set_ignore_cursor_events(true)?;
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn overlay_resize_direction_maps_to_tauri_runtime_direction() {
+        assert_eq!(
+            ResizeDirection::from(OverlayResizeDirection::SouthEast),
+            ResizeDirection::SouthEast
+        );
+        assert_eq!(
+            ResizeDirection::from(OverlayResizeDirection::NorthWest),
+            ResizeDirection::NorthWest
+        );
+    }
 }

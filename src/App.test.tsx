@@ -21,6 +21,17 @@ describe("Keyplane app", () => {
     expect(screen.getAllByText("inherited").length).toBeGreaterThan(0);
   });
 
+  it("shows overlay drag and resize affordances in Positioning Mode", async () => {
+    const user = userEvent.setup();
+    render(<App />);
+
+    await user.click(await screen.findByRole("button", { name: /position/i }));
+
+    expect(screen.getByRole("button", { name: /lock/i })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /drag/i })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /resize/i })).toBeInTheDocument();
+  });
+
   it("surfaces Source Conflicts outside the overlay", async () => {
     const user = userEvent.setup();
     render(<App />);

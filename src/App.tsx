@@ -3,6 +3,7 @@ import {
   Crosshair,
   FileJson,
   Layers3,
+  Maximize2,
   Move,
   PanelLeft,
   RadioTower,
@@ -26,6 +27,8 @@ import {
   importVialFile,
   loadFakeRuntimeEvents,
   loadInitialSnapshot,
+  startOverlayDrag,
+  startOverlayResize,
   setOverlayPositioningMode,
 } from "./tauriClient";
 
@@ -74,6 +77,14 @@ function App() {
     setSnapshot((current) => (current ? promoteSourceCandidate(current, conflict, sourceId) : current));
   }
 
+  function dragOverlay() {
+    void startOverlayDrag();
+  }
+
+  function resizeOverlay() {
+    void startOverlayResize("south-east");
+  }
+
   async function handleImport(file: File | null) {
     if (!file) return;
     setImportError(null);
@@ -95,6 +106,8 @@ function App() {
       <OverlaySurface
         snapshot={snapshot}
         onAdvance={advanceFakeEvent}
+        onDragOverlay={dragOverlay}
+        onResizeOverlay={resizeOverlay}
         onTogglePositioningMode={togglePositioningMode}
       />
     );
@@ -167,6 +180,8 @@ function App() {
           <OverlaySurface
             snapshot={snapshot}
             onAdvance={advanceFakeEvent}
+            onDragOverlay={dragOverlay}
+            onResizeOverlay={resizeOverlay}
             onTogglePositioningMode={togglePositioningMode}
           />
         ) : null}
@@ -184,10 +199,14 @@ function App() {
 function OverlaySurface({
   snapshot,
   onAdvance,
+  onDragOverlay,
+  onResizeOverlay,
   onTogglePositioningMode,
 }: {
   snapshot: KeyboardSnapshot;
   onAdvance: () => void;
+  onDragOverlay: () => void;
+  onResizeOverlay: () => void;
   onTogglePositioningMode: () => void;
 }) {
   const layerName =
@@ -240,6 +259,18 @@ function OverlaySurface({
           <Move size={16} />
           {snapshot.overlay_window.positioning_mode ? "Lock" : "Place"}
         </button>
+        {snapshot.overlay_window.positioning_mode ? (
+          <>
+            <button onPointerDown={onDragOverlay}>
+              <Move size={16} />
+              Drag
+            </button>
+            <button onPointerDown={onResizeOverlay}>
+              <Maximize2 size={16} />
+              Resize
+            </button>
+          </>
+        ) : null}
       </div>
     </section>
   );

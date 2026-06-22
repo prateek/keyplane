@@ -15,11 +15,12 @@ Started the Tauri v2 implementation from the PRD.
 - Added the Rust Protocol Backend trait boundary and routed the Fake Backend command path through it.
 - Added Rust-owned Source Precedence conflict resolution with User Overrides winning over imported candidates while preserving losing values.
 - Added Source Inspector promotion controls backed by snapshot-level User Overrides for the current demo state.
+- Added Rust-owned Overlay Window drag and resize commands, with Positioning Mode temporarily enabling window resizability.
 
 Verification:
 
 - `cargo fmt --check`
-- `cargo test` (21 Rust tests)
-- `npm test` (7 frontend tests)
+- `cargo test` (22 Rust tests)
+- `npm test` (8 frontend tests)
 - `npm run build`
 - `npm run tauri build -- --debug`

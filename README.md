@@ -11,6 +11,7 @@ The current implementation includes:
 - EDN v1 Profile Codec save/load support with deterministic output
 - NocFree/Vial `.vil` JSON import as a Best-Effort Preview Import Candidate
 - App Window surfaces for the overlay, Import Review, Source Inspector, Backend Health, and Positioning Mode
+- Rust-owned Overlay Window drag and resize controls while Positioning Mode is active
 
 The remaining PRD scope includes KeyPeek-derived live hardware support, deeper importer coverage, permission prompts, and release packaging work beyond local debug bundles.
 
