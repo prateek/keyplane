@@ -27,8 +27,9 @@ The current implementation includes:
 - native Sentinel Key global shortcut registration through a Rust-owned Tauri backend and Settings toggle
 - macOS Accessibility and Input Monitoring permission checks and prompts surfaced as persistent Sentinel Keys Backend Health
 - launch-at-login Settings backed by the Tauri autostart plugin and scoped autostart permissions
+- a GitHub Actions desktop build workflow that verifies the app and uploads unsigned macOS debug bundles
 
-The remaining PRD scope includes real KeyPeek-supported hardware validation and release packaging work beyond local debug bundles.
+The remaining PRD scope includes real KeyPeek-supported hardware validation and signed or cross-platform release packaging beyond unsigned macOS debug bundles.
 
 ## Decisions
 
@@ -73,6 +74,8 @@ Build a local debug desktop bundle:
 ```sh
 npm run tauri build -- --debug
 ```
+
+The `Desktop Build` GitHub Actions workflow runs the same verification path on macOS and uploads the unsigned debug `.app` and `.dmg` artifacts.
 
 ## Documentation Map
 

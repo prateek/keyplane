@@ -39,6 +39,7 @@ Started the Tauri v2 implementation from the PRD.
 - Added density-aware structured Display Legend rendering so compact Visual Styles collapse to primary labels, standard styles show one secondary slot, and rich styles preserve all secondary Legend Slots.
 - Added a Visual Style density Settings control backed by the Rust Active Profile store so compact, standard, and rich density choices persist into saved EDN Profiles.
 - Added macOS Accessibility and Input Monitoring permission checks and request prompts, surfaced through persistent Sentinel Keys Backend Health and Settings controls.
+- Added a GitHub Actions desktop build workflow that runs the Rust/frontend verification gate and uploads unsigned macOS debug `.app` and `.dmg` artifacts.
 
 Verification:
 
@@ -47,4 +48,5 @@ Verification:
 - `KEYPLANE_LOCAL_VIL_CANDIDATE=<private .vil path> cargo test local_vil_candidate_file_imports_when_env_is_set -- --ignored`
 - `npm test` (23 frontend tests)
 - `npm run build`
+- `ruby -e 'require "yaml"; YAML.load_file(".github/workflows/desktop-build.yml")'`
 - `npm run tauri build -- --debug`

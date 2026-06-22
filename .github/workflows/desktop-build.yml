@@ -1,0 +1,59 @@
+name: Desktop Build
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+jobs:
+  macos-debug-bundle:
+    name: macOS unsigned debug bundle
+    runs-on: macos-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+          cache: npm
+
+      - name: Set up Rust
+        run: |
+          rustup toolchain install stable --profile minimal
+          rustup default stable
+
+      - name: Install frontend dependencies
+        run: npm ci
+
+      - name: Verify Rust format and tests
+        working-directory: src-tauri
+        run: |
+          cargo fmt --check
+          cargo test
+
+      - name: Verify frontend tests
+        run: npm test
+
+      - name: Build web frontend
+        run: npm run build
+
+      - name: Build unsigned desktop bundle
+        run: npm run tauri build -- --debug
+
+      - name: Upload macOS app bundle
+        uses: actions/upload-artifact@v4
+        with:
+          name: keyplane-macos-debug-app
+          path: src-tauri/target/debug/bundle/macos/Keyplane.app
+          if-no-files-found: error
+
+      - name: Upload macOS dmg
+        uses: actions/upload-artifact@v4
+        with:
+          name: keyplane-macos-debug-dmg
+          path: src-tauri/target/debug/bundle/dmg/*.dmg
+          if-no-files-found: error
