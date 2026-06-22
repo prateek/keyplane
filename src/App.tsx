@@ -7,6 +7,7 @@ import {
   Layers3,
   Maximize2,
   Move,
+  Palette,
   PanelLeft,
   RadioTower,
   ShieldAlert,
@@ -27,6 +28,7 @@ import { navLayerEvent } from "./fixtures";
 import { applyRuntimeEvent } from "./state";
 import {
   commitImportCandidate,
+  importKeyvizStyleFile,
   importVialFile,
   loadFakeRuntimeEvents,
   loadInitialSnapshot,
@@ -100,6 +102,19 @@ function App() {
     try {
       const contents = await file.text();
       setImportCandidate(await importVialFile(contents));
+      setView("import");
+    } catch (error) {
+      setImportError(error instanceof Error ? error.message : String(error));
+    }
+  }
+
+  async function handleStyleImport(file: File | null) {
+    if (!file) return;
+    setImportError(null);
+    setProfileStatus(null);
+    try {
+      const contents = await file.text();
+      setImportCandidate(await importKeyvizStyleFile(contents));
       setView("import");
     } catch (error) {
       setImportError(error instanceof Error ? error.message : String(error));
@@ -233,6 +248,15 @@ function App() {
                 type="file"
                 accept=".vil,application/json"
                 onChange={(event) => void handleImport(event.currentTarget.files?.[0] ?? null)}
+              />
+            </label>
+            <label className="file-button">
+              <Palette size={17} />
+              Style JSON
+              <input
+                type="file"
+                accept=".json,application/json"
+                onChange={(event) => void handleStyleImport(event.currentTarget.files?.[0] ?? null)}
               />
             </label>
           </div>
@@ -495,6 +519,22 @@ function ImportReview({
           <span key={section}>{section}</span>
         ))}
       </div>
+      {candidate.conflicts.length > 0 ? (
+        <section className="import-conflicts">
+          <h3>Source Conflicts</h3>
+          {candidate.conflicts.map((conflict) => (
+            <article className="list-row" key={conflict.field_path}>
+              <strong>{conflict.field_path}</strong>
+              <span className="badge">{conflict.selected_source_id}</span>
+              <p>
+                {conflict.candidates
+                  .map((candidate) => `${candidate.source_id}: ${candidate.value}`)
+                  .join(" / ")}
+              </p>
+            </article>
+          ))}
+        </section>
+      ) : null}
     </section>
   );
 }

@@ -38,6 +38,10 @@ impl ActiveProfileStore {
         Ok(snapshot_from_profile(&profile, source_conflicts))
     }
 
+    pub fn profile_snapshot(&self) -> Result<Profile, ActiveProfileError> {
+        Ok(self.profile()?.clone())
+    }
+
     pub fn commit_import_candidate(
         &self,
         candidate: ImportCandidate,

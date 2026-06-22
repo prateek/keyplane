@@ -18,11 +18,12 @@ Started the Tauri v2 implementation from the PRD.
 - Added Rust-owned Overlay Window drag and resize commands, with Positioning Mode temporarily enabling window resizability.
 - Added a Rust-owned Active Profile store with Import Candidate commit, active EDN save/load commands, Source Inspector promotion against active profile state, and Best-Effort Preview state confidence.
 - Added toolbar actions to save and load the Active Profile as hand-editable EDN.
+- Added keyviz style JSON import as a style-only Import Candidate with visual-style Source Conflicts.
 
 Verification:
 
 - `cargo fmt --check`
-- `cargo test` (27 Rust tests)
+- `cargo test` (29 Rust tests)
 - `npm test` (11 frontend tests)
 - `npm run build`
 - `npm run tauri build -- --debug`

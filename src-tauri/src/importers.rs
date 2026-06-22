@@ -9,9 +9,9 @@ use thiserror::Error;
 
 #[derive(Debug, Error, PartialEq)]
 pub enum ImportError {
-    #[error("Vial JSON parse failed: {0}")]
+    #[error("JSON parse failed: {0}")]
     Json(String),
-    #[error("Vial import is missing {0}")]
+    #[error("Import is missing {0}")]
     Missing(&'static str),
 }
 
@@ -104,6 +104,136 @@ pub fn import_vial_json(contents: &str) -> Result<ImportCandidate, ImportError> 
             preserved_sections,
         },
     })
+}
+
+pub fn import_keyviz_style_json(
+    contents: &str,
+    base_profile: &Profile,
+) -> Result<ImportCandidate, ImportError> {
+    let json: JsonValue =
+        serde_json::from_str(contents).map_err(|err| ImportError::Json(err.to_string()))?;
+    let keyviz_style = json
+        .pointer("/appearance/style")
+        .and_then(JsonValue::as_str)
+        .ok_or(ImportError::Missing("appearance.style"))?;
+    let preserved_sections = preserved_keyviz_style_sections(&json)?;
+    let source = Source {
+        id: format!("keyviz-style-{}", sanitize_id(keyviz_style)),
+        name: format!("keyviz {} style", keyviz_style),
+        kind: "keyviz-style-import".to_string(),
+        authority: SourceAuthority::BestEffortPreview,
+    };
+    let imported_style = VisualStyle {
+        variant_id: format!("keyviz-{}", sanitize_id(keyviz_style)),
+        density: keyviz_density(keyviz_style),
+    };
+    let active_style_source_id = base_profile
+        .sources
+        .first()
+        .map(|source| source.id.clone())
+        .unwrap_or_else(|| "active-profile".to_string());
+    let mut preview_profile = base_profile.clone();
+
+    if !preview_profile
+        .sources
+        .iter()
+        .any(|candidate| candidate.id == source.id)
+    {
+        preview_profile.sources.push(source.clone());
+    }
+    preview_profile.visual_style = imported_style.clone();
+    preview_profile.source_provenance.push(SourceRef {
+        source_id: source.id.clone(),
+        field_path: ":visual/style".to_string(),
+        raw: Some(contents.trim().to_string()),
+    });
+    promote_style_precedence(&mut preview_profile, &source.id, &active_style_source_id);
+
+    let conflicts = if base_profile.visual_style.variant_id == imported_style.variant_id {
+        Vec::new()
+    } else {
+        vec![SourceConflict {
+            field_path: ":visual/style :style/variant-id".to_string(),
+            selected_source_id: source.id.clone(),
+            candidates: vec![
+                crate::domain::SourceCandidate {
+                    source_id: active_style_source_id,
+                    value: base_profile.visual_style.variant_id.clone(),
+                    selected: false,
+                },
+                crate::domain::SourceCandidate {
+                    source_id: source.id.clone(),
+                    value: imported_style.variant_id.clone(),
+                    selected: true,
+                },
+            ],
+        }]
+    };
+
+    Ok(ImportCandidate {
+        id: format!("candidate-{}", source.id),
+        source,
+        best_effort_preview: true,
+        preview_profile,
+        conflicts,
+        summary: ImportSummary {
+            imported_keys: 0,
+            imported_layers: 0,
+            preserved_sections,
+        },
+    })
+}
+
+fn preserved_keyviz_style_sections(json: &JsonValue) -> Result<Vec<String>, ImportError> {
+    let required_sections = [
+        "appearance",
+        "layout",
+        "color",
+        "modifier",
+        "text",
+        "border",
+        "background",
+        "mouse",
+    ];
+
+    for section in required_sections {
+        if !json.get(section).is_some_and(JsonValue::is_object) {
+            return Err(ImportError::Missing(section));
+        }
+    }
+
+    Ok(required_sections
+        .into_iter()
+        .map(|section| section.to_string())
+        .collect())
+}
+
+fn keyviz_density(keyviz_style: &str) -> StyleDensity {
+    match keyviz_style {
+        "minimal" => StyleDensity::Compact,
+        "laptop" | "lowprofile" | "pbt" => StyleDensity::Rich,
+        _ => StyleDensity::Standard,
+    }
+}
+
+fn promote_style_precedence(profile: &mut Profile, source_id: &str, active_style_source_id: &str) {
+    if let Some(rule) = profile
+        .source_precedence
+        .iter_mut()
+        .find(|rule| rule.field_scope == ":visual/style")
+    {
+        rule.source_order
+            .retain(|candidate| candidate != source_id && candidate != active_style_source_id);
+        rule.source_order
+            .insert(0, active_style_source_id.to_string());
+        rule.source_order.insert(0, source_id.to_string());
+        return;
+    }
+
+    profile.source_precedence.push(SourcePrecedenceRule {
+        field_scope: ":visual/style".to_string(),
+        source_order: vec![source_id.to_string(), active_style_source_id.to_string()],
+    });
 }
 
 fn import_kle_rows_as_fallback_layout(rows: &[JsonValue], source_id: &str) -> Vec<PhysicalKey> {
@@ -299,6 +429,67 @@ mod tests {
     }
     "#;
 
+    const KEYVIZ_STYLE_FIXTURE: &str = r##"
+    {
+      "appearance": {
+        "monitor": null,
+        "flexDirection": "column",
+        "alignment": "bottom-center",
+        "marginX": 100,
+        "marginY": 100,
+        "animation": "fade",
+        "animationDuration": 0.25,
+        "style": "lowprofile"
+      },
+      "layout": {
+        "showIcon": true,
+        "showSymbol": true,
+        "showPressCount": true,
+        "iconAlignment": "flex-end"
+      },
+      "color": {
+        "color": "#ffffff",
+        "secondaryColor": "#1a1a1a",
+        "useGradient": true
+      },
+      "modifier": {
+        "highlight": false,
+        "color": "#3a86ff",
+        "secondaryColor": "#000000",
+        "textColor": "#000000",
+        "borderColor": "#000000"
+      },
+      "text": {
+        "size": 32,
+        "color": "#000000",
+        "caps": "capitalize",
+        "variant": "text-short",
+        "alignment": "center"
+      },
+      "border": {
+        "enabled": true,
+        "color": "#1a1a1a",
+        "width": 2,
+        "radius": 0.5
+      },
+      "background": {
+        "enabled": true,
+        "color": "#ffffff99"
+      },
+      "mouse": {
+        "showClicks": false,
+        "size": 150,
+        "color": "#009dff",
+        "keepHighlight": false,
+        "showIndicator": true,
+        "keepIndicator": true,
+        "indicatorSize": 50,
+        "indicatorOffsetX": 50,
+        "indicatorOffsetY": 50
+      }
+    }
+    "##;
+
     #[test]
     fn vial_file_import_produces_best_effort_import_candidate() {
         let candidate = import_vial_json(VIAL_FIXTURE).expect("fixture imports");
@@ -324,5 +515,56 @@ mod tests {
 
         assert_eq!(nav.actions[0].raw.value, "KC_TRNS");
         assert_eq!(nav.actions[0].provenance.raw.as_deref(), Some("KC_TRNS"));
+    }
+
+    #[test]
+    fn keyviz_style_import_only_changes_visual_style() {
+        let base_profile = crate::fake_backend::fake_profile();
+        let candidate =
+            import_keyviz_style_json(KEYVIZ_STYLE_FIXTURE, &base_profile).expect("style imports");
+
+        assert_eq!(candidate.source.kind, "keyviz-style-import");
+        assert_eq!(candidate.summary.imported_keys, 0);
+        assert_eq!(candidate.summary.imported_layers, 0);
+        assert_eq!(
+            candidate.preview_profile.visual_style.variant_id,
+            "keyviz-lowprofile"
+        );
+        assert_eq!(
+            candidate.preview_profile.visual_style.density,
+            StyleDensity::Rich
+        );
+        assert_eq!(
+            candidate.preview_profile.physical_layout,
+            base_profile.physical_layout
+        );
+        assert_eq!(candidate.preview_profile.keymap, base_profile.keymap);
+    }
+
+    #[test]
+    fn keyviz_style_import_exposes_a_visual_style_source_conflict() {
+        let base_profile = crate::fake_backend::fake_profile();
+        let candidate =
+            import_keyviz_style_json(KEYVIZ_STYLE_FIXTURE, &base_profile).expect("style imports");
+
+        assert_eq!(candidate.conflicts.len(), 1);
+        assert_eq!(
+            candidate.conflicts[0].field_path,
+            ":visual/style :style/variant-id"
+        );
+        assert_eq!(
+            candidate.conflicts[0].selected_source_id,
+            "keyviz-style-lowprofile"
+        );
+        assert!(candidate.conflicts[0].candidates.iter().any(|candidate| {
+            candidate.source_id == "fake-backend"
+                && candidate.value == "keyplane-default"
+                && !candidate.selected
+        }));
+        assert!(candidate.conflicts[0].candidates.iter().any(|candidate| {
+            candidate.source_id == "keyviz-style-lowprofile"
+                && candidate.value == "keyviz-lowprofile"
+                && candidate.selected
+        }));
     }
 }

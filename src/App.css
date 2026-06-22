@@ -315,6 +315,11 @@ button:hover {
   font-size: 1.05rem;
 }
 
+.import-conflicts h3 {
+  margin: 14px 0 0;
+  font-size: 0.95rem;
+}
+
 .import-view header {
   display: flex;
   align-items: flex-start;

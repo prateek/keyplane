@@ -97,6 +97,17 @@ fn import_vial_file(contents: String) -> Result<ImportCandidate, String> {
 }
 
 #[tauri::command]
+fn import_keyviz_style_file(
+    active_profile: State<'_, ActiveProfileStore>,
+    contents: String,
+) -> Result<ImportCandidate, String> {
+    let profile = active_profile
+        .profile_snapshot()
+        .map_err(|err| err.to_string())?;
+    importers::import_keyviz_style_json(&contents, &profile).map_err(|err| err.to_string())
+}
+
+#[tauri::command]
 fn commit_import_candidate(
     active_profile: State<'_, ActiveProfileStore>,
     candidate: ImportCandidate,
@@ -168,6 +179,7 @@ pub fn run() {
             save_active_profile_edn,
             load_active_profile_edn,
             import_vial_file,
+            import_keyviz_style_file,
             commit_import_candidate,
             promote_source_candidate,
             set_overlay_positioning_mode,
