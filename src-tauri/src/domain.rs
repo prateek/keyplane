@@ -648,7 +648,7 @@ pub fn derive_action(
     key_id: &str,
 ) -> KeyAction {
     let semantic = derive_semantic_action(raw_value);
-    let legend = legend_for_semantic(&semantic);
+    let legend = legend_for_action(raw_value, &semantic);
 
     KeyAction {
         key_id: key_id.to_string(),
@@ -895,11 +895,7 @@ fn single_modifier_label(value: &str) -> String {
 }
 
 fn key_label(value: &str) -> String {
-    let normalized = value
-        .trim()
-        .trim_start_matches("KC_")
-        .trim_start_matches("&kp ");
-    match normalized.to_ascii_uppercase().as_str() {
+    match key_token(value).as_str() {
         "ESC" => "Esc".to_string(),
         "ENT" | "ENTER" => "Enter".to_string(),
         "BSPC" => "Backspace".to_string(),
@@ -914,13 +910,83 @@ fn key_label(value: &str) -> String {
         "RGHT" | "RIGHT" => "Right".to_string(),
         "UP" => "Up".to_string(),
         "DOWN" => "Down".to_string(),
+        "N1" | "NUMBER_1" => "1".to_string(),
+        "N2" | "NUMBER_2" => "2".to_string(),
+        "N3" | "NUMBER_3" => "3".to_string(),
+        "N4" | "NUMBER_4" => "4".to_string(),
+        "N5" | "NUMBER_5" => "5".to_string(),
+        "N6" | "NUMBER_6" => "6".to_string(),
+        "N7" | "NUMBER_7" => "7".to_string(),
+        "N8" | "NUMBER_8" => "8".to_string(),
+        "N9" | "NUMBER_9" => "9".to_string(),
+        "N0" | "NUMBER_0" => "0".to_string(),
+        "MINS" | "MINUS" => "-".to_string(),
+        "EQL" | "EQUAL" => "=".to_string(),
+        "LBRC" | "LBRACKET" | "LEFT_BRACKET" => "[".to_string(),
+        "RBRC" | "RBRACKET" | "RIGHT_BRACKET" => "]".to_string(),
+        "BSLS" | "BSLASH" | "BACKSLASH" => "\\".to_string(),
+        "SCLN" | "SEMICOLON" => ";".to_string(),
+        "QUOT" | "QUOTE" | "SQT" => "'".to_string(),
+        "GRV" | "GRAVE" | "BTICK" => "`".to_string(),
+        "COMM" | "COMMA" => ",".to_string(),
+        "DOT" | "PERIOD" => ".".to_string(),
+        "SLSH" | "SLASH" | "FSLH" => "/".to_string(),
+        "EXLM" | "EXCLAIM" => "!".to_string(),
+        "AT" => "@".to_string(),
+        "HASH" => "#".to_string(),
+        "DLR" | "DOLLAR" => "$".to_string(),
+        "PERC" | "PERCENT" => "%".to_string(),
+        "CIRC" | "CIRCUMFLEX" => "^".to_string(),
+        "AMPR" | "AMPERSAND" => "&".to_string(),
+        "ASTR" | "ASTERISK" => "*".to_string(),
+        "LPRN" | "LEFT_PAREN" => "(".to_string(),
+        "RPRN" | "RIGHT_PAREN" => ")".to_string(),
+        "UNDS" | "UNDERSCORE" => "_".to_string(),
+        "PLUS" => "+".to_string(),
+        "LCBR" | "LEFT_CURLY_BRACE" => "{".to_string(),
+        "RCBR" | "RIGHT_CURLY_BRACE" => "}".to_string(),
+        "PIPE" => "|".to_string(),
+        "COLN" | "COLON" => ":".to_string(),
+        "DQUO" | "DOUBLE_QUOTE" => "\"".to_string(),
+        "TILD" | "TILDE" => "~".to_string(),
+        "LT" => "<".to_string(),
+        "GT" => ">".to_string(),
+        "QUES" | "QUESTION" => "?".to_string(),
         other if other.len() == 1 => other.to_string(),
         other => other.replace('_', " "),
     }
 }
 
+fn key_token(value: &str) -> String {
+    let upper = value.trim().to_ascii_uppercase();
+    upper
+        .strip_prefix("KC_")
+        .or_else(|| upper.strip_prefix("&KP "))
+        .unwrap_or(&upper)
+        .trim()
+        .to_string()
+}
+
 fn mouse_label(value: &str) -> String {
     key_label(value.trim_start_matches("KC_MS_").trim_start_matches("MS_"))
+}
+
+fn legend_for_action(raw_value: &str, semantic: &SemanticAction) -> DisplayLegend {
+    let mut legend = legend_for_semantic(semantic);
+
+    if semantic.kind == SemanticActionKind::Key {
+        if let Some(shifted_label) = shifted_label_for_key(raw_value) {
+            insert_after_primary(
+                &mut legend.slots,
+                LegendSlot {
+                    slot: LegendSlotKind::Shifted,
+                    text: shifted_label.to_string(),
+                },
+            );
+        }
+    }
+
+    legend
 }
 
 fn legend_for_semantic(semantic: &SemanticAction) -> DisplayLegend {
@@ -997,6 +1063,41 @@ fn legend_for_semantic(semantic: &SemanticAction) -> DisplayLegend {
     }
 
     DisplayLegend { slots }
+}
+
+fn insert_after_primary(slots: &mut Vec<LegendSlot>, slot: LegendSlot) {
+    let index = slots
+        .iter()
+        .position(|candidate| candidate.slot != LegendSlotKind::Primary)
+        .unwrap_or(slots.len());
+    slots.insert(index, slot);
+}
+
+fn shifted_label_for_key(value: &str) -> Option<&'static str> {
+    match key_token(value).as_str() {
+        "1" | "N1" | "NUMBER_1" => Some("!"),
+        "2" | "N2" | "NUMBER_2" => Some("@"),
+        "3" | "N3" | "NUMBER_3" => Some("#"),
+        "4" | "N4" | "NUMBER_4" => Some("$"),
+        "5" | "N5" | "NUMBER_5" => Some("%"),
+        "6" | "N6" | "NUMBER_6" => Some("^"),
+        "7" | "N7" | "NUMBER_7" => Some("&"),
+        "8" | "N8" | "NUMBER_8" => Some("*"),
+        "9" | "N9" | "NUMBER_9" => Some("("),
+        "0" | "N0" | "NUMBER_0" => Some(")"),
+        "MINS" | "MINUS" => Some("_"),
+        "EQL" | "EQUAL" => Some("+"),
+        "LBRC" | "LBRACKET" | "LEFT_BRACKET" => Some("{"),
+        "RBRC" | "RBRACKET" | "RIGHT_BRACKET" => Some("}"),
+        "BSLS" | "BSLASH" | "BACKSLASH" => Some("|"),
+        "SCLN" | "SEMICOLON" => Some(":"),
+        "QUOT" | "QUOTE" | "SQT" => Some("\""),
+        "GRV" | "GRAVE" | "BTICK" => Some("~"),
+        "COMM" | "COMMA" => Some("<"),
+        "DOT" | "PERIOD" => Some(">"),
+        "SLSH" | "SLASH" | "FSLH" => Some("?"),
+        _ => None,
+    }
 }
 
 fn push_icon_slot(slots: &mut Vec<LegendSlot>, text: &str) {
@@ -1378,6 +1479,47 @@ mod tests {
         assert_eq!(hyper_tab.semantic.kind, SemanticActionKind::TapHold);
         assert_eq!(hyper_tab.semantic.label, "Tab");
         assert_eq!(hyper_tab.semantic.hold_label.as_deref(), Some("Hyper"));
+    }
+
+    #[test]
+    fn number_and_symbol_keys_derive_shifted_legend_slots() {
+        let one = derive_action("qmk", "KC_1", source_ref(), "k-1");
+        let minus = derive_action("qmk", "KC_MINS", source_ref(), "k-minus");
+        let zmk_two = derive_action("zmk", "&kp N2", source_ref(), "k-2");
+        let shifted_alias = derive_action("qmk", "KC_EXLM", source_ref(), "k-exclaim");
+
+        assert_eq!(one.semantic.label, "1");
+        assert_eq!(
+            one.legend.slots,
+            vec![
+                LegendSlot {
+                    slot: LegendSlotKind::Primary,
+                    text: "1".to_string()
+                },
+                LegendSlot {
+                    slot: LegendSlotKind::Shifted,
+                    text: "!".to_string()
+                }
+            ]
+        );
+        assert_eq!(minus.semantic.label, "-");
+        assert!(minus
+            .legend
+            .slots
+            .iter()
+            .any(|slot| { slot.slot == LegendSlotKind::Shifted && slot.text == "_" }));
+        assert_eq!(zmk_two.semantic.label, "2");
+        assert!(zmk_two
+            .legend
+            .slots
+            .iter()
+            .any(|slot| { slot.slot == LegendSlotKind::Shifted && slot.text == "@" }));
+        assert_eq!(shifted_alias.semantic.label, "!");
+        assert!(!shifted_alias
+            .legend
+            .slots
+            .iter()
+            .any(|slot| { slot.slot == LegendSlotKind::Shifted }));
     }
 
     #[test]

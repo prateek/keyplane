@@ -8,7 +8,7 @@ The current implementation includes:
 - a Fake Backend that emits Keyboard Snapshots and Layer Stack Runtime Events
 - a transparent, frameless, always-on-top Tauri Overlay Window owned by Rust
 - Effective Action resolution for transparent keys and inherited legends
-- density-aware structured Display Legend rendering, including layer-tap, QMK mod-tap, and optional icon slots, plus Settings controls for compact, standard, and rich Visual Styles
+- density-aware structured Display Legend rendering, including shifted symbol, layer-tap, QMK mod-tap, and optional icon slots, plus Settings controls for compact, standard, and rich Visual Styles
 - EDN v1 Profile Codec save/load support with deterministic output, schema migration gating, and toolbar import/export actions
 - NocFree/Vial `.vil` JSON import as a Best-Effort Preview Import Candidate, including backup-style layer matrices
 - Vial device HID import as a Best-Effort Preview Import Candidate, using KeyPeek-derived Vial definition and raw-matrix reads

@@ -47,6 +47,7 @@ Started the Tauri v2 implementation from the PRD.
 - Added density-aware structured Display Legend rendering so compact Visual Styles collapse to primary labels, standard styles show one secondary slot, and rich styles preserve all secondary Legend Slots.
 - Added derived `tap-role` and `hold-role` Display Legend Slots for QMK and ZMK layer-tap actions while preserving compact primary labels.
 - Added QMK mod-tap alias parsing and `tap-role`/`hold-role` Legend Slots with persisted optional hold labels for richer tap-hold visualization.
+- Added derived `shifted` Display Legend Slots for QMK and ZMK number/symbol key actions, with readable primary labels for punctuation and shifted aliases.
 - Added optional `icon` Display Legend Slots derived from Semantic Action categories and rendered distinctly in rich keycap styles while compact and standard density remain uncluttered.
 - Added top active layer highlighting for non-inherited Effective Actions in the full-keyboard Overlay Surface.
 - Added a Visual Style density Settings control backed by the Rust Active Profile store so compact, standard, and rich density choices persist into saved EDN Profiles.
@@ -64,10 +65,10 @@ Started the Tauri v2 implementation from the PRD.
 Verification:
 
 - `cargo fmt --check`
-- `cargo test` (93 Rust tests passed, 3 private local hardware canaries ignored by default)
+- `cargo test` (96 Rust tests passed, 3 private local hardware canaries ignored by default)
 - `KEYPLANE_LOCAL_VIL_CANDIDATE=<private .vil path> cargo test local_vil_candidate_file_imports_when_env_is_set -- --ignored`
 - `npm ci`
-- `npm test` (28 frontend tests)
+- `npm test` (29 frontend tests)
 - `npm run build`
 - `actionlint .github/workflows/signed-release.yml .github/workflows/desktop-build.yml`
 - `ruby -e 'require "yaml"; %w[.github/workflows/signed-release.yml .github/workflows/desktop-build.yml].each { |path| YAML.load_file(path) }'`
